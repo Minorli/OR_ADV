@@ -3,6 +3,7 @@ import { CLUB_ID } from './types';
 import type { MemberSummary, Role, RpcRequest, TrustedIdentity } from './types';
 import type { Store, Transaction } from './store';
 import { key, memberIdFor, shanghaiYear, statsIdFor, userIdFor } from './models';
+import { memberIdentityFields } from './member-identity';
 import type { Actor, Activity, Audit, MemberStats, Membership, PublicRanking, ServiceOptions, StaffRole, User } from './models';
 
 export class Context {
@@ -27,7 +28,7 @@ export class Context {
   async roles(tx: Transaction, actor: Actor): Promise<StaffRole[]> {
     const roles = await Promise.all((['owner','operator','leader','checkin'] as Role[]).map((role) => tx.get<StaffRole>('staff_roles', key('role', this.clubId, actor.user.id, role))));
     return roles.filter((role): role is StaffRole => !!role && role.clubId === this.clubId && role.userId === actor.user.id && role.enabled && (!role.expiresAt || role.expiresAt > this.now)
-      && (!['owner','operator'].includes(role.role) || role.activityIds === null));
+      && (['owner','operator'].includes(role.role) ? role.activityIds === null : Array.isArray(role.activityIds) && role.activityIds.length > 0));
   }
   async staff(tx: Transaction, allowed: Role[], activityId?: string): Promise<Actor> {
     const actor = await this.actor(tx);
@@ -50,7 +51,7 @@ export class Context {
     return { id: actor.member.id, clubId: this.clubId, nickname: actor.member.nickname, rankingOptIn: actor.member.rankingOptIn,
       rankingConsentVersion: actor.member.rankingConsentVersion, growthPoints: growth?.points ?? 0,
       annualPoints: annual?.points ?? 0, completedCount: growth?.completedCount ?? 0, revision: actor.member.revision,
-      roles: (await this.roles(tx, actor)).map((role) => role.role) };
+      roles: (await this.roles(tx, actor)).map((role) => role.role), ...memberIdentityFields(actor.member, this.now) };
   }
   async audit(tx: Transaction, actor: Actor, targetType: string, targetId: string, summary: Record<string, unknown>, reason = '') {
     const id = this.id();
@@ -83,7 +84,7 @@ export async function refreshRankings(ctx: Context, tx: Transaction, member: Mem
   }
 }
 
-export interface Cursor { value: unknown; id: string; offset?: number; score?: number; rank?: number }
+export interface Cursor { value: unknown; id: string; offset?: number; score?: number; rank?: number; signature?: string }
 export function parseCursor(value: unknown): Cursor | undefined {
   if (value === undefined || value === null || value === '') return undefined;
   try {

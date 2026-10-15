@@ -16,7 +16,7 @@ export function registrationCard(registration: Registration) {
   const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
   const lastDay = registration.lastDepartureDay;
   const completionVoided = (registration as Registration & { completionVoided?: boolean }).completionVoided === true;
-  return { ...registration, completionVoided, stateText: completionVoided ? '完成已更正' : registrationStates[registration.state] || registration.state, createdText: dateText(registration.createdAt), canCancel: ['pending_review', 'waitlisted', 'pending_confirmation', 'confirmed'].includes(registration.state), canReview: ['pending_review', 'waitlisted'].includes(registration.state), canConfirm: registration.state === 'pending_confirmation', canDepart: registration.state === 'confirmed' || (registration.state === 'checked_in' && !!lastDay && lastDay < today), canReturn: registration.state === 'checked_in' && lastDay === today };
+  return { ...registration, completionVoided, stateText: registration.activityState === 'cancelled' ? '活动已取消' : completionVoided ? '完成已更正' : registrationStates[registration.state] || registration.state, createdText: dateText(registration.createdAt), canCancel: ['pending_review', 'waitlisted', 'pending_confirmation', 'confirmed'].includes(registration.state), canReview: ['pending_review', 'waitlisted'].includes(registration.state), canConfirm: registration.state === 'pending_confirmation', canDepart: registration.state === 'confirmed' || (registration.state === 'checked_in' && !!lastDay && lastDay < today), canReturn: registration.state === 'checked_in' && lastDay === today };
 }
-export const mockRoleLabels = ['游客', '新车友', '主理人', '运营', '领队', '签到员'];
-export const mockRoles = ['guest', 'member', 'owner', 'operator', 'leader', 'checkin'] as const;
+export const mockRoleLabels = ['游客', '普通成员', '创始成员', '主理人', '运营', '领队', '签到员'];
+export const mockRoles = ['guest', 'member', 'founder', 'owner', 'operator', 'leader', 'checkin'] as const;

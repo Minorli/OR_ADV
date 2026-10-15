@@ -1,15 +1,26 @@
 <view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
 <view class="page">
-  <view class="eyebrow">CLUB / SHARED EXPERIENCE</view><view class="title">同行榜</view>
-  <view class="subtitle">分享成长与同行经历，同分并列。</view>
-  <view class="notice">只有自愿公开的车友会出现在榜单。昵称、积分与完成次数公开可见；退出后立即停止展示。年度积累当前为 {{year}} 年。</view>
-  <view wx:if="{{member}}" class="card"><view class="row"><view class="grow"><view class="card-title">{{member.rankingOptIn ? '你已加入公开同行榜' : '你的成长记录默认不公开'}}</view><view class="small muted mt">随时选择，不影响报名和自己的成长记录。</view></view></view><button class="secondary full mt" loading="{{saving}}" disabled="{{saving}}" bindtap="optIn">{{member.rankingOptIn ? '退出公开同行榜' : '了解并自愿加入'}}</button></view>
-  <button wx:else class="text-button full" bindtap="profile">我的公开与隐私设置 ↗</button>
-  <view class="filter-row"><button wx:for="{{filters}}" wx:key="value" class="pill {{metric === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view>
-  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
-  <view wx:for="{{items}}" wx:key="memberPublicId" class="card row"><view class="rank">{{item.rank}}</view><view class="grow"><view class="rank-name">{{item.nickname}}</view><view class="tiny muted mt">完成 {{item.completedCount}} 次同行</view></view><view><view class="ledger-value">{{item.score}}</view><view class="tiny muted">{{metric === 'completed_count' ? '次完成' : '成长积累'}}</view></view></view>
-  <view wx:if="{{loading}}" class="loading">正在加载榜单…</view>
-  <view wx:if="{{!loading && !error && !items.length}}" class="empty">暂无公开记录。<text>{{'\n'}}</text>是否加入榜单，由你自己选择。</view>
-  <button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更多同行者</button>
-  <view class="footer-note">本榜单不记录速度、计时或比赛成绩。<text>{{'\n'}}</text>年度奖励规则由组织方另行说明。</view>
+  <view class="masthead"><view class="wordmark">OR.<text>ADV CLUB</text></view><text class="tag">原始拉力</text></view>
+  <view class="title">俱乐部</view><view class="subtitle">非铺装探索、技能训练与多日同行。<text>{{'\n'}}</text>了解成员，查看真实经历。</view>
+  <view class="segmented mt"><button class="segment {{mode === 'recommended' ? 'selected' : ''}}" data-mode="recommended" bindtap="mode">俱乐部推荐</button><button class="segment {{mode === 'points' ? 'selected' : ''}}" data-mode="points" bindtap="mode">积分榜</button></view>
+  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
+  <block wx:if="{{mode === 'recommended'}}">
+    <view class="section-head"><text class="section-title">俱乐部成员</text><text class="section-index">MEMBERS</text></view>
+    <view class="small muted paragraph mb">有效创始成员优先，其他顺序由俱乐部编排。这里展示成员推荐，积分排名请切换查看。</view>
+    <view wx:for="{{recommendations}}" wx:key="memberPublicId" class="card recommendation-card"><view class="row"><view class="member-avatar">OR.</view><view class="grow"><view class="row"><text class="card-title">{{item.nickname}}</text><text class="tag {{item.memberKind === 'founder' ? 'tag-dark' : ''}}">{{item.memberKind === 'founder' ? '创始成员' : '普通成员'}}</text></view><view wx:if="{{item.growthPoints !== undefined && item.completedCount !== undefined}}" class="small muted mt">完成 {{item.completedCount}} 次同行 · 成长 {{item.growthPoints}} 分</view><view wx:else class="small muted mt">已同意公开成员介绍</view></view></view></view>
+    <view wx:if="{{!loading && !error && !recommendations.length}}" class="empty">暂无公开推荐的成员。<text>{{'\n'}}</text>公开展示需要本人单独同意。</view>
+    <button wx:if="{{recommendationCursor && !loading}}" class="secondary full" bindtap="more">查看更多成员</button>
+    <view class="notice">是否公开推荐由你选择，退出不影响成员身份和参加活动。<button class="text-button" bindtap="profile">管理我的公开选择 →</button></view>
+  </block>
+  <block wx:else>
+    <view class="filter-row"><button wx:for="{{filters}}" wx:key="value" class="pill {{metric === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view>
+    <view class="small muted paragraph mb">按实际记录排序，同分并列。成员身份不改变积分或名次。年度积分当前为 {{year}} 年。</view>
+    <view wx:for="{{items}}" wx:key="memberPublicId" class="card row"><view class="rank">{{item.rank}}</view><view class="grow"><view class="rank-name">{{item.nickname}}</view><view class="tiny muted mt">完成 {{item.completedCount}} 次同行</view></view><view><view class="ledger-value">{{item.score}}</view><view class="tiny muted">{{metric === 'completed_count' ? '次完成' : '积分'}}</view></view></view>
+    <view wx:if="{{!loading && !error && !items.length}}" class="empty">暂无公开的积分记录。<text>{{'\n'}}</text>加入积分榜需要本人同意。</view>
+    <button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更多记录</button>
+    <button wx:if="{{member}}" class="secondary full mt" loading="{{saving}}" disabled="{{saving}}" bindtap="optIn">{{member.rankingOptIn ? '退出公开积分榜' : '了解并自愿加入积分榜'}}</button><button wx:else class="text-button full mt" bindtap="profile">我的公开与隐私设置 →</button>
+  </block>
+  <view wx:if="{{loading}}" class="loading">正在加载俱乐部记录…</view>
+  <view wx:if="{{contact.configured}}" class="card mt"><view class="row"><view class="grow"><view class="card-title">联系{{contact.contactName || '俱乐部'}}</view><view class="small muted mt">{{contact.contactInstructions || '活动与成员事务，请联系工作人员。'}}</view></view><button class="mini secondary" bindtap="contact">{{contact.contactMethod === 'phone' ? '联系' : '复制联系信息'}}</button></view></view>
+  <view class="footer-note">积分记录成长，不替代技能与安全核验。<text>{{'\n'}}</text>本俱乐部不开展计时排名。</view>
 </view>

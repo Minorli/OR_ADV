@@ -127,7 +127,16 @@ export async function ownPoints(ctx: Context) {
   const summary = await ctx.store.transaction(async (tx) => ctx.summary(tx, await ctx.actor(tx), year));
   const rows = await ctx.store.query<LedgerEntry>('points_ledger', { clubId: ctx.clubId, memberId: summary.id, year }, { orderBy: 'effectiveAt', direction: 'desc', limit: 21, after: parseCursor(ctx.request.payload.cursor) });
   const page = paginated(rows, 'effectiveAt');
-  return { growthPoints: summary.growthPoints, annualPoints: summary.annualPoints, completedCount: summary.completedCount, year, ...page };
+  const items = await ctx.store.transaction(async (tx) => {
+    await ctx.actor(tx);
+    const result: LedgerEntry[] = [];
+    for (const row of page.items) {
+      const activity = await tx.get<{ title: string; clubId: string }>('activities', row.activityId);
+      result.push({ ...row, activityTitle: activity?.clubId === ctx.clubId ? activity.title : '俱乐部活动' });
+    }
+    return result;
+  });
+  return { growthPoints: summary.growthPoints, annualPoints: summary.annualPoints, completedCount: summary.completedCount, year, ...page, items };
 }
 
 export async function listRankings(ctx: Context) {

@@ -1,20 +1,9 @@
 <view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
-<view class="page">
-  <view class="masthead"><view><view class="eyebrow">MY FIELD NOTES</view><view class="title">我的活动</view></view><button class="text-button" bindtap="profile">个人与隐私 ↗</button></view>
-  <view class="subtitle">查看报名进展、现场核验与完成记录。</view>
+<view class="page"><view class="eyebrow">OR ADV / MY TRIPS</view><view class="title">我的同行</view><view class="subtitle">报名进展、行前安排与每次参加的记录。</view>
+  <view class="filter-row"><button wx:for="{{filters}}" wx:key="value" class="pill {{filter === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view>
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
-  <view wx:if="{{!loading && !member && !error}}" class="empty">先看看适合自己的活动。<text>{{'\n'}}</text>提交意向时再建立微信身份。<button class="primary full mt" bindtap="explore">寻找第一次同行</button></view>
-  <view wx:for="{{items}}" wx:key="id" class="card mt">
-    <view class="row"><text class="tag {{item.state === 'completed' ? 'tag-dark' : ''}}">{{item.stateText}}</text><text class="tiny muted">第 {{item.attempt}} 次申请</text></view>
-    <view class="card-title mt" data-id="{{item.activityId}}" bindtap="detail">{{item.activityTitle || '俱乐部同行活动'}} ↗</view>
-    <view class="small muted mt">提交于 {{item.createdText}}</view>
-    <view class="notice">{{item.progressText}}</view>
-    <view wx:if="{{item.reason}}" class="small paragraph muted">处理说明：{{item.reason}}</view>
-    <view class="timeline">申请意向 → 资格 / 候补 → 线下联系确认<text>{{'\n'}}</text>出发核验 → 结束核验 → 完成结算</view>
-    <view class="actions"><button class="mini secondary" data-id="{{item.activityId}}" bindtap="detail">查看活动</button><button wx:if="{{item.canCancel}}" class="mini danger" data-id="{{item.id}}" loading="{{busy === item.id}}" disabled="{{!!busy}}" bindtap="cancel">取消申请</button></view>
-  </view>
-  <view wx:if="{{loading}}" class="loading">正在加载活动记录…</view>
-  <view wx:if="{{!loading && member && !items.length && !error}}" class="empty">还没有申请记录。<text>{{'\n'}}</text>可以先看看近期活动。<button class="primary full mt" bindtap="explore">去看看活动</button></view>
-  <button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更多记录</button>
-  <view class="footer-note">已出发后的退出与异常，请直接联系现场工作人员。<text>{{'\n'}}</text>对记录有疑问，可通过「个人与隐私」查看反馈方式。</view>
+  <view wx:if="{{!loading && !member && !error}}" class="empty">先看看适合自己的活动。<text>{{'\n'}}</text>提交意向时再建立微信身份。<button class="primary full mt" bindtap="explore">查看近期活动</button></view>
+  <view wx:for="{{visibleItems}}" wx:key="id" class="card"><view class="row"><text class="tag {{item.state === 'completed' && !item.completionVoided ? 'tag-dark' : ''}}">{{item.stateText}}</text><text class="tiny muted">第 {{item.attempt}} 次申请</text></view><view class="card-title mt" data-id="{{item.activityId}}" bindtap="detail">{{item.activityTitle || '俱乐部同行活动'}} →</view><view wx:if="{{item.activityDateText}}" class="activity-date small mt">{{item.activityDateText}}</view><view wx:if="{{item.locationText}}" class="small muted mt">{{item.locationText}}</view><view class="notice">{{item.progressText}}</view><view wx:if="{{item.reason}}" class="small paragraph muted">处理说明：{{item.reason}}</view><view class="actions"><button class="mini primary grow" data-id="{{item.activityId}}" bindtap="detail">{{item.state === 'confirmed' ? '查看行前安排' : '查看本场记录'}}</button><button wx:if="{{item.canCancel}}" class="mini secondary" data-id="{{item.id}}" loading="{{busy === item.id}}" disabled="{{!!busy}}" bindtap="cancel">取消申请</button></view></view>
+  <view wx:if="{{loading}}" class="loading">正在加载同行记录…</view><view wx:if="{{!loading && member && !visibleItems.length && !error}}" class="empty">{{items.length ? '这个分类下暂无记录。' : '还没有申请记录，可以先看看近期活动。'}}<button wx:if="{{!items.length}}" class="primary full mt" bindtap="explore">查看近期活动</button></view><button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">加载更早记录</button>
+  <view class="footer-note">出发后的退出与异常，请先联系现场负责人。<text>{{'\n'}}</text>积分以完成核验后的结算流水为准。</view>
 </view>

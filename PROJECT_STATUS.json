@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.1.0-test.1",
+  "version": "0.2.0-test.1",
   "asOf": "2026-10-15",
   "product": "OR ADV",
   "repository": {
@@ -17,7 +17,7 @@
     "verifiedInConsole": false
   },
   "appIdConfiguredLocally": true,
-  "testEnvironment": "not_created_as_confirmed_by_user",
+  "testEnvironment": "EnvId_not_provided_or_verified",
   "nativeAppImplemented": true,
   "backendImplemented": true,
   "backendDeployed": false,
@@ -55,32 +55,39 @@
   "referencesAreMock": true,
   "wechatVerification": "not_reverified",
   "remainingWork": [
-    "real cloud activation and authorization",
-    "apply and verify database rules/indexes",
-    "trusted owner initialization",
-    "qualification management UI",
-    "role/audit and annual reward management pages",
-    "published activity amendment workflow",
-    "content safety and finalized privacy information",
-    "real iOS/Android and restore evidence"
+    "test EnvId and cloud authorization",
+    "apply/verify database plan v2 and deploy the test function",
+    "trusted owner initialization and actual contact approval",
+    "real WeChat identity, concurrent database transactions and client rules evidence",
+    "real iOS/Android, weak-network and recovery acceptance",
+    "0.2b full-club cumulative reporting and historical points migration",
+    "annual snapshot batching beyond 30 members",
+    "activity amendment/reconfirmation and notification workflow",
+    "complete audit and annual reward management pages",
+    "content safety, retention and finalized privacy information"
   ],
   "validation": {
+    "sourceVersion": "0.2.0-test.1",
     "typecheck": "passed",
-    "typescriptTests": 43,
-    "nativePageTests": 2,
+    "domainTests": 40,
+    "cloudTests": 10,
+    "buildAndTemplateTests": 10,
+    "typescriptTests": 60,
+    "nativePageTests": 5,
     "pythonToolTests": 14,
-    "totalTests": 59,
+    "totalTests": 79,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
   },
   "previewUpload": {
     "status": "success",
+    "version": "0.2.0-test.1",
     "mode": "mock",
     "sdkVersion": "2.1.31",
     "qrGenerated": true,
     "uploadIpWhitelistDisabledByUser": true,
-    "localQrArtifact": "dist/OR_ADV-preview-0.1.0-test.1.png"
+    "localQrArtifact": "dist/OR_ADV-preview-0.2.0-test.1.png"
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": false,
@@ -104,7 +111,7 @@
     "inAppPaymentRequested": false
   },
   "productDesign": {
-    "status": "proposal_not_implemented",
+    "status": "v02a_implemented_locally_real_acceptance_pending",
     "document": "docs/20-product-design.md",
     "asOf": "2026-10-15",
     "evidence": [
@@ -117,6 +124,22 @@
     "proposedNextVersions": [
       "0.2a real activity and member-specific registration",
       "0.2b member statistics, history migration and reconciliation"
-    ]
-  }
+    ],
+    "implementedCandidate": "0.2a",
+    "nextCandidate": "0.2b after real 0.2a acceptance",
+    "realAcceptancePassed": false
+  },
+  "nativePageCount": 10,
+  "implementedV02a": [
+    "owner-verified member kinds and recognition requests",
+    "founder first application, reapplication and FIFO promotion confirmation",
+    "ordinary offline arrangement reminder and administrator confirmation",
+    "independent recommendation and points publication consent",
+    "bounded 200-member directory and member identifier lookup",
+    "owner employee and qualification management",
+    "approved public contacts and participant-only briefings",
+    "actual field checkin timeline and private preparation checklist",
+    "roster search/day filters and unreturned priority",
+    "single-event settlement and activity-linked points ledger"
+  ]
 }

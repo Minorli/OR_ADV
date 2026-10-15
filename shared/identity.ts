@@ -3,6 +3,7 @@ import type { Context } from './context';
 import { collect, refreshRankings } from './context';
 import { key, memberIdFor, shanghaiYear, userIdFor } from './models';
 import type { Membership, User } from './models';
+import { syncRecommendation } from './members';
 
 async function syncProfileProjections(ctx: Context, memberId: string) {
   const projections = await collect<{ id: string }>(ctx.store, 'public_rankings', { clubId: ctx.clubId, memberId });
@@ -35,7 +36,10 @@ export async function ensureIdentity(ctx: Context) {
       consentVersions: { privacy: 1, terms: 1 }, createdAt: ctx.now, updatedAt: ctx.now };
     const id = memberIdFor(ctx.clubId, userId);
     const member: Membership = { id, clubId: ctx.clubId, userId, nickname: ctx.request.payload.nickname ? text(ctx.request.payload.nickname, '昵称', 30) : '新车友',
-      publicId: key('public', ctx.id()), rankingOptIn: false, rankingConsentVersion: 0, revision: 1, createdAt: ctx.now, updatedAt: ctx.now };
+      publicId: key('public', ctx.id()), rankingOptIn: false, rankingConsentVersion: 0,
+      memberKind: 'regular', memberKindVersion: 0, memberKindExpiresAt: null,
+      recommendationOptIn: false, recommendationConsentVersion: 0, recommendationPriority: 0,
+      revision: 1, createdAt: ctx.now, updatedAt: ctx.now };
     await tx.set('users', user.id, user);
     await tx.set('memberships', id, member);
     await ctx.audit(tx, { user, member }, 'membership', id, { created: true });
@@ -56,16 +60,21 @@ export async function updateProfile(ctx: Context) {
     const current = await ctx.actor(tx);
     ctx.revision(current.member);
     const payload = ctx.request.payload;
-    requireThat(!Object.keys(payload).some((name) => !['nickname','rankingOptIn','rankingConsentVersion'].includes(name)), 'INVALID_INPUT', '含不允许修改的字段');
+    requireThat(!Object.keys(payload).some((name) => !['nickname','rankingOptIn','rankingConsentVersion','recommendationOptIn','recommendationConsentVersion'].includes(name)), 'INVALID_INPUT', '含不允许修改的字段');
     if (payload.rankingOptIn !== undefined) requireThat(typeof payload.rankingOptIn === 'boolean', 'INVALID_INPUT', '榜单选项不正确');
     if (payload.rankingOptIn === true) requireThat(payload.rankingConsentVersion === 1, 'INVALID_INPUT', '请确认公开榜单说明');
+    if (payload.recommendationOptIn !== undefined) requireThat(typeof payload.recommendationOptIn === 'boolean', 'INVALID_INPUT', '推荐公开选项不正确');
+    if (payload.recommendationOptIn === true) requireThat(payload.recommendationConsentVersion === 1, 'INVALID_INPUT', '请单独确认俱乐部推荐展示说明');
     const member: Membership = { ...current.member, nickname: payload.nickname === undefined ? current.member.nickname : text(payload.nickname, '昵称', 30),
       rankingOptIn: payload.rankingOptIn === undefined ? current.member.rankingOptIn : payload.rankingOptIn as boolean,
       rankingConsentVersion: payload.rankingOptIn === true ? 1 : current.member.rankingConsentVersion,
+      recommendationOptIn: payload.recommendationOptIn === undefined ? current.member.recommendationOptIn ?? false : payload.recommendationOptIn as boolean,
+      recommendationConsentVersion: payload.recommendationOptIn === true ? 1 : current.member.recommendationConsentVersion ?? 0,
       revision: current.member.revision + 1, updatedAt: ctx.now };
     await tx.set('memberships', member.id, member);
     await refreshRankings(ctx, tx, member, shanghaiYear(ctx.now));
-    await ctx.audit(tx, current, 'membership', member.id, { rankingOptIn: member.rankingOptIn, revision: member.revision });
+    await syncRecommendation(ctx, tx, member);
+    await ctx.audit(tx, current, 'membership', member.id, { rankingOptIn: member.rankingOptIn, recommendationOptIn: member.recommendationOptIn, revision: member.revision });
     return ctx.summary(tx, { ...current, member });
   });
   // Consent is authoritative immediately. Historical projections are then
@@ -79,9 +88,10 @@ export async function requestDeletion(ctx: Context) {
   const result = await ctx.store.transaction(async (tx) => {
     const current = await ctx.actor(tx);
     const user = { ...current.user, status: 'deletion_requested' as const, updatedAt: ctx.now };
-    const member = { ...current.member, rankingOptIn: false, revision: current.member.revision + 1, updatedAt: ctx.now };
+    const member = { ...current.member, rankingOptIn: false, recommendationOptIn: false, revision: current.member.revision + 1, updatedAt: ctx.now };
     await tx.set('users', user.id, user);
     await tx.set('memberships', member.id, member);
+    await syncRecommendation(ctx, tx, member);
     await ctx.audit(tx, current, 'membership', member.id, { status: 'deletion_requested' });
     return { status: 'deletion_requested', message: '已停止受限访问及公开展示；必要业务记录等待人工审核处理。' };
   });

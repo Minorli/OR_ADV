@@ -1,15 +1,24 @@
 <view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
 <view class="page">
   <view class="eyebrow">CLUB OPERATIONS</view><view class="title">员工工作台</view>
-  <view class="subtitle">管理活动、处理报名与现场核验。</view>
+  <view class="subtitle">先处理眼前的事，再从容安排下一场。</view>
   <view wx:if="{{loading}}" class="loading">正在核对管理权限与名单…</view>
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">刷新最新状态</button></view>
   <view wx:if="{{notice}}" class="notice">{{notice}}</view>
   <view wx:if="{{!authorized && !loading}}" class="empty">当前身份没有员工权限。<text>{{'\n'}}</text>请联系主理人确认授权范围。<button class="secondary full mt" bindtap="profile">返回个人与隐私</button></view>
   <block wx:if="{{authorized}}">
     <view class="staff-strip">{{member.nickname}} · {{canManage ? '活动运营权限' : '现场核验权限'}}{{isOwner ? ' · 主理人' : ''}}</view>
-    <view class="filter-row"><button class="pill {{pane === 'activities' ? 'active' : ''}}" data-pane="activities" bindtap="pane">活动</button><button class="pill {{pane === 'roster' ? 'active' : ''}}" data-pane="roster" bindtap="pane">名单与核验</button><button wx:if="{{canManage}}" class="pill {{pane === 'settlement' ? 'active' : ''}}" data-pane="settlement" bindtap="pane">完成结算</button><button wx:if="{{isOwner}}" class="pill {{pane === 'owner' ? 'active' : ''}}" data-pane="owner" bindtap="pane">更正</button></view>
-    <block wx:if="{{pane === 'activities'}}">
+    <view class="filter-row"><button class="pill {{pane === 'overview' ? 'active' : ''}}" data-pane="overview" bindtap="pane">待办</button><button class="pill {{pane === 'activities' ? 'active' : ''}}" data-pane="activities" bindtap="pane">活动</button><button class="pill {{pane === 'roster' ? 'active' : ''}}" data-pane="roster" bindtap="pane">现场名单</button><button class="pill {{pane === 'briefing' ? 'active' : ''}}" data-pane="briefing" bindtap="pane">行前说明</button><button wx:if="{{canManage}}" class="pill {{pane === 'settlement' ? 'active' : ''}}" data-pane="settlement" bindtap="pane">完成结算</button><button wx:if="{{isOwner}}" class="pill {{pane === 'owner' ? 'active' : ''}}" data-pane="owner" bindtap="pane">更正</button></view>
+    <view wx:if="{{pane === 'overview'}}">
+      <view class="section-head"><text class="section-title">{{today}} · 工作待办</text><button wx:if="{{isOwner}}" class="text-button" bindtap="members">会员与俱乐部设置 →</button></view>
+      <view wx:if="{{selected}}" class="card"><view class="tiny muted">当前工作场次</view><view class="card-title mt">{{selected.title}}</view><view class="small muted">{{selected.stateText}} · {{selected.dateText}}</view>
+        <view class="ops-grid mt"><button class="ops-task ops-alert" bindtap="focusUnreturned"><text class="ops-number">{{unreturnedCount}}</text><text>出发后待回场</text><text class="tiny">每一位都需要同样的关注</text></button><button class="ops-task" bindtap="focusPending"><text class="ops-number">{{pendingCount}}</text><text>报名待处理</text><text class="tiny">核对资格与线下安排</text></button></view>
+        <view class="small muted mt">今日出发 {{todayDepartureCount}} 人 · 今日结束 {{todayReturnCount}} 人</view>
+        <view class="actions"><button class="primary grow" data-pane="roster" bindtap="pane">打开现场名单</button><button class="secondary" data-pane="briefing" bindtap="pane">查看行前说明</button></view>
+      </view>
+      <view class="notice">创始成员符合本场条件时可自动确认；普通成员由运营核对线下安排后确认。所有人都要完成相同的资格与现场安全核验。</view>
+    </view>
+    <block wx:if="{{pane === 'activities' || pane === 'overview'}}">
       <view class="section-head"><text class="section-title">授权活动</text><button wx:if="{{canManage}}" class="text-button" bindtap="newActivity">＋ 新建草稿</button></view>
       <view wx:if="{{!items.length && !loading}}" class="empty">暂无可管理的活动。<text>{{'\n'}}</text>{{canManage ? '可以先创建一场低门槛的入门同行。' : '请联系主理人分配本场权限。'}}</view>
       <view wx:for="{{items}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="select"><view class="row"><text class="tag">{{item.stateText}}</text><text class="tiny muted">v{{item.ruleVersion}}</text></view><view class="card-title mt">{{item.title}}</view><view class="small muted mt">{{item.dateText}}<text>{{'\n'}}</text>{{item.location}}</view><view class="divider"></view><view class="row small"><text>预留 {{item.reservedSeats}} / {{item.capacity}} 位</text><text class="muted">打开工作名单 →</text></view></view>
@@ -47,15 +56,19 @@
         <block wx:if="{{pane === 'roster'}}">
           <view class="stats"><view class="stat"><view class="stat-number">{{pendingCount}}</view><view class="stat-label">待处理</view></view><view class="stat"><view class="stat-number">{{confirmedCount}}</view><view class="stat-label">确认待出发</view></view><view class="stat"><view class="stat-number">{{departedCount}}</view><view class="stat-label">已出发待回</view></view><view class="stat"><view class="stat-number">{{returnedCount}}</view><view class="stat-label">正常结束</view></view></view>
           <view class="field"><text class="field-label">操作说明 / 异常原因（审核未通过、退出、未到、取消必填）</text><input value="{{operationReason}}" maxlength="300" bindinput="reason" placeholder="请填客观说明，不填写敏感信息"/></view>
-          <view class="section-head"><text class="section-title">报名与现场名单</text><text class="section-index">{{registrations.length}} RIDERS</text></view>
+          <view class="section-head"><text class="section-title">报名与现场名单</text><text class="section-index">{{registrations.length}} 位</text></view>
+          <input value="{{rosterQuery}}" bindinput="searchRoster" maxlength="30" placeholder="搜索本场昵称或成员编号后 8 位"/>
+          <view class="filter-row"><button wx:for="{{rosterFilters}}" wx:key="value" class="pill {{rosterFilter === item.value ? 'active' : ''}}" data-filter="{{item.value}}" bindtap="filterRoster">{{item.label}}</button></view>
+          <view class="small muted mb">{{today}} · 待回场 {{unreturnedCount}} 人。名单优先显示未完成回场核验者，不按成员身份排序。</view>
           <view wx:if="{{rosterLoading}}" class="loading">正在读取名单…</view>
           <view wx:if="{{!rosterLoading && !registrations.length}}" class="empty">本场还没有申请记录。</view>
-          <view wx:for="{{registrations}}" wx:key="id" class="card">
-            <view class="row"><text class="card-title">{{item.nickname || '本场车友'}}</text><text class="tag">{{item.stateText}}</text></view><view class="tiny muted mt">{{item.createdText}} 申请 · 第 {{item.attempt}} 次</view><view wx:if="{{item.reason}}" class="small muted mt">说明：{{item.reason}}</view>
+          <view wx:if="{{!rosterLoading && registrations.length && !displayedRegistrations.length}}" class="empty">当前筛选没有匹配的参加者。</view>
+          <view wx:for="{{displayedRegistrations}}" wx:key="id" class="card {{item.unreturned ? 'ops-unreturned' : ''}}">
+            <view class="row"><text class="card-title">{{item.nickname || '本场车友'}}</text><text class="tag">{{item.stateText}}</text></view><view wx:if="{{item.memberCode}}" class="tiny muted mt">成员编号 · {{item.memberCode}}</view><view class="row small mt"><text class="tag {{item.memberKind === 'founder' ? 'tag-dark' : ''}}">{{item.memberKindText}}</text><text class="muted">{{item.confirmationText}}</text></view><view class="small mt {{item.unreturned ? 'ops-safety' : 'muted'}}">{{item.checkinText}}</view><view class="tiny muted mt">{{item.createdText}} 申请 · 第 {{item.attempt}} 次</view><view wx:if="{{item.reason}}" class="small muted mt">说明：{{item.reason}}</view>
             <view class="actions">
               <button wx:if="{{isOwner && item.state === 'completed' && !item.completionVoided && item.settlementId}}" class="mini secondary" data-id="{{item.id}}" bindtap="prepareReverse">更正完成记录</button>
-              <button wx:if="{{item.canReview && canManage}}" class="mini primary" data-id="{{item.id}}" data-action="approve" disabled="{{!!busy}}" bindtap="registrationAction">资格通过</button><button wx:if="{{item.canReview && canManage}}" class="mini danger" data-id="{{item.id}}" data-action="reject" disabled="{{!!busy}}" bindtap="registrationAction">不通过</button>
-              <button wx:if="{{item.canConfirm && canManage}}" class="mini primary" data-id="{{item.id}}" data-action="confirm" disabled="{{!!busy}}" bindtap="registrationAction">已联系 · 确认参加</button>
+              <button wx:if="{{item.canReview && canManage}}" class="mini primary" data-id="{{item.id}}" data-action="approve" disabled="{{!!busy}}" bindtap="registrationAction">资格通过</button><button wx:if="{{(item.canReview || item.canConfirm) && canManage}}" class="mini danger" data-id="{{item.id}}" data-action="reject" disabled="{{!!busy}}" bindtap="registrationAction">不通过</button>
+              <button wx:if="{{item.canConfirm && canManage}}" class="mini primary" data-id="{{item.id}}" data-action="confirm" disabled="{{!!busy}}" bindtap="registrationAction">确认参加</button>
               <button wx:if="{{item.canDepart && selected.state === 'in_progress'}}" class="mini primary" data-id="{{item.id}}" data-action="departure" disabled="{{!!busy}}" bindtap="registrationAction">本人到场 · 当日出发核验</button>
               <button wx:if="{{item.canDepart && (selected.state === 'in_progress' || selected.state === 'ended')}}" class="mini danger" data-id="{{item.id}}" data-action="no_show" disabled="{{!!busy}}" bindtap="registrationAction">未到</button>
               <button wx:if="{{item.canReturn && (selected.state === 'in_progress' || selected.state === 'ended')}}" class="mini primary" data-id="{{item.id}}" data-action="return" disabled="{{!!busy}}" bindtap="registrationAction">当日正常结束核验</button><button wx:if="{{item.canReturn && (selected.state === 'in_progress' || selected.state === 'ended')}}" class="mini danger" data-id="{{item.id}}" data-action="safe_exit" disabled="{{!!busy}}" bindtap="registrationAction">安全退出</button>
@@ -72,6 +85,18 @@
         </block>
       </block>
     </block>
+    <view wx:if="{{pane === 'briefing' && selected}}" class="card">
+      <view class="row"><text class="card-title">{{selected.title}} · 行前说明</text><text class="tag">版本 {{briefing.revision}}</text></view>
+      <view class="notice">精确集合地点与本场联络方式仅供已确认参加者和获授权员工查看，与公开活动介绍分开保存。</view>
+      <view wx:if="{{briefingLoading}}" class="loading">正在读取行前说明…</view>
+      <view class="field"><text class="field-label">精确集合地点</text><textarea disabled="{{!canManage}}" value="{{briefing.meetingPoint}}" data-field="meetingPoint" bindinput="briefingField" maxlength="500" placeholder="集合点名称、到达提示"/></view>
+      <view class="field-label">集合时间（北京时间）</view><view class="form-grid"><picker disabled="{{!canManage}}" mode="date" value="{{briefingDate}}" data-field="briefingDate" bindchange="briefingField"><view class="picker">{{briefingDate}} ▾</view></picker><picker disabled="{{!canManage}}" mode="time" value="{{briefingTime}}" data-field="briefingTime" bindchange="briefingField"><view class="picker">{{briefingTime}} ▾</view></picker></view>
+      <picker disabled="{{!canManage}}" range="{{contactLabels}}" value="{{briefingContactIndex}}" bindchange="briefingContact"><view class="picker mt">{{contactLabels[briefingContactIndex]}} ▾</view></picker>
+      <view class="form-grid"><view class="field"><text class="field-label">本场联络人</text><input disabled="{{!canManage}}" value="{{briefing.contactName}}" data-field="contactName" bindinput="briefingField" maxlength="30"/></view><view class="field"><text class="field-label">联络方式</text><input disabled="{{!canManage}}" value="{{briefing.contactValue}}" data-field="contactValue" bindinput="briefingField" maxlength="100" placeholder="微信或约定的联系方式"/></view></view>
+      <view class="field"><text class="field-label">装备检查清单（每行一项）</text><textarea disabled="{{!canManage}}" value="{{briefingChecklist}}" data-field="briefingChecklist" bindinput="briefingField" maxlength="1500"/></view>
+      <view class="field"><text class="field-label">本场补充说明</text><textarea disabled="{{!canManage}}" value="{{briefing.notes}}" data-field="notes" bindinput="briefingField" maxlength="2000" placeholder="天气调整、集合与退出联络安排"/></view>
+      <button wx:if="{{canManage}}" class="primary full" loading="{{busy === 'briefing'}}" disabled="{{!!busy || briefingLoading}}" bindtap="saveBriefing">保存本场行前说明</button>
+    </view>
     <block wx:if="{{pane === 'owner' && isOwner}}">
       <view class="card"><view class="card-title">更正完成记录</view><view wx:if="{{reversalTarget}}" class="notice">{{reversalTarget}}<text>{{'\n'}}</text>请核实原记录和积分影响，再填写更正原因。</view><view class="notice">核实原始流水后操作。原流水保持不变，新流水记录相反增量并同步有效次数，不提供直接修改余额的入口。</view><view class="field"><text class="field-label">原完成流水标识</text><input value="{{ledgerId}}" bindinput="ledger" maxlength="100" placeholder="从授权审计记录取得原流水标识"/></view><view class="field"><text class="field-label">更正原因</text><textarea value="{{reversalReason}}" bindinput="reversalReason" maxlength="500" placeholder="说明核实过程和更正依据"/></view><button class="danger full" loading="{{busy === 'reverse'}}" disabled="{{!!busy}}" bindtap="reverse">核对并冲正原记录</button></view>
     </block>

@@ -1,7 +1,47 @@
 {
-  "pages": ["pages/activities/index", "pages/mine/index", "pages/points/index", "pages/ranking/index", "pages/activity/detail", "pages/registration/apply", "pages/profile/index", "pages/staff/index"],
-  "window": { "navigationBarTitleText": "原始拉力 OR ADV", "navigationBarBackgroundColor": "#f6f7f4", "navigationBarTextStyle": "black", "backgroundColor": "#f6f7f4", "backgroundTextStyle": "dark" },
-  "tabBar": { "color": "#81877b", "selectedColor": "#31543e", "backgroundColor": "#f6f7f4", "borderStyle": "white", "list": [{ "pagePath": "pages/activities/index", "text": "去出发" }, { "pagePath": "pages/mine/index", "text": "我的活动" }, { "pagePath": "pages/points/index", "text": "成长记录" }, { "pagePath": "pages/ranking/index", "text": "同行榜" }] },
+  "pages": [
+    "pages/activities/index",
+    "pages/mine/index",
+    "pages/points/index",
+    "pages/ranking/index",
+    "pages/activity/detail",
+    "pages/registration/apply",
+    "pages/profile/index",
+    "pages/staff/index",
+    "pages/trip/detail",
+    "pages/staff-members/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "原始拉力 OR ADV",
+    "navigationBarBackgroundColor": "#f6f7f4",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f6f7f4",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#81877b",
+    "selectedColor": "#31543e",
+    "backgroundColor": "#f6f7f4",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/activities/index",
+        "text": "活动"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "同行"
+      },
+      {
+        "pagePath": "pages/ranking/index",
+        "text": "俱乐部"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
+    ]
+  },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"

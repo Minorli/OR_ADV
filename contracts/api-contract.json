@@ -1,6 +1,6 @@
 {
   "transport": "wx.cloud.callFunction RPC",
-  "status": "design_not_deployed",
+  "status": "v0.2a_implemented_locally_not_deployed",
   "requestEnvelope": [
     "action",
     "requestId",
@@ -64,7 +64,11 @@
       "action": "profile.update",
       "authorization": "member_self",
       "input": [
-        "allowedFields",
+        "nickname_optional",
+        "rankingOptIn_optional",
+        "rankingConsentVersion_optional",
+        "recommendationOptIn_optional",
+        "recommendationConsentVersion_optional",
         "expectedRevision"
       ],
       "output": [
@@ -103,7 +107,8 @@
       "action": "registration.mine",
       "authorization": "member_self",
       "input": [
-        "cursor"
+        "cursor_optional",
+        "activityId_optional"
       ],
       "output": [
         "items",
@@ -119,8 +124,11 @@
         "cursor"
       ],
       "output": [
-        "summary",
-        "items",
+        "growthPoints",
+        "annualPoints",
+        "completedCount",
+        "year",
+        "items_with_activityTitle",
         "nextCursor"
       ],
       "businessIdempotency": false
@@ -224,7 +232,7 @@
         "requestId"
       ],
       "output": [
-        "checkin"
+        "registration"
       ],
       "businessIdempotency": true
     },
@@ -306,6 +314,274 @@
         "awardSummary"
       ],
       "businessIdempotency": false
+    },
+    {
+      "action": "identity.me",
+      "authorization": "signed_wechat_optional",
+      "input": [],
+      "output": [
+        "memberSummary|null"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "identity.delete",
+      "authorization": "member_self",
+      "input": [],
+      "output": [
+        "deletionRequested"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "identity.memberKind.request",
+      "authorization": "member_self",
+      "input": [
+        "reason_optional"
+      ],
+      "output": [
+        "status",
+        "requestedAt"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "club.public",
+      "authorization": "public",
+      "input": [],
+      "output": [
+        "clubPublic"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.club.save",
+      "authorization": "owner",
+      "input": [
+        "name",
+        "contactName",
+        "contactMethod",
+        "contactValue",
+        "contactInstructions",
+        "expectedRevision"
+      ],
+      "output": [
+        "clubPublic"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.member.list",
+      "authorization": "owner_or_operator",
+      "input": [
+        "query_optional",
+        "cursor_optional"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.member.assign",
+      "authorization": "owner",
+      "input": [
+        "memberId",
+        "memberKind",
+        "reason",
+        "expiresAt_optional",
+        "expectedRevision"
+      ],
+      "output": [
+        "staffMemberSummary"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.recommendation.save",
+      "authorization": "owner",
+      "input": [
+        "memberId",
+        "priority",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "staffMemberSummary"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "recommendation.list",
+      "authorization": "public",
+      "input": [
+        "cursor_optional"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "activity.briefing.get",
+      "authorization": "confirmed_participant_or_assigned_staff",
+      "input": [
+        "activityId"
+      ],
+      "output": [
+        "activityBriefing|null"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.briefing.save",
+      "authorization": "owner_or_operator",
+      "input": [
+        "activityId",
+        "meetingPoint",
+        "meetingTime",
+        "contactName",
+        "contactMethod",
+        "contactValue",
+        "checklist",
+        "notes",
+        "expectedRevision"
+      ],
+      "output": [
+        "activityBriefing"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "registration.timeline",
+      "authorization": "member_self_or_assigned_staff",
+      "input": [
+        "registrationId",
+        "cursor_optional"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.roles.list",
+      "authorization": "owner",
+      "input": [
+        "memberId"
+      ],
+      "output": [
+        "items"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.qualification.list",
+      "authorization": "owner_or_operator",
+      "input": [
+        "memberId",
+        "cursor_optional"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.qualification.review",
+      "authorization": "owner_or_operator",
+      "input": [
+        "memberId",
+        "type",
+        "decision",
+        "expiresAt_optional",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "qualification"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "qualifications.mine",
+      "authorization": "member_self",
+      "input": [
+        "cursor_optional"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.activity.list",
+      "authorization": "authorized_staff",
+      "input": [
+        "cursor_optional"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.activity.start",
+      "authorization": "owner_or_operator",
+      "input": [
+        "activityId",
+        "expectedRevision"
+      ],
+      "output": [
+        "publicActivity"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.activity.end",
+      "authorization": "owner_or_operator",
+      "input": [
+        "activityId",
+        "actualCompletedAt_optional",
+        "expectedRevision"
+      ],
+      "output": [
+        "publicActivity"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.activity.cancel",
+      "authorization": "owner_or_operator",
+      "input": [
+        "activityId",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "publicActivity"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.registration.list",
+      "authorization": "assigned_staff",
+      "input": [
+        "activityId",
+        "state_optional",
+        "cursor_optional"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
     }
   ],
   "errors": [
@@ -324,5 +600,12 @@
     "INVALID_INPUT",
     "RATE_LIMITED",
     "TEMPORARY_FAILURE"
-  ]
+  ],
+  "v02Notes": {
+    "membership": "Server-verified founder direct confirmation only after identical score/skill/capacity/time/rule gates; regular confirmation is staff action. No payment state or money data.",
+    "recommendations": "Separate opt-in; effective kind and live consent checked on every read; public values only; stale live cursor returns CONFLICT_REFRESH.",
+    "briefings": "Confirmed/nonvoid participants and scoped staff only; cancellation/cancelled activity denies member reads; versions protect writes; advanced re-consent deferred.",
+    "directory": "20 per page, role summaries expose no userId; search capped at 200 club records; ten-member read transactions.",
+    "initialRevisions": "club/briefing/qualification first save expectedRevision=0; updates must use returned revision"
+  }
 }

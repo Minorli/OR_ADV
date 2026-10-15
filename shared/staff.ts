@@ -21,14 +21,14 @@ export async function assignRole(ctx: Context) {
     const expiresAt = p.expiresAt === null || p.expiresAt === undefined ? null : text(p.expiresAt, '授权期限', 40);
     requireThat(!expiresAt || (Number.isFinite(Date.parse(expiresAt)) && new Date(expiresAt).toISOString() > ctx.now), 'INVALID_INPUT', '授权期限须在未来');
     requireThat(p.enabled === undefined || typeof p.enabled === 'boolean', 'INVALID_INPUT', '启用状态不正确');
-    requireThat(!(role === 'owner' && actor.user.id === member.userId && p.enabled === false), 'STATE_CONFLICT', '不能撤销自己的主理人权限');
+    requireThat(!(role === 'owner' && actor.user.id === member.userId && (p.enabled === false || expiresAt !== null)), 'STATE_CONFLICT', '不能撤销自己的主理人权限或设置自己的授权到期');
     const id = key('role', ctx.clubId, member.userId, role);
     const prior = await tx.get<StaffRole>('staff_roles', id);
     if (prior) ctx.revision(prior);
     const assignment: StaffRole = { id, clubId: ctx.clubId, userId: member.userId, role, activityIds: scope as string[] | null,
       enabled: p.enabled !== false, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, grantedBy: actor.user.id, revision: (prior?.revision ?? 0) + 1 };
     await tx.set('staff_roles', id, assignment);
-    await ctx.audit(tx, actor, 'staff_role', id, { memberId: member.id, role, activityIds: scope, enabled: assignment.enabled, expiresAt: assignment.expiresAt, revision: assignment.revision });
+    await ctx.audit(tx, actor, 'staff_role', id, { memberId: member.id, role, activityIds: scope, enabled: assignment.enabled, expiresAt: assignment.expiresAt, revision: assignment.revision }, p.reason ? text(p.reason, '授权说明', 500) : '');
     return { memberId: member.id, ...assignment, userId: undefined };
   });
 }

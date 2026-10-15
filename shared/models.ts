@@ -1,4 +1,4 @@
-import type { Activity, LedgerEntry, Registration, Role, TrustedIdentity } from './types';
+import type { Activity, LedgerEntry, MemberKind, Registration, Role, TrustedIdentity } from './types';
 import { sha256 } from './hash';
 
 export interface User {
@@ -10,6 +10,9 @@ export interface Membership {
   id: string; clubId: string; userId: string; nickname: string;
   publicId: string; rankingOptIn: boolean; rankingConsentVersion: number;
   revision: number; createdAt: string; updatedAt: string;
+  memberKind?: MemberKind; memberKindVersion?: number; memberKindExpiresAt?: string | null;
+  recommendationOptIn?: boolean; recommendationConsentVersion?: number; recommendationPriority?: number;
+  kindRequestStatus?: 'pending' | 'resolved'; kindRequestedAt?: string; kindRequestReason?: string;
 }
 export interface StaffRole {
   id: string; clubId: string; userId: string; role: Role;
@@ -19,6 +22,11 @@ export interface StaffRole {
 export interface Qualification {
   id: string; clubId: string; memberId: string; type: string;
   decision: 'pending' | 'approved' | 'rejected'; expiresAt: string | null;
+  revision?: number; reviewedAt?: string; reviewedBy?: string; reason?: string;
+}
+export interface RecommendationProjection {
+  id: string; clubId: string; memberId: string; sortKey: string; visible: boolean;
+  consentVersion: number;
 }
 export interface MemberStats {
   id: string; clubId: string; memberId: string; scope: 'growth' | 'year';

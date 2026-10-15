@@ -8,9 +8,9 @@
     <view class="notice">成长分累计不清零，供报名门槛参考；年度分按活动实际完成的北京时间年度记录，用于线下年度奖励。积分不等于技能资格，不可交易或提现。</view>
     <view class="section-head"><text class="section-title">积分流水</text><picker mode="selector" range="{{years}}" bindchange="year"><view class="tag">{{year}} 年 ▾</view></picker></view>
     <view wx:for="{{items}}" wx:key="id" class="card">
-      <view class="row"><view><view class="card-title">{{item.title}}</view><view class="tiny muted mt">{{item.dateText}}</view></view><text class="ledger-value {{item.growthDelta < 0 ? 'negative' : ''}}">{{item.growthDelta > 0 ? '+' : ''}}{{item.growthDelta}}</text></view>
+      <view class="row"><view><view class="card-title" data-id="{{item.activityId}}" bindtap="activity">{{item.title}} →</view><view class="tiny muted mt">{{item.dateText}}</view></view><text class="ledger-value {{item.growthDelta < 0 ? 'negative' : ''}}">{{item.growthDelta > 0 ? '+' : ''}}{{item.growthDelta}}</text></view>
       <view class="divider"></view><view class="row small"><text class="muted">年度积分 {{item.annualDelta > 0 ? '+' : ''}}{{item.annualDelta}}</text><text class="muted">完成次数 {{item.completedCountDelta > 0 ? '+' : ''}}{{item.completedCountDelta}}</text></view>
-      <view class="small muted mt paragraph">{{item.reason || '按本场冻结规则记录'}} · 规则 v{{item.ruleVersion}}</view>
+      <view class="small muted mt paragraph">{{item.awardType === 'reversal' ? '更正记录 · ' : ''}}{{item.reason || '按本场冻结规则记录'}} · 规则 v{{item.ruleVersion}}</view>
     </view>
     <view wx:if="{{!loading && !items.length}}" class="empty">本年度暂无积分流水。<text>{{'\n'}}</text>完成核验并结算后可查看记录。</view>
     <button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更早流水</button>

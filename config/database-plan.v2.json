@@ -1,0 +1,603 @@
+{
+  "version": 2,
+  "clubId": "oradv",
+  "status": "plan_not_applied",
+  "database": "CloudBase document database (traditional mode)",
+  "clientRulesForEveryCollection": {
+    "read": false,
+    "write": false
+  },
+  "collections": [
+    "clubs",
+    "users",
+    "memberships",
+    "staff_roles",
+    "activities",
+    "registrations",
+    "qualifications",
+    "checkins",
+    "points_ledger",
+    "member_stats",
+    "public_rankings",
+    "annual_rewards",
+    "audit_logs",
+    "settlement_jobs",
+    "rpc_limits",
+    "schema_migrations",
+    "activity_briefings",
+    "public_recommendations"
+  ],
+  "indexes": [
+    {
+      "collection": "activities",
+      "name": "club_start_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "startAt",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "activities",
+      "name": "club_state_start_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "state",
+          "asc"
+        ],
+        [
+          "startAt",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "registrations",
+      "name": "club_activity_queue_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "activityId",
+          "asc"
+        ],
+        [
+          "queueSeq",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "registrations",
+      "name": "club_activity_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "activityId",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "registrations",
+      "name": "club_activity_state_queue_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "activityId",
+          "asc"
+        ],
+        [
+          "state",
+          "asc"
+        ],
+        [
+          "queueSeq",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "registrations",
+      "name": "club_member_updated_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "memberId",
+          "asc"
+        ],
+        [
+          "updatedAt",
+          "desc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "registrations",
+      "name": "club_member_state_updated_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "memberId",
+          "asc"
+        ],
+        [
+          "state",
+          "asc"
+        ],
+        [
+          "updatedAt",
+          "desc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "registrations",
+      "name": "club_activity_updated_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "activityId",
+          "asc"
+        ],
+        [
+          "updatedAt",
+          "desc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "registrations",
+      "name": "club_activity_state_updated_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "activityId",
+          "asc"
+        ],
+        [
+          "state",
+          "asc"
+        ],
+        [
+          "updatedAt",
+          "desc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "staff_roles",
+      "name": "club_user_enabled_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "userId",
+          "asc"
+        ],
+        [
+          "enabled",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "staff_roles",
+      "name": "club_role_enabled",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "role",
+          "asc"
+        ],
+        [
+          "enabled",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "qualifications",
+      "name": "club_member_type_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "memberId",
+          "asc"
+        ],
+        [
+          "type",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "points_ledger",
+      "name": "club_member_effective_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "memberId",
+          "asc"
+        ],
+        [
+          "effectiveAt",
+          "desc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "points_ledger",
+      "name": "club_member_year_effective_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "memberId",
+          "asc"
+        ],
+        [
+          "year",
+          "asc"
+        ],
+        [
+          "effectiveAt",
+          "desc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "points_ledger",
+      "name": "club_activity_award_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "activityId",
+          "asc"
+        ],
+        [
+          "awardType",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "member_stats",
+      "name": "club_scope_year_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "scope",
+          "asc"
+        ],
+        [
+          "year",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "public_rankings",
+      "name": "club_metric_year_visible_score_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "metric",
+          "asc"
+        ],
+        [
+          "year",
+          "asc"
+        ],
+        [
+          "visible",
+          "asc"
+        ],
+        [
+          "score",
+          "desc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "public_rankings",
+      "name": "club_member_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "memberId",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "audit_logs",
+      "name": "club_target_time_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "targetType",
+          "asc"
+        ],
+        [
+          "targetId",
+          "asc"
+        ],
+        [
+          "createdAt",
+          "desc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "memberships",
+      "name": "club_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "public_recommendations",
+      "name": "club_visible_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "visible",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "public_recommendations",
+      "name": "club_member_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "memberId",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "checkins",
+      "name": "club_activity_member_verified_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "activityId",
+          "asc"
+        ],
+        [
+          "memberId",
+          "asc"
+        ],
+        [
+          "verifiedAt",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    },
+    {
+      "collection": "qualifications",
+      "name": "club_member_id",
+      "fields": [
+        [
+          "clubId",
+          "asc"
+        ],
+        [
+          "memberId",
+          "asc"
+        ],
+        [
+          "id",
+          "asc"
+        ]
+      ],
+      "unique": false
+    }
+  ],
+  "uniqueness": "Shared deterministic SHA256 document IDs, not ordinary indexes, enforce identity, membership, registration and completion/reversal uniqueness.",
+  "initialization": [
+    "Confirm the actual test EnvId and AppID against the WeChat-bound environment; record region, deployment identity, plan and expiry.",
+    "Create missing collections through the current CloudBase console. Immediately apply deny-client rules to every collection, including public_rankings and clubs.",
+    "Create the listed ordinary compound indexes; wait until ready. Verify actual query plans and required indexes against the deployed SDK.",
+    "Apply the added activity_briefings/public_recommendations collections and indexes. Both collections deny direct client reads/writes. Member class and recommendation consent are server-managed fields; do not auto-promote legacy users to founders.",
+    "The owner must configure an approved public contact channel and participant-only arrangements through the mini program. Do not insert local demo contacts, members, founder status or points into a real environment.",
+    "Insert only approved club public content; do not import fixtures, fake members, roles or points.",
+    "Record version 2 and actual collections/indexes/rules verification under schema_migrations using the deployment identity.",
+    "Deploy the function with ORADV_ENV_ID and ORADV_APP_ID, use a real WeChat login to establish the owner member, then run the separate bootstrap-owner CLI.",
+    "Test direct client read/write denial for every collection and genuine concurrent seat/points transactions before inviting testers."
+  ],
+  "fixturePolicy": "No fixture import is implemented by deployment tooling. The in-memory preview is isolated from CloudBase. Production never receives demo identities or points.",
+  "rollback": "No delete/drop rollback. Keep the deny-client rules, disable the function if needed, preserve audit and ledger data, and restore only under a separately approved backup plan.",
+  "sources": [
+    "https://docs.cloudbase.net/database/transaction",
+    "https://docs.cloudbase.net/database/security-rules",
+    "https://docs.cloudbase.net/rule/rule-example",
+    "https://github.com/wechat-miniprogram/wx-server-sdk"
+  ],
+  "extendsVersion": 1,
+  "applicationVersion": "0.2.0-test.1",
+  "dataCompatibility": "Legacy memberships without a verified memberKind are ordinary members. Existing confirmed registrations and ledger entries remain authoritative. This plan does not rewrite membership or registration data automatically."
+}

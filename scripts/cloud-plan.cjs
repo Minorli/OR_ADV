@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const help = `Usage: node scripts/cloud-plan.cjs [--env test] [--config config/local.json] [--check]
 
-Prints config/database-plan.v1.json and a local deployment preflight. No network
+Prints config/database-plan.v2.json and a local deployment preflight. No network
 calls, cloud resources, fixtures or data writes. --check exits nonzero if the
 local test configuration/build is incomplete. --execute is deliberately refused:
 apply collections/indexes/rules in the actual console, verify and record results.
@@ -29,7 +29,7 @@ try {
   if (options['--help']) { console.log(help); process.exit(0); }
   if (options['--execute']) throw new Error('Automatic mutation is not implemented: use the versioned plan and current cloud console. No resources were changed.');
   if (options['--env'] && options['--env'] !== 'test') throw new Error('This beta preflight accepts only --env test');
-  const plan = JSON.parse(fs.readFileSync(path.join(root, 'config/database-plan.v1.json'), 'utf8'));
+  const plan = JSON.parse(fs.readFileSync(path.join(root, 'config/database-plan.v2.json'), 'utf8'));
   const configPath = path.resolve(root, options['--config'] || 'config/local.json');
   const blockers = [];
   let config = {};

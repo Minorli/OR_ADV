@@ -2,6 +2,7 @@ import { Context, paginated, parseCursor, publicActivity } from './context';
 import { integer, requireThat, text } from './errors';
 import type { Activity } from './types';
 import { BETA_MAX_CAPACITY } from './limits';
+import { publicClub } from './club';
 
 const publicStates = ['published','closed','in_progress','ended','settled','cancelled'];
 export async function listActivities(ctx: Context, staff = false) {
@@ -97,7 +98,10 @@ export async function changeActivity(ctx: Context, operation: string) {
     };
     const transition = transitions[operation];
     requireThat(transition?.from.includes(activity.state), 'STATE_CONFLICT', '当前活动状态不允许此操作');
-    if (operation === 'publish') requireThat(activity.applicationClosesAt > ctx.now, 'REGISTRATION_CLOSED', '报名截止时间已经过去');
+    if (operation === 'publish') {
+      requireThat(activity.applicationClosesAt > ctx.now, 'REGISTRATION_CLOSED', '报名截止时间已经过去');
+      requireThat((await publicClub(ctx, tx)).configured, 'INVALID_INPUT', '请先由主理人配置有效的组织方联系方式');
+    }
     let completedAt = activity.actualCompletedAt;
     if (operation === 'end') {
       completedAt = ctx.request.payload.actualCompletedAt ? timestamp(ctx.request.payload.actualCompletedAt, '实际结束时间') : ctx.now;

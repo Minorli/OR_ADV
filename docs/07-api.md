@@ -39,3 +39,20 @@ UNAUTHENTICATED、FORBIDDEN、ACTIVITY_NOT_FOUND、REGISTRATION_CLOSED、SCORE_T
 ## 服务端验证顺序
 
 校验参数与大小 → 取可信身份 → 查 club 会员与员工授权 → 读取真实资源/版本 → 校验动作状态与规则 → 事务写入 → 脱敏审计 → 返回明确结果。不要先读敏感名单再检查权限；错误信息也不能泄露其他人的身份、电话或隐藏活动。
+
+## 0.2a新增命令
+
+具体字段以 [RPC合同](../contracts/api-contract.json) 为准，均为已实现未部署：
+
+| action | 作用与权限 |
+|---|---|
+| identity.memberKind.request | 本人申请核对身份，不自行生效 |
+| staff.member.list / assign | 运营／主理人分页查成员；身份认定仅主理人，校验revision与原因 |
+| staff.roles.list / assign | 主理人读取当前角色版本并授权，现场角色必须指定活动 |
+| qualification.mine / staff.qualification.list / review | 本人读结果，有权员工核验；成员身份不代替资格 |
+| recommendation.list / staff.recommendation.save | 公开推荐重核当前同意和身份；主理人编排不能代替本人同意 |
+| club.public / staff.club.save | 公开白名单联系资料；主理人配置，未配置时不承诺可联系报名 |
+| activity.briefing.get / staff.briefing.save | 已确认成员及限场员工读取；有权运营按版本编辑独立受限资料 |
+| registration.timeline | 本人或限场员工查询实际已有核验记录，稳定分页 |
+
+profile.update只允许昵称及两类公开同意，不接收成员身份或员工角色；推荐同意不自动公开积分。普通成员确认已将资格核验与管理员确认放进同一事务，旧review接口保留兼容。所有错误仍使用既有脱敏响应，不返回原始SDK堆栈。

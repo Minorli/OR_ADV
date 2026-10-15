@@ -1,24 +1,14 @@
 <view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
 <view class="page">
-  <view class="masthead"><view class="wordmark">OR.<text>ADV CLUB</text></view><button class="text-button" bindtap="profile">{{member ? '个人与隐私' : '游客 · 个人'}} ↗</button></view>
-  <view class="eyebrow">ORIGINAL RALLY</view>
-  <view class="title">原始拉力</view>
-  <view class="subtitle">非铺装探索 · 技能实践 · 车友同行</view>
-  <view wx:if="{{member}}" class="stats" bindtap="points"><view class="stat"><view class="stat-number">{{member.growthPoints}}</view><view class="stat-label">成长积分</view></view><view class="stat"><view class="stat-number">{{member.annualPoints}}</view><view class="stat-label">年度积分</view></view><view class="stat"><view class="stat-number">{{member.completedCount}}</view><view class="stat-label">完成同行</view></view></view>
-  <view wx:else class="hero"><view class="hero-content"><view class="eyebrow">TAKE THE LONG WAY HOME.</view><view class="hero-title">一起去，<text>{{'\n'}}</text>探索非铺装。</view><view class="hero-bottom">公开活动，随时查看。<text>{{'\n'}}</text>初次加入，可从入门活动开始。</view></view></view>
-  <view class="section-head"><text class="section-title">活动招募</text><text class="section-index">01 / EXPLORE</text></view>
+  <view class="masthead"><view class="wordmark">OR.<text>ADV CLUB</text></view><button class="text-button" bindtap="profile">{{member ? kindLabel : '游客 · 我的'}} ↗</button></view>
+  <view class="eyebrow">ORIGINAL RALLY</view><view class="title">原始拉力</view><view class="subtitle">非铺装探索 · 技能实践 · 车友同行</view>
+  <view wx:if="{{nextTrip}}" class="next-trip mt"><view class="row"><text class="eyebrow no-margin">我的本场同行</text><text class="tag tag-dark">{{nextTrip.stateText}}</text></view><view class="next-trip-title">{{nextTrip.title}}</view><view wx:if="{{nextTrip.dateText}}" class="small muted">{{nextTrip.dateText}}</view><view class="small paragraph mt">{{nextTrip.nextAction}}</view><button class="primary full mt" bindtap="trip">{{nextTrip.buttonLabel}} →</button></view>
+  <view wx:elif="{{member}}" class="welcome-strip mt"><view class="row"><view class="grow"><view class="card-title">{{member.nickname}}，查看近期活动</view><view class="small muted mt">{{member.memberKind === 'founder' ? '创始成员符合本场条件时可直接确认参加。' : '从适合自己的活动开始，提交意向后等待管理员确认。'}}</view></view></view></view>
+  <view wx:else class="hero compact-hero"><view class="hero-content"><view class="eyebrow">OFF ROAD / TOGETHER</view><view class="hero-title">查看近期招募</view><view class="hero-bottom">公开活动，随时浏览。<text>{{'\n'}}</text>初次加入，可从入门活动开始。</view></view></view>
+  <view class="section-head"><text class="section-title">活动招募</text><text class="section-index">UPCOMING</text></view>
   <view class="filter-row"><button wx:for="{{filters}}" wx:key="value" class="pill {{filter === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view>
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
-  <view wx:for="{{items}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="open">
-    <view class="activity-art"><text>ORIGINAL RALLY / FIELD NOTES</text></view>
-    <view class="row"><text class="tag">{{item.difficulty}}</text><text class="small muted">{{item.stateText}}</text></view>
-    <view class="card-title mt">{{item.title}}</view>
-    <view class="small muted mt">{{item.dateText}} · {{item.location}}</view>
-    <view class="divider"></view>
-    <view class="row small"><text>成长 {{item.minGrowthPoints}} 分起</text><text class="muted">{{item.slots > 0 ? '余位 ' + item.slots : '名额已满 · 可查看候补'}} →</text></view>
-  </view>
-  <view wx:if="{{loading}}" class="loading">正在寻找活动招募…</view>
-  <view wx:if="{{!loading && !error && !items.length}}" class="empty">暂无符合筛选的活动。<text>{{'\n'}}</text>可以切换筛选，或稍后再来看看。</view>
-  <button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更多活动</button>
-  <view class="footer-note">非铺装摩托车同行与技能实践 · 不开展计时排名<text>{{'\n'}}</text>积分仅记录成长；报名不扣分。</view>
+  <view wx:for="{{items}}" wx:key="id" class="card activity-card" data-id="{{item.id}}" bindtap="open"><view class="row"><text class="tag">{{item.difficulty}}</text><text class="small muted">{{item.stateText}}</text></view><view class="card-title mt">{{item.title}}</view><view class="activity-date mt">{{item.dateText}}</view><view class="small muted mt">{{item.location}}</view><view class="divider"></view><view class="row small"><text>成长 {{item.minGrowthPoints}} 分起</text><text class="muted">{{item.slots > 0 ? '余位 ' + item.slots : '名额已满 · 查看候补'}} →</text></view></view>
+  <view wx:if="{{loading}}" class="loading">正在加载活动…</view><view wx:if="{{!loading && !error && !items.length}}" class="empty">暂无符合筛选的活动。<text>{{'\n'}}</text>可以切换筛选，或稍后再来看看。</view><button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更多活动</button>
+  <view class="footer-note">成员身份与积分不替代技能和现场安全核验。<text>{{'\n'}}</text>报名不扣积分，完成后按本场规则结算。</view>
 </view>

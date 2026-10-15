@@ -75,7 +75,7 @@ test('last-seat contention and retries never overbook; cancellation only release
   const other = { appId: 'demo-app', openId: 'other-member' };
   data(await ctx.call('identity.ensure', { nickname: '第二人', consentVersions: { privacy: 1, terms: 1 } }, other));
   const applications = await Promise.all([apply(ctx), apply(ctx, other)]);
-  assert.deepEqual(applications.map((row) => row.state).sort(), ['pending_review', 'waitlisted']);
+  assert.deepEqual(applications.map((row) => row.state).sort(), ['pending_confirmation', 'waitlisted']);
   assert.equal(data<Activity>(await ctx.call('activity.get', { activityId: 'intro-ride' })).reservedSeats, 1);
   const repeated = await apply(ctx);
   assert.equal(repeated.id, applications[0].id);
@@ -85,7 +85,7 @@ test('last-seat contention and retries never overbook; cancellation only release
   data(await ctx.call('registration.cancel', { registrationId: held.id, reason: '重复请求' }, heldIdentity, held.revision));
   assert.equal(data<Activity>(await ctx.call('activity.get', { activityId: 'intro-ride' })).reservedSeats, 0);
   const promoted = data<Registration>(await ctx.call('staff.waitlist.promote', { activityId: 'intro-ride' }));
-  assert.equal(promoted.state, 'pending_review');
+  assert.equal(promoted.state, 'pending_confirmation');
   assert.equal(data<Activity>(await ctx.call('activity.get', { activityId: 'intro-ride' })).reservedSeats, 1);
 });
 
@@ -109,6 +109,7 @@ test('points only follow full verification; concurrent settlement and reversal a
   assert.equal(points.annualPoints, 100);
   assert.equal(points.completedCount, 1);
   assert.equal(points.items.length, 1);
+  assert.match(points.items[0].activityTitle, /非铺装入门/);
   const ledger = points.items[0];
   const reversal = data(await ctx.call('staff.points.reverse', { ledgerId: ledger.id, reason: '核验录入更正' }));
   data(await ctx.call('staff.points.reverse', { ledgerId: ledger.id, reason: '重试' }));
@@ -206,7 +207,7 @@ test('qualifications are independently required and checked again after expiry',
   error(await later.call('staff.registration.review', { registrationId: registration.id, decision: 'approved' }, DEMO_IDENTITIES.owner, registration.revision), 'QUALIFICATION_EXPIRED');
 });
 
-test('cancelled reapplication preserves deterministic id/history and requires review', async () => {
+test('regular reapplication preserves deterministic id/history and requires administrator confirmation', async () => {
   const ctx = setup();
   await ctx.store.transaction(async (tx) => {
     const activity = (await tx.get<Activity>('activities', 'intro-ride'))!;
@@ -219,7 +220,7 @@ test('cancelled reapplication preserves deterministic id/history and requires re
   assert.equal(second.id, first.id);
   assert.equal(second.attempt, 2);
   assert.ok(second.revision > first.revision);
-  assert.equal(second.state, 'pending_review');
+  assert.equal(second.state, 'pending_confirmation');
   assert.equal(data<Activity>(await ctx.call('activity.get', { activityId: 'intro-ride' })).reservedSeats, 1);
 });
 

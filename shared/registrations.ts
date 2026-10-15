@@ -4,6 +4,8 @@ import { key, registrationIdFor, shanghaiDay, statsIdFor } from './models';
 import type { Activity, Checkin, MemberStats, Membership, Qualification, Registration } from './models';
 import type { Transaction } from './store';
 import { WAITLIST_RECHECK_BATCH } from './limits';
+import { effectiveMemberKind } from './member-identity';
+import { publicClub } from './club';
 
 export async function checkEligibility(ctx: Context, tx: Transaction, activity: Activity, memberId: string) {
   const growth = await tx.get<MemberStats>('member_stats', statsIdFor(ctx.clubId, memberId, null));
@@ -31,18 +33,26 @@ export async function applyRegistration(ctx: Context) {
     const existing = await tx.get<Registration>('registrations', id);
     if (existing && existing.state !== 'cancelled') return existing;
     requireOpen(ctx, activity);
+    requireThat((await publicClub(ctx, tx)).configured, 'INVALID_INPUT', '组织方尚未配置有效联系方式，暂不能提交申请');
     requireThat(ctx.request.payload.acceptedRuleVersion === activity.ruleVersion, 'RULE_VERSION_CHANGED', '活动规则已更新，请重新阅读');
     await checkEligibility(ctx, tx, activity, actor.member.id);
     const held = activity.reservedSeats < activity.capacity && (activity.waitlistCount ?? 0) === 0;
+    const kind = effectiveMemberKind(actor.member, ctx.now);
+    const direct = held && kind === 'founder';
     const registration: Registration = { id, clubId: ctx.clubId, activityId: activity.id, memberId: actor.member.id,
-      state: held ? activity.requiresReview || existing ? 'pending_review' : 'pending_confirmation' : 'waitlisted',
-      seatState: held ? 'held' : 'none', reviewDecision: activity.requiresReview || existing ? 'pending' : 'not_required',
+      state: held ? direct ? 'confirmed' : 'pending_confirmation' : 'waitlisted',
+      seatState: held ? 'held' : 'none', reviewDecision: activity.requiresReview ? direct ? 'approved' : 'pending' : 'not_required',
       queueSeq: activity.nextQueueSeq + 1, attempt: (existing?.attempt ?? 0) + 1, revision: (existing?.revision ?? 0) + 1,
-      acceptedRuleVersion: activity.ruleVersion, holdExpiresAt: null, settlementId: null, createdAt: existing?.createdAt ?? ctx.now, updatedAt: ctx.now };
+      acceptedRuleVersion: activity.ruleVersion, holdExpiresAt: null, settlementId: null, createdAt: existing?.createdAt ?? ctx.now, updatedAt: ctx.now,
+      memberKindAtApplication: kind, memberKindVersionAtApplication: actor.member.memberKindVersion ?? 0,
+      confirmationPath: kind === 'founder' ? 'founder_direct' : 'staff_manual',
+      ...(direct ? { memberKindAtConfirmation: kind, memberKindVersionAtConfirmation: actor.member.memberKindVersion ?? 0,
+        confirmedAt: ctx.now, confirmedBy: 'system_founder' } : {}) };
     await tx.set('registrations', id, registration);
     await tx.set('activities', activity.id, { ...activity, reservedSeats: activity.reservedSeats + (held ? 1 : 0),
       waitlistCount: (activity.waitlistCount ?? 0) + (held ? 0 : 1), nextQueueSeq: registration.queueSeq, revision: activity.revision + 1 });
-    await ctx.audit(tx, actor, 'registration', id, { state: registration.state, attempt: registration.attempt, seatState: registration.seatState });
+    await ctx.audit(tx, actor, 'registration', id, { state: registration.state, attempt: registration.attempt, seatState: registration.seatState,
+      memberKind: kind, memberKindVersion: registration.memberKindVersionAtApplication, confirmationPath: registration.confirmationPath });
     return registration;
   });
 }
@@ -81,7 +91,8 @@ export async function reviewRegistration(ctx: Context, confirm = false) {
     let decision = registration.reviewDecision;
     let reason = '';
     if (confirm) {
-      requireThat(registration.state === 'pending_confirmation' && ['approved','not_required'].includes(decision) && registration.seatState === 'held', 'STATE_CONFLICT', '请先通过审核并预留名额');
+      requireThat(['pending_review','pending_confirmation'].includes(registration.state) && ['pending','approved','not_required'].includes(decision) && registration.seatState === 'held', 'STATE_CONFLICT', '当前申请不可确认或尚未预留名额');
+      decision = activity.requiresReview ? 'approved' : 'not_required';
       state = 'confirmed';
     } else {
       requireThat(['pending_review','waitlisted','pending_confirmation'].includes(registration.state), 'STATE_CONFLICT', '当前状态不允许审核');
@@ -92,6 +103,10 @@ export async function reviewRegistration(ctx: Context, confirm = false) {
       else state = registration.state === 'waitlisted' ? 'waitlisted' : 'pending_confirmation';
     }
     if (state !== 'rejected') {
+      const member = await tx.get<Membership>('memberships', registration.memberId);
+      requireThat(member?.clubId === ctx.clubId, 'FORBIDDEN', '成员不可访问');
+      const user = await tx.get<{ status: string }>('users', member.userId);
+      requireThat(user?.status === 'active', 'FORBIDDEN', '成员账号当前不可使用');
       requireThat(registration.acceptedRuleVersion === activity.ruleVersion, 'RULE_VERSION_CHANGED', '申请所同意规则与当前规则不同');
       await checkEligibility(ctx, tx, activity, registration.memberId);
     }
@@ -101,7 +116,10 @@ export async function reviewRegistration(ctx: Context, confirm = false) {
       await tx.set('activities', activity.id, { ...activity, reservedSeats: activity.reservedSeats - (released ? 1 : 0),
         waitlistCount: Math.max(0, (activity.waitlistCount ?? 0) - (registration.state === 'waitlisted' ? 1 : 0)), revision: activity.revision + 1 });
     }
-    const next: Registration = { ...registration, state, reviewDecision: decision, seatState: released ? 'released' : registration.seatState, revision: registration.revision + 1, updatedAt: ctx.now, ...(reason ? { reason } : {}) };
+    const confirmedMember = confirm ? await tx.get<Membership>('memberships', registration.memberId) : null;
+    const next: Registration = { ...registration, state, reviewDecision: decision, seatState: released ? 'released' : registration.seatState, revision: registration.revision + 1, updatedAt: ctx.now, ...(reason ? { reason } : {}),
+      ...(confirm ? { confirmationPath: 'staff_manual', confirmedAt: ctx.now, confirmedBy: actor.user.id,
+        memberKindAtConfirmation: effectiveMemberKind(confirmedMember!, ctx.now), memberKindVersionAtConfirmation: confirmedMember!.memberKindVersion ?? 0 } : {}) };
     await tx.set('registrations', next.id, next);
     await ctx.audit(tx, actor, 'registration', next.id, { from: registration.state, to: next.state, reviewDecision: decision }, reason);
     return next;
@@ -133,7 +151,12 @@ export async function promoteWaitlist(ctx: Context) {
         throw error;
       }
       if (current.acceptedRuleVersion !== activity.ruleVersion) continue;
-      const next: Registration = { ...current, state: activity.requiresReview && current.reviewDecision !== 'approved' ? 'pending_review' : 'pending_confirmation',
+      const kind = effectiveMemberKind(member, ctx.now);
+      const direct = kind === 'founder';
+      const next: Registration = { ...current, state: direct ? 'confirmed' : 'pending_confirmation',
+        reviewDecision: activity.requiresReview ? direct || current.reviewDecision === 'approved' ? 'approved' : 'pending' : 'not_required',
+        confirmationPath: direct ? 'founder_direct' : 'staff_manual',
+        ...(direct ? { memberKindAtConfirmation: kind, memberKindVersionAtConfirmation: member.memberKindVersion ?? 0, confirmedAt: ctx.now, confirmedBy: 'system_founder' } : {}),
         seatState: 'held', revision: current.revision + 1, updatedAt: ctx.now };
       await tx.set('registrations', next.id, next);
       await tx.set('activities', activity.id, { ...activity, reservedSeats: activity.reservedSeats + 1, waitlistCount: Math.max(0, (activity.waitlistCount ?? 0) - 1), revision: activity.revision + 1 });
@@ -163,7 +186,12 @@ export async function listRegistrations(ctx: Context, staff = false) {
     for (const row of page.items) {
       const activity = await tx.get<Activity>('activities', row.activityId);
       const member = staff ? await tx.get<Membership>('memberships', row.memberId) : actor.member;
-      items.push({ ...row, activityTitle: activity?.title ?? '活动', nickname: member?.nickname ?? '车友' });
+      const legacyReturn = !row.lastReturnDay && row.lastDepartureDay ? await tx.get<Checkin>('checkins', key('checkin', ctx.clubId, row.activityId, row.memberId, 'return', row.lastDepartureDay)) : null;
+      items.push({ ...row, activityTitle: activity?.title ?? '活动', nickname: member?.nickname ?? '车友',
+        memberKind: member ? effectiveMemberKind(member, ctx.now) : 'regular',
+        confirmationPath: row.confirmationPath ?? 'staff_manual', activityStartAt: activity?.startAt,
+        activityEndAt: activity?.endAt, activityLocation: activity?.location, activityState: activity?.state,
+        lastReturnDay: row.lastReturnDay ?? legacyReturn?.day });
     }
     return { ...page, items };
   });
@@ -220,8 +248,25 @@ export async function recordCheckin(ctx: Context) {
     await tx.set('checkins', id, checkin);
     const next: Registration & { lastDepartureDay?: string } = { ...registration, state, revision: registration.revision + 1, updatedAt: ctx.now,
       ...(p.phase === 'departure' && p.result === 'present' ? { lastDepartureDay: day } : {}), ...(reason ? { reason } : {}) };
+    if (p.phase === 'return') next.lastReturnDay = day;
     await tx.set('registrations', next.id, next);
     await ctx.audit(tx, actor, 'registration', next.id, { from: registration.state, to: state, phase: p.phase, day }, reason);
     return next;
   });
+}
+
+export async function registrationTimeline(ctx: Context) {
+  const registrationId = text(ctx.request.payload.registrationId, 'registrationId', 100);
+  const access = async (tx: Transaction) => {
+    const actor = await ctx.actor(tx);
+    const registration = await readRegistration(ctx, tx, registrationId);
+    if (registration.memberId !== actor.member.id) await ctx.staff(tx, ['owner','operator','leader','checkin'], registration.activityId);
+    return registration;
+  };
+  const registration = await ctx.store.transaction(access);
+  const rows = await ctx.store.query<Checkin>('checkins', { clubId: ctx.clubId, memberId: registration.memberId, activityId: registration.activityId },
+    { orderBy: 'verifiedAt', direction: 'asc', limit: 21, after: parseCursor(ctx.request.payload.cursor) });
+  await ctx.store.transaction(access);
+  const page = paginated(rows, 'verifiedAt');
+  return { ...page, items: page.items.map(({ id, phase, day, result, verifiedAt, reason }) => ({ id, phase, day, result, verifiedAt, reason })) };
 }

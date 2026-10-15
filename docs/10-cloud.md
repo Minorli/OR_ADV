@@ -60,6 +60,12 @@ node scripts/cloud-plan.cjs --env test --config config/local.json
 node scripts/cloud-plan.cjs --env test --config config/local.json --check
 ```
 
-第一条输出离线计划；第二条在本地配置不完整时返回失败。结构计划位于 `config/database-plan.v1.json`，所有集合均拒绝客户端直读写。计划工具不会执行数据库迁移：实际集合、索引、安全规则须由部署者按当前控制台应用并核验，记录版本和结果，不能把计划当作已初始化。
+第一条输出离线计划；第二条在本地配置不完整时返回失败。结构计划位于 `config/database-plan.v2.json`，所有集合均拒绝客户端直读写。计划工具不会执行数据库迁移：实际集合、索引、安全规则须由部署者按当前控制台应用并核验，记录版本和结果，不能把计划当作已初始化。
 
 真实微信用户首次同意后建立内部会员，再由可信部署者初始化首位 owner。单独的 `work/cloud-bootstrap-owner.cjs` 默认为计划，不是任何用户可调用的云函数。其 `--execute` 需要匹配本地测试环境以及受授权的云部署身份；未取得实际身份前不执行。查看 `node work/cloud-bootstrap-owner.cjs --help`，不要将云凭据发到聊天或 GitHub。
+
+## 0.2a增量结构
+
+当前计划为v2，保留v1作追溯。新增 `activity_briefings` 与 `public_recommendations`，以及成员目录、技能和本人核验时间线所需索引；两类新增集合仍禁止客户端直接读写。现有成员缺少业务身份字段时按普通成员处理，不自动升为创始成员；现有已确认报名与积分流水不自动重写。
+
+先由可信部署者初始化owner，再在产品内配置经确认的公开联系、成员身份和行前安排。本机演示联系、创始身份、活动与积分不得导入真实环境。离线预检在没有实际测试EnvId时返回失败，这是预期缺项；本轮未因此创建资源或代购。

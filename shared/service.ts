@@ -2,12 +2,15 @@ import { Context } from './context';
 import { DomainError, requireThat } from './errors';
 import { changeActivity, getActivity, listActivities, saveActivity } from './activities';
 import { currentIdentity, ensureIdentity, requestDeletion, updateProfile } from './identity';
-import { applyRegistration, cancelRegistration, listRegistrations, promoteWaitlist, recordCheckin, reviewRegistration } from './registrations';
+import { applyRegistration, cancelRegistration, listRegistrations, promoteWaitlist, recordCheckin, registrationTimeline, reviewRegistration } from './registrations';
 import { listRankings, ownPoints, previewSettlement, reversePoints, runSettlement } from './points';
 import { assignRole, recordReward, rewardSnapshot } from './staff';
 import type { Store } from './store';
 import type { ServiceOptions } from './models';
 import type { RpcRequest, RpcResponse, TrustedIdentity } from './types';
+import { assignMemberKind, listMemberRoles, listMembers, listRecommendations, requestMemberKind } from './members';
+import { getBriefing, publicClub, saveBriefing, saveClub } from './club';
+import { listQualifications, reviewQualification } from './qualifications';
 
 export function createService(store: Store, options: ServiceOptions = {}) {
   return {
@@ -25,14 +28,28 @@ export function createService(store: Store, options: ServiceOptions = {}) {
           case 'identity.ensure': data = await ensureIdentity(ctx); break;
           case 'identity.me': data = await currentIdentity(ctx); break;
           case 'identity.delete': data = await requestDeletion(ctx); break;
+          case 'identity.memberKind.request': data = await requestMemberKind(ctx); break;
           case 'profile.update': data = await updateProfile(ctx); break;
           case 'activity.list': data = await listActivities(ctx); break;
           case 'activity.get': data = await getActivity(ctx); break;
+          case 'club.public': data = await publicClub(ctx); break;
+          case 'staff.club.save': data = await saveClub(ctx); break;
+          case 'activity.briefing.get': data = await getBriefing(ctx); break;
+          case 'staff.briefing.save': data = await saveBriefing(ctx); break;
           case 'registration.apply': data = await applyRegistration(ctx); break;
           case 'registration.cancel': data = await cancelRegistration(ctx); break;
           case 'registration.mine': data = await listRegistrations(ctx); break;
+          case 'registration.timeline': data = await registrationTimeline(ctx); break;
           case 'points.mine': data = await ownPoints(ctx); break;
           case 'ranking.list': data = await listRankings(ctx); break;
+          case 'recommendation.list': data = await listRecommendations(ctx); break;
+          case 'staff.member.list': data = await listMembers(ctx); break;
+          case 'staff.member.assign': data = await assignMemberKind(ctx); break;
+          case 'staff.recommendation.save': data = await assignMemberKind(ctx, true); break;
+          case 'staff.roles.list': data = await listMemberRoles(ctx); break;
+          case 'staff.qualification.list': data = await listQualifications(ctx); break;
+          case 'staff.qualification.review': data = await reviewQualification(ctx); break;
+          case 'qualifications.mine': data = await listQualifications(ctx, true); break;
           case 'staff.activity.list': data = await listActivities(ctx, true); break;
           case 'staff.activity.save': data = await saveActivity(ctx); break;
           case 'staff.activity.publish': case 'staff.activity.close': case 'staff.activity.start': case 'staff.activity.end': case 'staff.activity.cancel':

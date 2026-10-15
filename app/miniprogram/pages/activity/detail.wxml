@@ -5,11 +5,11 @@
   <block wx:if="{{activity}}">
     <view class="eyebrow">ORIGINAL RALLY / {{activity.difficulty}}</view>
     <view class="title">{{activity.title}}</view>
-    <view class="hero"><view class="hero-content"><view class="tag tag-dark">{{activity.stateText}}</view><view class="hero-title">{{activity.difficulty}}同行</view><view class="hero-bottom">{{activity.dateText}}<text>{{'\n'}}</text>{{activity.location}}</view></view></view>
+    <view class="activity-summary mt"><view class="row"><text class="tag tag-dark">{{activity.stateText}}</text><text class="tag">{{activity.difficulty}}</text></view><view class="activity-date mt">{{activity.dateText}}</view><view class="small muted mt">{{activity.location}}</view></view>
     <view class="row small"><text>计划结束</text><text class="muted">{{activity.endText}}</text></view>
     <view class="row small mt"><text>申请截止</text><text class="muted">{{activity.deadlineText}}</text></view>
     <view class="row small mt"><text>活动名额</text><text class="muted">{{activity.capacity}} 位 · 余 {{activity.slots}} 位</text></view>
-    <view class="section-head"><text class="section-title">活动介绍</text><text class="section-index">01 / RIDE</text></view>
+    <view wx:if="{{registration}}" class="notice"><text>{{registration.stateText}}</text><view class="mt">{{nextAction}}</view></view><view class="section-head"><text class="section-title">活动介绍</text><text class="section-index">01 / RIDE</text></view>
     <view class="paragraph small">{{activity.description}}</view>
     <view class="section-head"><text class="section-title">参与要求</text><text class="section-index">02 / READY</text></view>
     <view class="card">
@@ -27,10 +27,10 @@
     <view class="section-head"><text class="section-title">完成奖励</text><text class="section-index">03 / GROW</text></view>
     <view class="stats"><view class="stat"><view class="stat-number">+{{activity.pointsRule.growth}}</view><view class="stat-label">成长积分</view></view><view class="stat"><view class="stat-number">+{{activity.pointsRule.annual}}</view><view class="stat-label">年度积分</view></view><view class="stat"><view class="stat-number">+1</view><view class="stat-label">完成次数</view></view></view>
     <view class="small muted paragraph">仅完整出发核验、结束核验并经结算后记录。候补、报名、签到、未到和安全退出不直接发完成奖励。当前规则版本 v{{activity.ruleVersion}}。</view>
-    <view class="notice">名额已满可提交候补，按申请顺序与资格复核提升。申请不代表确认参加；确认参加表示资格与线下安排已确认。</view>
+    <view class="notice">创始成员在资格、规则与名额满足时直接确认参加。普通成员先提交意向，收到本场提示后再联系工作人员安排线下缴费，由管理员确认参加。候补不占名额，无需提前安排缴费。</view><view class="card"><view class="card-title">联系组织方</view><view wx:if="{{contact.configured}}" class="small muted mt">{{contact.contactName}} · {{contact.contactValue}}</view><view wx:if="{{contact.configured}}" class="small muted paragraph mt">{{contact.contactInstructions}}</view><button wx:if="{{contact.configured}}" class="secondary full mt" bindtap="contact">{{contact.contactMethod === 'phone' ? '联系工作人员' : '复制联系信息'}}</button><view wx:else class="small muted mt">组织方尚未提供有效联系办法。</view></view>
     <view class="bottom-bar">
       <button wx:if="{{registration}}" class="primary full" bindtap="mine">{{registration.stateText}} · 查看我的活动</button>
-      <button wx:elif="{{activity.canApply}}" class="primary full" disabled="{{member && gap > 0}}" bindtap="apply">{{activity.slots > 0 ? '提交报名意向' : '提交候补意向'}}</button>
+      <button wx:elif="{{activity.canApply}}" class="primary full" disabled="{{member && gap > 0}}" bindtap="apply">{{activity.slots > 0 ? (member.memberKind === 'founder' ? '阅读规则并参加' : '提交报名意向') : '提交候补意向'}}</button>
       <button wx:else class="secondary full" disabled>当前{{activity.stateText}}</button>
     </view>
   </block>

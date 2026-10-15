@@ -4,8 +4,9 @@ import type { Membership, StaffRole, User } from './models';
 import type { Activity, Role, TrustedIdentity } from './types';
 import type { StoreSnapshot } from './store';
 
-export const DEMO_IDENTITIES: Record<'member' | 'owner' | 'operator' | 'leader' | 'checkin', TrustedIdentity> = {
+export const DEMO_IDENTITIES: Record<'member' | 'founder' | 'owner' | 'operator' | 'leader' | 'checkin', TrustedIdentity> = {
   member: { appId: 'demo-app', openId: 'fictional-member' },
+  founder: { appId: 'demo-app', openId: 'fictional-founder' },
   owner: { appId: 'demo-app', openId: 'fictional-owner' },
   operator: { appId: 'demo-app', openId: 'fictional-operator' },
   leader: { appId: 'demo-app', openId: 'fictional-leader' },
@@ -20,15 +21,19 @@ export function demoSnapshot(referenceNow = new Date().toISOString()): StoreSnap
   const startAt = scheduledStart.toISOString();
   const endAt = new Date(Date.parse(startAt) + 4 * 3600000).toISOString();
   const deadline = new Date(Date.parse(startAt) - 86400000).toISOString();
-  const seed: StoreSnapshot = { users: {}, memberships: {}, staff_roles: {}, activities: {} };
-  const labels = { member: '模拟车友', owner: '模拟主理人', operator: '模拟运营', leader: '模拟领队', checkin: '模拟核验员' };
+  const seed: StoreSnapshot = { users: {}, memberships: {}, staff_roles: {}, activities: {}, clubs: {} };
+  seed.clubs.oradv = { id: 'oradv', clubId: 'oradv', name: '原始拉力 · 本机演示', contactName: '演示组织方', contactMethod: 'wechat',
+    contactValue: '仅为演示，不是真实联系方式', contactInstructions: '本机演示不接受真实报名；真实使用前须由主理人配置有效联系入口。', revision: 1, fixtureOnly: true };
+  const labels = { member: '模拟车友', founder: '模拟创始成员', owner: '模拟主理人', operator: '模拟运营', leader: '模拟领队', checkin: '模拟核验员' };
   for (const [name, identity] of Object.entries(DEMO_IDENTITIES)) {
     const userId = userIdFor(identity), memberId = memberIdFor('oradv', userId);
     const user: User = { id: userId, clubId: 'oradv', appId: identity.appId, wxOpenId: identity.openId, status: 'active', consentVersions: { privacy: 1, terms: 1 }, createdAt: now, updatedAt: now };
     const member: Membership = { id: memberId, clubId: 'oradv', userId, nickname: labels[name as keyof typeof labels], publicId: key('public', name),
-      rankingOptIn: false, rankingConsentVersion: 0, revision: 1, createdAt: now, updatedAt: now };
+      rankingOptIn: false, rankingConsentVersion: 0, memberKind: name === 'founder' ? 'founder' : 'regular',
+      memberKindVersion: name === 'founder' ? 1 : 0, memberKindExpiresAt: null, recommendationOptIn: false,
+      recommendationConsentVersion: 0, recommendationPriority: 0, revision: 1, createdAt: now, updatedAt: now };
     seed.users[userId] = user; seed.memberships[memberId] = member;
-    if (name !== 'member') {
+    if (name !== 'member' && name !== 'founder') {
       const id = key('role', 'oradv', userId, name);
       const role: StaffRole = { id, clubId: 'oradv', userId, role: name as Role, enabled: true,
         activityIds: ['leader','checkin'].includes(name) ? ['intro-ride'] : null, expiresAt: null,

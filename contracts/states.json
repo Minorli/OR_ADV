@@ -11,7 +11,7 @@
   "registration": {
     "pending_review": "待资格审核",
     "waitlisted": "候补",
-    "pending_confirmation": "待联系确认",
+    "pending_confirmation": "待管理员确认",
     "confirmed": "确认参加",
     "checked_in": "已出发核验",
     "pending_settlement": "已结束待核验",
@@ -35,12 +35,14 @@
   "registrationTransitions": {
     "pending_review": [
       "pending_confirmation",
+      "confirmed",
       "rejected",
       "cancelled"
     ],
     "waitlisted": [
       "pending_review",
       "pending_confirmation",
+      "confirmed",
       "rejected",
       "cancelled"
     ],
@@ -67,10 +69,21 @@
     "no_show": [],
     "cancelled": [
       "pending_review",
+      "pending_confirmation",
+      "confirmed",
       "waitlisted"
     ],
     "rejected": []
   },
-  "transitionNotes": "取消后重报需新attempt/revision且活动仍开放；完成纠错通过冲正专门命令，不任意回退；候补提升需事务占位及重新准入",
-  "policyStatus": "proposed"
+  "transitionNotes": "创始成员在名额、积分、技能、截止与规则均满足时首次申请/取消后重报/候补提升直接confirmed；普通成员待管理员确认，确认事务重新核验并完成审核。保留旧pending_review兼容；不改写已确认历史。",
+  "policyStatus": "v0.2a_confirmed_member_paths_other_event_policies_proposed",
+  "membershipKinds": {
+    "founder": "创始／核心成员",
+    "regular": "普通成员"
+  },
+  "membershipDefaults": {
+    "memberKind": "regular",
+    "memberKindVersion": 0,
+    "recommendationOptIn": false
+  }
 }

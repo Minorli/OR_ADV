@@ -1,17 +1,23 @@
 {
-  "status": "design_not_deployed",
+  "status": "v0.2a_implemented_locally_not_deployed",
   "commonFields": {
     "_id": "server generated or deterministic ID",
     "clubId": "string",
     "createdAt": "timestamp(server)",
     "updatedAt": "timestamp(server)",
-    "schemaVersion": "integer"
+    "schemaVersion": "integer",
+    "id": "deterministic logical document ID; CloudBase _id equals id"
   },
   "collections": {
     "clubs": {
       "name": "string",
       "publicDescription": "string",
-      "settingsVersion": "integer"
+      "settingsVersion": "integer",
+      "contactName": "string(owner approved public contact)",
+      "contactMethod": "phone|wechat|other",
+      "contactValue": "string(public business contact)",
+      "contactInstructions": "string",
+      "revision": "integer"
     },
     "users": {
       "appId": "string(server)",
@@ -24,7 +30,17 @@
       "nickname": "string",
       "avatarFileId": "string|null",
       "rankingOptIn": "boolean",
-      "rankingConsentVersion": "integer"
+      "rankingConsentVersion": "integer",
+      "memberKind": "founder|regular; missing means regular",
+      "memberKindVersion": "integer; missing means 0",
+      "memberKindExpiresAt": "timestamp|null",
+      "recommendationOptIn": "boolean; missing means false; independent of rankingOptIn",
+      "recommendationConsentVersion": "integer",
+      "recommendationPriority": "integer0..999(owner-only)",
+      "kindRequestStatus": "pending|resolved|null",
+      "kindRequestedAt": "timestamp|null",
+      "kindRequestReason": "string(private)",
+      "revision": "integer"
     },
     "staff_roles": {
       "userId": "string",
@@ -43,11 +59,13 @@
       "capacity": "integer>0",
       "reservedSeats": "integer>=0",
       "minGrowthPoints": "integer>=0",
-      "requiredQualifications": "object[]",
+      "requiredQualifications": "string[] of independently reviewed qualification types",
       "ruleVersion": "integer",
       "pointsRule": "object",
       "revision": "integer",
-      "actualCompletedAt": "timestamp|null"
+      "actualCompletedAt": "timestamp|null",
+      "actualStartedAt": "timestamp(server)|null",
+      "waitlistCount": "integer>=0"
     },
     "registrations": {
       "activityId": "string",
@@ -60,7 +78,18 @@
       "revision": "integer",
       "acceptedRuleVersion": "integer",
       "holdExpiresAt": "timestamp|null",
-      "settlementId": "string|null"
+      "settlementId": "string|null",
+      "memberKindAtApplication": "founder|regular",
+      "memberKindVersionAtApplication": "integer",
+      "memberKindAtConfirmation": "founder|regular|absent",
+      "memberKindVersionAtConfirmation": "integer|absent",
+      "confirmationPath": "founder_direct|staff_manual",
+      "confirmedAt": "timestamp|absent",
+      "confirmedBy": "system_founder|trusted staff userId|absent",
+      "lastDepartureDay": "YYYY-MM-DD|absent",
+      "lastReturnDay": "YYYY-MM-DD|absent",
+      "completionVoided": "boolean|absent",
+      "voidedAt": "timestamp|absent"
     },
     "qualifications": {
       "memberId": "string",
@@ -69,14 +98,15 @@
       "expiresAt": "timestamp|null",
       "decision": "pending|approved|rejected",
       "reviewedBy": "string|null",
-      "reviewedAt": "timestamp|null"
+      "reviewedAt": "timestamp|null",
+      "revision": "integer; legacy missing means 0"
     },
     "checkins": {
       "activityId": "string",
       "memberId": "string",
       "phase": "departure|return",
       "day": "YYYY-MM-DD",
-      "result": "present|safe_exit|exception",
+      "result": "present|safe_exit|no_show",
       "verifiedBy": "string",
       "verifiedAt": "timestamp"
     },
@@ -138,6 +168,23 @@
       "failureCount": "integer",
       "cursor": "string|null",
       "errorSummary": "object|null"
+    },
+    "public_recommendations": {
+      "memberId": "string(private lookup only)",
+      "sortKey": "derived from effective member kind and manual priority",
+      "visible": "boolean",
+      "consentVersion": "integer(separate from ranking consent)"
+    },
+    "activity_briefings": {
+      "activityId": "string(unique per club/activity)",
+      "meetingPoint": "string(private)",
+      "meetingTime": "timestamp|empty",
+      "contactName": "string",
+      "contactMethod": "phone|wechat|other",
+      "contactValue": "string(private event contact)",
+      "checklist": "string[]",
+      "notes": "string(private)",
+      "revision": "integer"
     }
   },
   "coreUniqueness": [
@@ -145,7 +192,9 @@
     "memberships:clubId+userId",
     "registrations:clubId+activityId+memberId",
     "points_ledger:businessKey",
-    "member_stats:clubId+memberId+scope+year"
+    "member_stats:clubId+memberId+scope+year",
+    "activity_briefings:clubId+activityId",
+    "public_recommendations:clubId+memberId"
   ],
   "sensitiveCollections": [
     "users",
@@ -157,7 +206,17 @@
     "member_stats",
     "annual_rewards",
     "audit_logs",
-    "settlement_jobs"
+    "settlement_jobs",
+    "activity_briefings",
+    "public_recommendations"
   ],
-  "frontendDirectSensitiveWrite": false
+  "frontendDirectSensitiveWrite": false,
+  "variants": {
+    "member_stats.year_guard": {
+      "kind": "year_guard",
+      "year": "integer",
+      "revision": "integer; updated atomically with each award/reversal; no scope"
+    }
+  },
+  "privacyNotes": "All direct client DB access denied. Recommendation API projects only opted nickname/member kind; points/counts require separate rankingOptIn. Private briefing never appears in activity public projection."
 }

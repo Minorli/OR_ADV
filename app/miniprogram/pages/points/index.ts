@@ -18,13 +18,14 @@ Page({
       if (!member) { this.setData({ summary: null, items: [] }); return; }
       const result = await call<PointsResult>('points.mine', { year: this.data.year, cursor: append ? this.data.nextCursor : undefined, limit: 20 });
       if (this.data.requestVersion !== requestVersion) return;
-      this.setData({ summary: result, nextCursor: result.nextCursor, items: [...(append ? this.data.items : []), ...result.items.map(item => ({ ...item, dateText: dateText(item.effectiveAt), title: item.awardType === 'reversal' ? '成长记录更正' : '同行完成记录' }))] });
+      this.setData({ summary: result, nextCursor: result.nextCursor, items: [...(append ? this.data.items : []), ...result.items.map(item => ({ ...item, dateText: dateText(item.effectiveAt), title: (item as LedgerEntry & { activityTitle?: string }).activityTitle || (item.awardType === 'reversal' ? '成长记录更正' : '同行完成记录') }))] });
     } catch (error) { if (this.data.requestVersion === requestVersion) this.setData({ error: errorMessage(error) }); }
     finally { if (this.data.requestVersion === requestVersion) this.setData({ loading: false }); }
   },
   year(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.setData({ year: years[Number(event.detail.value)], summary: null, items: [], nextCursor: null }); void this.load(); },
   retry() { void this.load(); },
   more() { void this.load(true); },
-  profile() { wx.navigateTo({ url: '/pages/profile/index' }); },
+  activity(event: WechatMiniprogram.TouchEvent) { wx.navigateTo({ url: `/pages/trip/detail?id=${encodeURIComponent(event.currentTarget.dataset.id)}` }); },
+  profile() { wx.switchTab({ url: '/pages/profile/index' }); },
   explore() { wx.switchTab({ url: '/pages/activities/index' }); },
 });
