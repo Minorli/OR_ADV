@@ -1,0 +1,9 @@
+item,stage,frequency,planning_amount_cny,actual_quote_cny,status,owner
+wechat_verification,account,per_order,300,,budget_placeholder,
+filing,pre_release,per_filing,0,,official_filing_no_fee,
+cloud_production,release,monthly,300,,budget_placeholder_not_package_quote,
+cloud_test,real_integration,monthly,,,check_eligibility_and_order,
+ai_tools,development,monthly,,,unknown,
+development,development,one_time,,,unknown,
+maintenance,operations,yearly,,,unknown,
+backup_extra,operations,monthly,,,unknown

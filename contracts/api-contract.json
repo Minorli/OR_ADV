@@ -1,0 +1,328 @@
+{
+  "transport": "wx.cloud.callFunction RPC",
+  "status": "design_not_deployed",
+  "requestEnvelope": [
+    "action",
+    "requestId",
+    "clubId",
+    "payload",
+    "expectedRevision_optional"
+  ],
+  "responseEnvelope": {
+    "success": [
+      "ok=true",
+      "data",
+      "traceId"
+    ],
+    "failure": [
+      "ok=false",
+      "error.code",
+      "error.message",
+      "error.retryable",
+      "traceId"
+    ]
+  },
+  "trustedIdentitySource": "server_verified_context_only",
+  "actions": [
+    {
+      "action": "identity.ensure",
+      "authorization": "signed_wechat",
+      "input": [
+        "consentVersions",
+        "nickname"
+      ],
+      "output": [
+        "memberSummary"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "activity.list",
+      "authorization": "public",
+      "input": [
+        "cursor",
+        "filters"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "activity.get",
+      "authorization": "public_or_authorized_staff",
+      "input": [
+        "activityId"
+      ],
+      "output": [
+        "publicActivity"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "profile.update",
+      "authorization": "member_self",
+      "input": [
+        "allowedFields",
+        "expectedRevision"
+      ],
+      "output": [
+        "memberSummary"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "registration.apply",
+      "authorization": "member_self",
+      "input": [
+        "activityId",
+        "answers",
+        "acceptedRuleVersion",
+        "requestId"
+      ],
+      "output": [
+        "registration"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "registration.cancel",
+      "authorization": "member_self",
+      "input": [
+        "registrationId",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "registration"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "registration.mine",
+      "authorization": "member_self",
+      "input": [
+        "cursor"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "points.mine",
+      "authorization": "member_self",
+      "input": [
+        "year",
+        "cursor"
+      ],
+      "output": [
+        "summary",
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "ranking.list",
+      "authorization": "public",
+      "input": [
+        "metric",
+        "year",
+        "cursor"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.activity.save",
+      "authorization": "operator_or_owner",
+      "input": [
+        "activity",
+        "expectedRevision"
+      ],
+      "output": [
+        "activityRevision"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.activity.publish",
+      "authorization": "operator_or_owner",
+      "input": [
+        "activityId",
+        "expectedRevision"
+      ],
+      "output": [
+        "activityRevision"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.activity.close",
+      "authorization": "operator_or_owner",
+      "input": [
+        "activityId",
+        "expectedRevision"
+      ],
+      "output": [
+        "activityRevision"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.registration.review",
+      "authorization": "operator_or_owner",
+      "input": [
+        "registrationId",
+        "decision",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "registration"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.registration.confirm",
+      "authorization": "operator_or_owner",
+      "input": [
+        "registrationId",
+        "expectedRevision"
+      ],
+      "output": [
+        "registration"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.waitlist.promote",
+      "authorization": "operator_or_owner",
+      "input": [
+        "activityId",
+        "expectedRevision"
+      ],
+      "output": [
+        "registrationOrNone"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.checkin.record",
+      "authorization": "assigned_staff",
+      "input": [
+        "registrationId",
+        "phase",
+        "day",
+        "result",
+        "requestId"
+      ],
+      "output": [
+        "checkin"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.settlement.preview",
+      "authorization": "operator_or_owner",
+      "input": [
+        "activityId",
+        "ruleVersion"
+      ],
+      "output": [
+        "settlementPreview"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.settlement.run",
+      "authorization": "operator_or_owner",
+      "input": [
+        "activityId",
+        "ruleVersion",
+        "taskId"
+      ],
+      "output": [
+        "jobSummary"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.points.reverse",
+      "authorization": "owner",
+      "input": [
+        "ledgerId",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "reversalSummary"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.roles.assign",
+      "authorization": "owner",
+      "input": [
+        "memberId",
+        "role",
+        "activityIds",
+        "expiresAt"
+      ],
+      "output": [
+        "roleSummary"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.rewards.snapshot",
+      "authorization": "operator_or_owner",
+      "input": [
+        "year",
+        "ruleVersion"
+      ],
+      "output": [
+        "snapshotSummary"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.rewards.record",
+      "authorization": "operator_or_owner",
+      "input": [
+        "snapshotVersion",
+        "memberId",
+        "item",
+        "status",
+        "expectedRevision"
+      ],
+      "output": [
+        "awardSummary"
+      ],
+      "businessIdempotency": false
+    }
+  ],
+  "errors": [
+    "UNAUTHENTICATED",
+    "FORBIDDEN",
+    "ACTIVITY_NOT_FOUND",
+    "REGISTRATION_CLOSED",
+    "SCORE_TOO_LOW",
+    "QUALIFICATION_REQUIRED",
+    "QUALIFICATION_EXPIRED",
+    "NO_CAPACITY",
+    "STATE_CONFLICT",
+    "CONFLICT_REFRESH",
+    "RULE_VERSION_CHANGED",
+    "ALREADY_SETTLED",
+    "INVALID_INPUT",
+    "RATE_LIMITED",
+    "TEMPORARY_FAILURE"
+  ]
+}

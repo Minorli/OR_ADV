@@ -1,0 +1,25 @@
+<view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
+<view class="page">
+  <view class="eyebrow">JOIN THE NEXT RIDE</view><view class="title">报名意向</view>
+  <view wx:if="{{loading}}" class="loading">正在核对本场规则…</view>
+  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新读取最新规则</button></view>
+  <view wx:if="{{success}}" class="card mt"><view class="tag tag-dark">意向已提交</view><view class="card-title mt">{{success}}</view><view class="subtitle">申请进展可在「我的活动」查看。工作人员会核对资格并联系你确认安排。</view><button class="primary full mt" bindtap="mine">查看我的活动</button></view>
+  <block wx:elif="{{activity}}">
+    <view class="card mt"><view class="card-title">{{activity.title}}</view><view class="small muted mt">{{activity.dateText}} · {{activity.location}}</view><view class="divider"></view><view class="row small"><text>成长门槛</text><text>{{activity.minGrowthPoints}} 分</text></view><view class="row small mt"><text>本场规则</text><text>v{{activity.ruleVersion}}</text></view></view>
+    <block wx:if="{{!member}}">
+      <view class="section-head"><text class="section-title">建立车友身份</text><text class="section-index">01 / HELLO</text></view>
+      <view class="small muted paragraph">同意后，我们通过微信提供的专属身份标识关联你的报名与成长记录。新用户从零积分开始。昵称可不填，无需手机、头像或定位权限。</view>
+      <view class="field"><text class="field-label">昵称（选填，最多 24 字）</text><input maxlength="24" value="{{nickname}}" bindinput="nickname" placeholder="希望大家怎样称呼你"/></view>
+      <checkbox-group bindchange="identityConsent"><label class="check-line"><checkbox value="accepted" checked="{{identityConsent}}" color="#31543e"/><text>我已阅读身份与隐私说明，同意为报名、核验与成长记录建立身份。确认自己具备适合本场活动的参与条件。</text></label></checkbox-group>
+      <button class="text-button" bindtap="privacy">阅读完整隐私与规则说明 ↗</button>
+    </block>
+    <view wx:else class="notice">以「{{member.nickname}}」申请。成长积分 {{member.growthPoints}}，积分不因报名扣除。</view>
+    <view class="section-head"><text class="section-title">报名须知</text><text class="section-index">02 / AGREEMENT</text></view>
+    <view class="small paragraph">{{activity.safetyNotice}}</view>
+    <view class="small muted paragraph mt">必要装备：{{activity.equipment}}</view>
+    <view class="notice">提交的是报名意向，名额不足时进入候补；待审核和待联系确认可能预留名额，不表示保证参加。线下安排由工作人员联系核对。食宿交通自理，具体服务条款另行告知。</view>
+    <checkbox-group bindchange="ruleConsent"><label class="check-line"><checkbox value="accepted" checked="{{ruleConsent}}" color="#31543e"/><text>我已阅读本场详情、技能装备要求和风险说明，接受规则版本 v{{activity.ruleVersion}}，理解报名、出发核验、结束核验与完成结算是不同环节。</text></label></checkbox-group>
+    <button class="primary full" loading="{{submitting}}" disabled="{{submitting || !ruleConsent || (!member &amp;&amp; !identityConsent) || !activity.canApply}}" bindtap="submit">{{activity.slots > 0 ? '确认提交报名意向' : '确认提交候补意向'}}</button>
+    <view class="footer-note">只收集本场必要信息 · 不上传证件照片和健康原件<text>{{'\n'}}</text>网络中断后可查看我的活动，再重试提交。</view>
+  </block>
+</view>

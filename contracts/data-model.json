@@ -1,0 +1,163 @@
+{
+  "status": "design_not_deployed",
+  "commonFields": {
+    "_id": "server generated or deterministic ID",
+    "clubId": "string",
+    "createdAt": "timestamp(server)",
+    "updatedAt": "timestamp(server)",
+    "schemaVersion": "integer"
+  },
+  "collections": {
+    "clubs": {
+      "name": "string",
+      "publicDescription": "string",
+      "settingsVersion": "integer"
+    },
+    "users": {
+      "appId": "string(server)",
+      "wxOpenId": "string(private)",
+      "status": "active|disabled|deletion_requested|deleted",
+      "consentVersions": "object"
+    },
+    "memberships": {
+      "userId": "string",
+      "nickname": "string",
+      "avatarFileId": "string|null",
+      "rankingOptIn": "boolean",
+      "rankingConsentVersion": "integer"
+    },
+    "staff_roles": {
+      "userId": "string",
+      "role": "owner|operator|leader|checkin",
+      "activityIds": "string[]|null",
+      "enabled": "boolean",
+      "expiresAt": "timestamp|null",
+      "grantedBy": "string"
+    },
+    "activities": {
+      "title": "string",
+      "state": "activity-state",
+      "startAt": "timestamp",
+      "endAt": "timestamp",
+      "applicationClosesAt": "timestamp",
+      "capacity": "integer>0",
+      "reservedSeats": "integer>=0",
+      "minGrowthPoints": "integer>=0",
+      "requiredQualifications": "object[]",
+      "ruleVersion": "integer",
+      "pointsRule": "object",
+      "revision": "integer",
+      "actualCompletedAt": "timestamp|null"
+    },
+    "registrations": {
+      "activityId": "string",
+      "memberId": "string",
+      "state": "registration-state",
+      "seatState": "none|held|released",
+      "reviewDecision": "pending|approved|rejected|not_required",
+      "queueSeq": "integer",
+      "attempt": "integer",
+      "revision": "integer",
+      "acceptedRuleVersion": "integer",
+      "holdExpiresAt": "timestamp|null",
+      "settlementId": "string|null"
+    },
+    "qualifications": {
+      "memberId": "string",
+      "type": "string",
+      "level": "string",
+      "expiresAt": "timestamp|null",
+      "decision": "pending|approved|rejected",
+      "reviewedBy": "string|null",
+      "reviewedAt": "timestamp|null"
+    },
+    "checkins": {
+      "activityId": "string",
+      "memberId": "string",
+      "phase": "departure|return",
+      "day": "YYYY-MM-DD",
+      "result": "present|safe_exit|exception",
+      "verifiedBy": "string",
+      "verifiedAt": "timestamp"
+    },
+    "points_ledger": {
+      "activityId": "string|null",
+      "memberId": "string",
+      "awardType": "completion|reversal|migration|correction",
+      "businessKey": "string(unique deterministic)",
+      "growthDelta": "integer",
+      "annualDelta": "integer",
+      "completedCountDelta": "integer",
+      "year": "integer",
+      "effectiveAt": "timestamp",
+      "ruleVersion": "integer",
+      "relatedEntryId": "string|null",
+      "actorId": "string",
+      "reason": "string"
+    },
+    "member_stats": {
+      "memberId": "string",
+      "scope": "growth|year",
+      "year": "integer|null",
+      "points": "integer",
+      "completedCount": "integer>=0",
+      "revision": "integer"
+    },
+    "public_rankings": {
+      "memberPublicId": "string",
+      "nickname": "string",
+      "avatarFileId": "string|null",
+      "metric": "growth|annual|completed_count",
+      "score": "integer",
+      "year": "integer|null",
+      "consentVersion": "integer"
+    },
+    "annual_rewards": {
+      "year": "integer",
+      "snapshotVersion": "integer",
+      "status": "draft|frozen|issued|amended",
+      "ruleVersion": "integer",
+      "memberAwards": "object[]",
+      "frozenAt": "timestamp|null"
+    },
+    "audit_logs": {
+      "actorId": "string",
+      "action": "string",
+      "targetType": "string",
+      "targetId": "string",
+      "requestId": "string",
+      "traceId": "string",
+      "summary": "object(redacted)",
+      "reason": "string|null"
+    },
+    "settlement_jobs": {
+      "activityId": "string",
+      "ruleVersion": "integer",
+      "status": "pending|running|partial_failure|completed",
+      "successCount": "integer",
+      "failureCount": "integer",
+      "cursor": "string|null",
+      "errorSummary": "object|null"
+    }
+  },
+  "coreUniqueness": [
+    "users:appId+wxOpenId",
+    "memberships:clubId+userId",
+    "registrations:clubId+activityId+memberId",
+    "points_ledger:businessKey",
+    "member_stats:clubId+memberId+scope+year"
+  ],
+  "sensitiveCollections": [
+    "users",
+    "staff_roles",
+    "registrations",
+    "qualifications",
+    "checkins",
+    "points_ledger",
+    "member_stats",
+    "annual_rewards",
+    "audit_logs",
+    "settlement_jobs"
+  ],
+  "frontendDirectSensitiveWrite": false
+}

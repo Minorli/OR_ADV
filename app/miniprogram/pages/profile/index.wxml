@@ -1,0 +1,40 @@
+<view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
+<view class="page">
+  <view class="eyebrow">MY CLUB / MY CHOICE</view><view class="title">个人与隐私</view>
+  <view wx:if="{{loading}}" class="loading">正在读取身份资料…</view>
+  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
+  <view wx:if="{{notice}}" class="notice">{{notice}}</view>
+  <view class="card mt">
+    <view class="row"><view class="avatar">OR.</view><view class="grow"><view class="card-title">{{member ? member.nickname : '欢迎，新车友'}}</view><view class="small muted mt">{{member ? '查看资料与公开设置' : '可以先浏览活动，再决定是否加入'}}</view></view></view>
+    <view class="field"><text class="field-label">昵称{{member ? '' : '（选填）'}}</text><input value="{{nickname}}" maxlength="24" bindinput="nickname" placeholder="希望大家怎样称呼你"/></view>
+    <checkbox-group wx:if="{{!member}}" bindchange="consent"><label class="check-line"><checkbox value="accepted" checked="{{consent}}" color="#31543e"/><text>我已阅读下方隐私与使用说明，同意用微信专属身份标识建立俱乐部档案，记录报名、核验和积分。昵称可选，不要求手机、头像或定位权限。</text></label></checkbox-group>
+    <button class="primary full" disabled="{{saving || (!member &amp;&amp; !consent)}}" loading="{{saving}}" bindtap="save">{{member ? '保存昵称' : '同意并建立身份'}}</button>
+    <view wx:if="{{member}}" class="list-link" bindtap="ranking"><text>公开同行榜</text><text class="muted">{{member.rankingOptIn ? '已自愿公开' : '默认不公开'}} →</text></view>
+    <view wx:if="{{staff}}" class="staff-strip" bindtap="staff">员工工作台 · 进入管理 →</view>
+  </view>
+  <view class="section-head"><text class="section-title">隐私与使用说明</text><text class="section-index">VERSION / 1</text></view>
+  <view class="card privacy-text">
+    <view class="card-title mb">个人信息的使用</view>
+    <view class="paragraph">1. 浏览公开活动不要求建立身份。你主动同意后，以微信为本小程序提供的专属标识关联俱乐部档案，记录昵称、报名、核验、必要资格审核结果与成长流水。
+
+2. 当前版本不主动获取手机号、位置、相册、证件照片或完整健康史。不要把敏感资料写进昵称或普通反馈。需要额外材料时，由组织方另行说明必要性和处理方式。
+
+3. 本人可以查看自己的记录。有授权的工作人员仅为组织活动、资格审核、核验、处理异常和成长结算使用必要信息。平台开发者身份不自动获得俱乐部管理权限。
+
+4. 昵称、积分与完成次数默认不公开。只有你单独自愿加入同行榜时才展示；随时退出后停止公开。
+
+5. 你可以修改昵称、退出榜单或提交注销申请。为安全核验、处理争议或履行法定义务需要保留的记录，由组织方说明依据与期限后处理。
+
+6. 请通过俱乐部与你现有的联系渠道反馈更正、隐私或注销问题。真实内测前，组织方须在微信隐私保护指引中提供主体名称及有效联系方式。</view>
+    <view wx:if="{{isMock}}" class="notice">当前为本机演示，人物、活动及操作记录均为虚构，不代表真实报名或核验。可在下方重置。</view>
+  </view>
+  <view class="section-head"><text class="section-title">安全参与的约定</text><text class="section-index">RIDE / SAFELY</text></view>
+  <view class="privacy-text paragraph">请如实判断技能、车况和健康条件，遵守现场领队安排。积分不替代资格，不代表竞赛成绩。报名仅为申请意向，工作人员线下联系后确认参加；出发核验、结束核验与完成结算分别记录。每场活动以当场已接受的规则版本为准。</view>
+  <button wx:if="{{member}}" class="text-button full mt" disabled="{{saving}}" bindtap="deletion">提交注销申请</button>
+  <view wx:if="{{isMock}}" class="card mt">
+    <view class="tag tag-warm">本机演示</view><view class="card-title mt">切换演示角色</view><view class="small muted mt">选择虚构角色体验报名、核验与结算。仅本机演示提供身份切换，真实活动由主理人授权。</view>
+    <picker mode="selector" range="{{roles}}" bindchange="role"><view class="picker mt">当前：{{roleLabel}}　切换 ▾</view></picker>
+    <button class="secondary full mt" bindtap="reset">重置本地演练数据</button>
+  </view>
+  <view class="footer-note">ORIGINAL RALLY · 原始拉力<text>{{'\n'}}</text>RIDE. CONNECT. GROW.</view>
+</view>

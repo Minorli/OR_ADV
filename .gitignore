@@ -1,0 +1,37 @@
+node_modules/
+config/local.json
+.env
+.env.*
+!.env.example
+secrets/
+*.private.key
+private.*.key
+*.pem
+*.p12
+*.pfx
+*.log
+__pycache__/
+*.pyc
+work/
+backups/
+real-data/
+.DS_Store
+
+# Original uploaded bundle stays local; imported specifications are versioned.
+/oradv-linux-handoff-v1.0.0/
+/*.zip
+/dist/
+/app/miniprogram/**/*.js
+/app/miniprogram/build-meta.json
+/app/miniprogram/runtime-config.json
+/app/miniprogram/project.config.json
+/cloudfunctions/oradv/lib/
+/coverage/
+/project.private.config.json
+project.private.config.json
+
+# Local credentials: never commit or package.
+secrets.txt
+secrets*.txt
+*.key
+/cloudfunctions/oradv/index.js

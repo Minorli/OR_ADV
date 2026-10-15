@@ -1,0 +1,22 @@
+<view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
+<view class="page">
+  <view class="masthead"><view><view class="eyebrow">EXPERIENCE BECOMES GROWTH</view><view class="title">成长记录</view></view></view>
+  <view class="subtitle">核对累计成长、年度积分与每笔流水。</view>
+  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
+  <block wx:if="{{summary}}">
+    <view class="stats"><view class="stat"><view class="stat-number">{{summary.growthPoints}}</view><view class="stat-label">累计成长积分</view></view><view class="stat"><view class="stat-number">{{summary.annualPoints}}</view><view class="stat-label">{{year}} 年度积分</view></view><view class="stat"><view class="stat-number">{{summary.completedCount}}</view><view class="stat-label">有效完成次数</view></view></view>
+    <view class="notice">成长分累计不清零，供报名门槛参考；年度分按活动实际完成的北京时间年度记录，用于线下年度奖励。积分不等于技能资格，不可交易或提现。</view>
+    <view class="section-head"><text class="section-title">积分流水</text><picker mode="selector" range="{{years}}" bindchange="year"><view class="tag">{{year}} 年 ▾</view></picker></view>
+    <view wx:for="{{items}}" wx:key="id" class="card">
+      <view class="row"><view><view class="card-title">{{item.title}}</view><view class="tiny muted mt">{{item.dateText}}</view></view><text class="ledger-value {{item.growthDelta < 0 ? 'negative' : ''}}">{{item.growthDelta > 0 ? '+' : ''}}{{item.growthDelta}}</text></view>
+      <view class="divider"></view><view class="row small"><text class="muted">年度积分 {{item.annualDelta > 0 ? '+' : ''}}{{item.annualDelta}}</text><text class="muted">完成次数 {{item.completedCountDelta > 0 ? '+' : ''}}{{item.completedCountDelta}}</text></view>
+      <view class="small muted mt paragraph">{{item.reason || '按本场冻结规则记录'}} · 规则 v{{item.ruleVersion}}</view>
+    </view>
+    <view wx:if="{{!loading &amp;&amp; !items.length}}" class="empty">本年度暂无积分流水。<text>{{'\n'}}</text>完成核验并结算后可查看记录。</view>
+    <button wx:if="{{nextCursor &amp;&amp; !loading}}" class="secondary full" bindtap="more">查看更早流水</button>
+    <button class="text-button full mt" bindtap="profile">记录有疑问？查看反馈与隐私说明 ↗</button>
+  </block>
+  <view wx:if="{{!loading &amp;&amp; !member &amp;&amp; !error}}" class="empty">还没有建立车友身份。<text>{{'\n'}}</text>报名时可建立档案，初始积分为零。<button class="primary full mt" bindtap="explore">寻找入门同行</button></view>
+  <view wx:if="{{loading}}" class="loading">正在核对成长记录…</view>
+  <view class="footer-note">更正以新的冲正记录保留痕迹，不修改原流水。<text>{{'\n'}}</text>核验与结算由有权限的工作人员办理。</view>
+</view>

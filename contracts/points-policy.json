@@ -1,0 +1,18 @@
+{
+  "status": "proposed",
+  "requiresOwnerConfirmation": true,
+  "timezone": "Asia/Shanghai",
+  "newMemberGrowthPoints": 0,
+  "newMemberAnnualPoints": 0,
+  "debitOnApplication": false,
+  "resetGrowthAtYearEnd": false,
+  "yearAttribution": "activity_actual_completion_local_year",
+  "completionAward": "frozen_per_activity",
+  "safetyExitCompletionAward": 0,
+  "noShowAward": 0,
+  "cancelledAward": 0,
+  "publicRankingDefault": false,
+  "tieRule": "shared_rank",
+  "highDifficultyThresholdExample": 10000,
+  "automaticHoldExpiryHours": null
+}

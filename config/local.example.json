@@ -1,0 +1,21 @@
+{
+  "appId": "",
+  "clubId": "oradv",
+  "projectPath": "app/miniprogram",
+  "privateKeyPath": "",
+  "version": "0.1.0-test.1",
+  "description": "OR ADV 内测开发版",
+  "robot": 1,
+  "environments": {
+    "test": {
+      "envId": "",
+      "region": ""
+    },
+    "production": {
+      "envId": "",
+      "region": ""
+    }
+  },
+  "actualEgressIp": "",
+  "outputPath": "work/ci-output"
+}

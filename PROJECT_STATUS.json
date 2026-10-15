@@ -1,0 +1,83 @@
+{
+  "packageVersion": "1.0.0",
+  "version": "0.1.0-test.1",
+  "asOf": "2026-10-15",
+  "product": "OR ADV",
+  "repository": {
+    "url": "https://github.com/Minorli/OR_ADV",
+    "visibility": "public",
+    "authorization": "explicit_user_request"
+  },
+  "registration": {
+    "stage": "user_reports_review_pending_unspecified",
+    "verifiedInConsole": false
+  },
+  "membership": {
+    "stage": "developer_confirmed_by_user",
+    "verifiedInConsole": false
+  },
+  "appIdConfiguredLocally": true,
+  "testEnvironment": "not_created_as_confirmed_by_user",
+  "nativeAppImplemented": true,
+  "backendImplemented": true,
+  "backendDeployed": false,
+  "realWeChatTested": false,
+  "cloudProvisioned": false,
+  "published": false,
+  "wechatPreviewGenerated": false,
+  "milestones": {
+    "M0": "implemented_locally",
+    "M1": "implemented_locally",
+    "M2": "adapter_implemented_real_cloud_pending",
+    "M3": "domain_and_native_workflow_implemented_real_cloud_pending",
+    "M4": "domain_implemented_real_cloud_pending_some_staff_ui_pending",
+    "M5": "pending",
+    "M6": "pending"
+  },
+  "nextMilestone": "M2-real-test-cloud-identity-and-transaction-validation",
+  "limits": {
+    "activityCapacity": 30,
+    "annualSnapshotMembers": 30,
+    "waitlistRecheckBatch": 5
+  },
+  "unknowns": [
+    "cloudAccountOwnership",
+    "testEnvId",
+    "productionEnvId",
+    "reviewType",
+    "filing",
+    "categories",
+    "permits",
+    "budget",
+    "ownerApprovedPointsRules",
+    "dataRetention"
+  ],
+  "referencesAreMock": true,
+  "wechatVerification": "not_reverified",
+  "remainingWork": [
+    "real cloud activation and authorization",
+    "apply and verify database rules/indexes",
+    "trusted owner initialization",
+    "qualification management UI",
+    "role/audit and annual reward management pages",
+    "published activity amendment workflow",
+    "content safety and finalized privacy information",
+    "real iOS/Android and restore evidence"
+  ],
+  "validation": {
+    "typecheck": "passed",
+    "typescriptTests": 41,
+    "nativePageTests": 2,
+    "pythonToolTests": 14,
+    "totalTests": 57,
+    "handoffValidation": "passed",
+    "rootAuditVulnerabilities": 0,
+    "cloudAuditVulnerabilities": 0
+  },
+  "previewUpload": {
+    "status": "blocked_by_upload_ip_allowlist",
+    "platformErrorCode": -10008,
+    "qrGenerated": false,
+    "actualEgressRecordedOnlyLocally": true
+  }
+}

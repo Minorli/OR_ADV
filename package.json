@@ -1,0 +1,29 @@
+{
+  "name": "or-adv",
+  "version": "0.1.0",
+  "private": true,
+  "description": "原始拉力摩托车俱乐部微信小程序",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "doctor": "bash scripts/doctor.sh",
+    "build": "node scripts/build.mjs",
+    "build:cloud": "node scripts/build.mjs --mode cloud --env test",
+    "dev": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --import tsx --test tests/domain/*.test.ts tests/cloud/*.test.ts tests/build/*.test.ts && node --test tests/frontend/*.test.cjs",
+    "test:tools": "python3 -m unittest discover -s tests -p test_tools.py",
+    "validate:handoff": "python3 scripts/validate_package.py",
+    "check": "npm run typecheck && npm test && npm run test:tools && npm run validate:handoff",
+    "pack:preview": "python3 scripts/pack-preview.py",
+    "wechat:preview:check": "node scripts/wechat-ci.cjs preview --env test --config config/local.json"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "esbuild": "0.28.2",
+    "miniprogram-api-typings": "5.2.3",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "fixtureOnly": true,
+  "allowProductionImport": false,
+  "clubId": "oradv",
+  "members": [
+    {
+      "id": "demo-new",
+      "nickname": "虚构新车友",
+      "growthPoints": 0,
+      "annualPoints": 0,
+      "completedCount": 0,
+      "rankingOptIn": false
+    },
+    {
+      "id": "demo-rider",
+      "nickname": "虚构常规车友",
+      "growthPoints": 4200,
+      "annualPoints": 3600,
+      "completedCount": 5,
+      "rankingOptIn": true
+    },
+    {
+      "id": "demo-expert",
+      "nickname": "虚构进阶车友",
+      "growthPoints": 10600,
+      "annualPoints": 8200,
+      "completedCount": 12,
+      "rankingOptIn": true
+    }
+  ],
+  "activities": [
+    {
+      "id": "demo-entry",
+      "clubId": "oradv",
+      "title": "虚构入门越野活动",
+      "state": "published",
+      "startAt": "2026-11-07T01:00:00Z",
+      "endAt": "2026-11-07T09:00:00Z",
+      "capacity": 8,
+      "reservedSeats": 1,
+      "minGrowthPoints": 0,
+      "completionGrowthAward": 100,
+      "completionAnnualAward": 100,
+      "ruleVersion": 1
+    },
+    {
+      "id": "demo-advanced",
+      "clubId": "oradv",
+      "title": "虚构高难度多日越野",
+      "state": "published",
+      "startAt": "2026-11-14T01:00:00Z",
+      "endAt": "2026-11-15T09:00:00Z",
+      "capacity": 6,
+      "reservedSeats": 0,
+      "minGrowthPoints": 10000,
+      "completionGrowthAward": 300,
+      "completionAnnualAward": 300,
+      "ruleVersion": 1
+    }
+  ],
+  "registrations": [
+    {
+      "id": "demo-entry-demo-rider",
+      "clubId": "oradv",
+      "activityId": "demo-entry",
+      "memberId": "demo-rider",
+      "state": "pending_confirmation",
+      "seatState": "held",
+      "reviewDecision": "approved",
+      "queueSeq": 1,
+      "revision": 1
+    }
+  ],
+  "notes": "所有分值、日期、人数和昵称均为虚构设计样例；历史累计分不在本fixture重建完整流水，不用作真实对账数据"
+}

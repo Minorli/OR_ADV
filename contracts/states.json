@@ -1,0 +1,76 @@
+{
+  "activity": {
+    "draft": "草稿",
+    "published": "招募中",
+    "closed": "停止报名",
+    "in_progress": "进行中",
+    "ended": "待结算",
+    "settled": "已结算",
+    "cancelled": "已取消"
+  },
+  "registration": {
+    "pending_review": "待资格审核",
+    "waitlisted": "候补",
+    "pending_confirmation": "待联系确认",
+    "confirmed": "确认参加",
+    "checked_in": "已出发核验",
+    "pending_settlement": "已结束待核验",
+    "completed": "已完成",
+    "safe_exit": "安全退出",
+    "no_show": "未到",
+    "cancelled": "已取消",
+    "rejected": "未通过"
+  },
+  "seat": [
+    "none",
+    "held",
+    "released"
+  ],
+  "review": [
+    "pending",
+    "not_required",
+    "approved",
+    "rejected"
+  ],
+  "registrationTransitions": {
+    "pending_review": [
+      "pending_confirmation",
+      "rejected",
+      "cancelled"
+    ],
+    "waitlisted": [
+      "pending_review",
+      "pending_confirmation",
+      "rejected",
+      "cancelled"
+    ],
+    "pending_confirmation": [
+      "confirmed",
+      "cancelled",
+      "rejected"
+    ],
+    "confirmed": [
+      "checked_in",
+      "cancelled",
+      "no_show"
+    ],
+    "checked_in": [
+      "pending_settlement",
+      "safe_exit"
+    ],
+    "pending_settlement": [
+      "completed",
+      "safe_exit"
+    ],
+    "completed": [],
+    "safe_exit": [],
+    "no_show": [],
+    "cancelled": [
+      "pending_review",
+      "waitlisted"
+    ],
+    "rejected": []
+  },
+  "transitionNotes": "取消后重报需新attempt/revision且活动仍开放；完成纠错通过冲正专门命令，不任意回退；候补提升需事务占位及重新准入",
+  "policyStatus": "proposed"
+}
