@@ -9,7 +9,7 @@
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
   <view wx:for="{{items}}" wx:key="memberPublicId" class="card row"><view class="rank">{{item.rank}}</view><view class="grow"><view class="rank-name">{{item.nickname}}</view><view class="tiny muted mt">完成 {{item.completedCount}} 次同行</view></view><view><view class="ledger-value">{{item.score}}</view><view class="tiny muted">{{metric === 'completed_count' ? '次完成' : '成长积累'}}</view></view></view>
   <view wx:if="{{loading}}" class="loading">正在加载榜单…</view>
-  <view wx:if="{{!loading &amp;&amp; !error &amp;&amp; !items.length}}" class="empty">暂无公开记录。<text>{{'\n'}}</text>是否加入榜单，由你自己选择。</view>
-  <button wx:if="{{nextCursor &amp;&amp; !loading}}" class="secondary full" bindtap="more">查看更多同行者</button>
+  <view wx:if="{{!loading && !error && !items.length}}" class="empty">暂无公开记录。<text>{{'\n'}}</text>是否加入榜单，由你自己选择。</view>
+  <button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更多同行者</button>
   <view class="footer-note">本榜单不记录速度、计时或比赛成绩。<text>{{'\n'}}</text>年度奖励规则由组织方另行说明。</view>
 </view>

@@ -30,7 +30,7 @@
     <view class="notice">名额已满可提交候补，按申请顺序与资格复核提升。申请不代表确认参加；确认参加表示资格与线下安排已确认。</view>
     <view class="bottom-bar">
       <button wx:if="{{registration}}" class="primary full" bindtap="mine">{{registration.stateText}} · 查看我的活动</button>
-      <button wx:elif="{{activity.canApply}}" class="primary full" disabled="{{member &amp;&amp; gap > 0}}" bindtap="apply">{{activity.slots > 0 ? '提交报名意向' : '提交候补意向'}}</button>
+      <button wx:elif="{{activity.canApply}}" class="primary full" disabled="{{member && gap > 0}}" bindtap="apply">{{activity.slots > 0 ? '提交报名意向' : '提交候补意向'}}</button>
       <button wx:else class="secondary full" disabled>当前{{activity.stateText}}</button>
     </view>
   </block>

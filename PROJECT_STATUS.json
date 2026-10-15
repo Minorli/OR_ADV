@@ -24,7 +24,7 @@
   "realWeChatTested": false,
   "cloudProvisioned": false,
   "published": false,
-  "wechatPreviewGenerated": false,
+  "wechatPreviewGenerated": true,
   "milestones": {
     "M0": "implemented_locally",
     "M1": "implemented_locally",
@@ -66,18 +66,23 @@
   ],
   "validation": {
     "typecheck": "passed",
-    "typescriptTests": 41,
+    "typescriptTests": 43,
     "nativePageTests": 2,
     "pythonToolTests": 14,
-    "totalTests": 57,
+    "totalTests": 59,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
   },
   "previewUpload": {
-    "status": "blocked_by_upload_ip_allowlist",
-    "platformErrorCode": -10008,
-    "qrGenerated": false,
-    "actualEgressRecordedOnlyLocally": true
-  }
+    "status": "success",
+    "mode": "mock",
+    "sdkVersion": "2.1.31",
+    "qrGenerated": true,
+    "uploadIpWhitelistDisabledByUser": true,
+    "localQrArtifact": "dist/OR_ADV-preview-0.1.0-test.1.png"
+  },
+  "wechatCompilationVerified": true,
+  "realDeviceTested": false,
+  "wechatValidationScope": "official_compile_and_preview_only_not_phone_or_cloud"
 }

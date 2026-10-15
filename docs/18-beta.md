@@ -94,3 +94,7 @@ node scripts/wechat-ci.cjs preview --env test --mock --config config/local.json 
 ## 构建与预览一致性
 
 监听模式方便日常开发，不生成可上传的最终元数据。停止监听后，先执行一次 `npm run build` 再预览或打包。成功构建的元数据绑定所有实际部署文件的SHA256；构建失败、文件变动、项目内出现秘密文件名或符号链接时，预览和打包会拒绝继续。Mac工具生成的 `project.private.config.json` 被排除。
+
+## 本轮预览结果
+
+官方miniprogram-ci 2.1.31已编译通过并生成模拟版预览码。用户明确禁用上传IP白名单并授权继续，本次按最新授权执行。预览码与Mac导入包在本机dist目录，未公开到GitHub。手机实际使用和真实云业务仍待验收，不能将预览成功写成正式发布。

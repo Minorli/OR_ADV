@@ -18,7 +18,7 @@
     <view class="row small"><text>成长 {{item.minGrowthPoints}} 分起</text><text class="muted">{{item.slots > 0 ? '余位 ' + item.slots : '名额已满 · 可查看候补'}} →</text></view>
   </view>
   <view wx:if="{{loading}}" class="loading">正在寻找活动招募…</view>
-  <view wx:if="{{!loading &amp;&amp; !error &amp;&amp; !items.length}}" class="empty">暂无符合筛选的活动。<text>{{'\n'}}</text>可以切换筛选，或稍后再来看看。</view>
-  <button wx:if="{{nextCursor &amp;&amp; !loading}}" class="secondary full" bindtap="more">查看更多活动</button>
+  <view wx:if="{{!loading && !error && !items.length}}" class="empty">暂无符合筛选的活动。<text>{{'\n'}}</text>可以切换筛选，或稍后再来看看。</view>
+  <button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更多活动</button>
   <view class="footer-note">非铺装摩托车同行与技能实践 · 不开展计时排名<text>{{'\n'}}</text>积分仅记录成长；报名不扣分。</view>
 </view>

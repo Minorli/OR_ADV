@@ -19,7 +19,7 @@
     <view class="small muted paragraph mt">必要装备：{{activity.equipment}}</view>
     <view class="notice">提交的是报名意向，名额不足时进入候补；待审核和待联系确认可能预留名额，不表示保证参加。线下安排由工作人员联系核对。食宿交通自理，具体服务条款另行告知。</view>
     <checkbox-group bindchange="ruleConsent"><label class="check-line"><checkbox value="accepted" checked="{{ruleConsent}}" color="#31543e"/><text>我已阅读本场详情、技能装备要求和风险说明，接受规则版本 v{{activity.ruleVersion}}，理解报名、出发核验、结束核验与完成结算是不同环节。</text></label></checkbox-group>
-    <button class="primary full" loading="{{submitting}}" disabled="{{submitting || !ruleConsent || (!member &amp;&amp; !identityConsent) || !activity.canApply}}" bindtap="submit">{{activity.slots > 0 ? '确认提交报名意向' : '确认提交候补意向'}}</button>
+    <button class="primary full" loading="{{submitting}}" disabled="{{submitting || !ruleConsent || (!member && !identityConsent) || !activity.canApply}}" bindtap="submit">{{activity.slots > 0 ? '确认提交报名意向' : '确认提交候补意向'}}</button>
     <view class="footer-note">只收集本场必要信息 · 不上传证件照片和健康原件<text>{{'\n'}}</text>网络中断后可查看我的活动，再重试提交。</view>
   </block>
 </view>

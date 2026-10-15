@@ -8,7 +8,7 @@
     <view class="row"><view class="avatar">OR.</view><view class="grow"><view class="card-title">{{member ? member.nickname : '欢迎，新车友'}}</view><view class="small muted mt">{{member ? '查看资料与公开设置' : '可以先浏览活动，再决定是否加入'}}</view></view></view>
     <view class="field"><text class="field-label">昵称{{member ? '' : '（选填）'}}</text><input value="{{nickname}}" maxlength="24" bindinput="nickname" placeholder="希望大家怎样称呼你"/></view>
     <checkbox-group wx:if="{{!member}}" bindchange="consent"><label class="check-line"><checkbox value="accepted" checked="{{consent}}" color="#31543e"/><text>我已阅读下方隐私与使用说明，同意用微信专属身份标识建立俱乐部档案，记录报名、核验和积分。昵称可选，不要求手机、头像或定位权限。</text></label></checkbox-group>
-    <button class="primary full" disabled="{{saving || (!member &amp;&amp; !consent)}}" loading="{{saving}}" bindtap="save">{{member ? '保存昵称' : '同意并建立身份'}}</button>
+    <button class="primary full" disabled="{{saving || (!member && !consent)}}" loading="{{saving}}" bindtap="save">{{member ? '保存昵称' : '同意并建立身份'}}</button>
     <view wx:if="{{member}}" class="list-link" bindtap="ranking"><text>公开同行榜</text><text class="muted">{{member.rankingOptIn ? '已自愿公开' : '默认不公开'}} →</text></view>
     <view wx:if="{{staff}}" class="staff-strip" bindtap="staff">员工工作台 · 进入管理 →</view>
   </view>

@@ -12,11 +12,11 @@
       <view class="divider"></view><view class="row small"><text class="muted">年度积分 {{item.annualDelta > 0 ? '+' : ''}}{{item.annualDelta}}</text><text class="muted">完成次数 {{item.completedCountDelta > 0 ? '+' : ''}}{{item.completedCountDelta}}</text></view>
       <view class="small muted mt paragraph">{{item.reason || '按本场冻结规则记录'}} · 规则 v{{item.ruleVersion}}</view>
     </view>
-    <view wx:if="{{!loading &amp;&amp; !items.length}}" class="empty">本年度暂无积分流水。<text>{{'\n'}}</text>完成核验并结算后可查看记录。</view>
-    <button wx:if="{{nextCursor &amp;&amp; !loading}}" class="secondary full" bindtap="more">查看更早流水</button>
+    <view wx:if="{{!loading && !items.length}}" class="empty">本年度暂无积分流水。<text>{{'\n'}}</text>完成核验并结算后可查看记录。</view>
+    <button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更早流水</button>
     <button class="text-button full mt" bindtap="profile">记录有疑问？查看反馈与隐私说明 ↗</button>
   </block>
-  <view wx:if="{{!loading &amp;&amp; !member &amp;&amp; !error}}" class="empty">还没有建立车友身份。<text>{{'\n'}}</text>报名时可建立档案，初始积分为零。<button class="primary full mt" bindtap="explore">寻找入门同行</button></view>
+  <view wx:if="{{!loading && !member && !error}}" class="empty">还没有建立车友身份。<text>{{'\n'}}</text>报名时可建立档案，初始积分为零。<button class="primary full mt" bindtap="explore">寻找入门同行</button></view>
   <view wx:if="{{loading}}" class="loading">正在核对成长记录…</view>
   <view class="footer-note">更正以新的冲正记录保留痕迹，不修改原流水。<text>{{'\n'}}</text>核验与结算由有权限的工作人员办理。</view>
 </view>
