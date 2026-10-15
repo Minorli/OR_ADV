@@ -12,7 +12,7 @@
 
 ## 快速开始
 
-需要 Node.js 22+、npm、Python 3；Mac 上安装官方微信开发者工具。
+需要 Node.js 22+、npm、Python 3和手机。Linux可用官方CI生成预览码；Mac微信开发者工具作为可选的模拟与调试方式。
 
 ```sh
 git clone git@github.com:Minorli/OR_ADV.git
@@ -57,6 +57,7 @@ npm run pack:preview  # 打包已构建的模拟版，供 Mac 导入
 
 ## 开发与内测资料
 
+- [产品设计与长期迭代稿](docs/20-product-design.md)：最新成员与报名要求，以及0.2至长期的建议顺序；规划内容尚未实现
 - [内测上手与测试云开通](docs/18-beta.md)
 - [员工操作手册](docs/19-staff.md)
 - [需求](docs/02-requirements.md)、[状态与名额](docs/03-flows.md)、[积分规则](docs/04-points.md)

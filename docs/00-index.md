@@ -21,6 +21,7 @@
 | 17-sources | 官方依据、核对日期和变更点 |
 | [18-beta](18-beta.md) | 当前模拟内测、Linux/Mac/手机协作、测试云开通 |
 | [19-staff](19-staff.md) | 员工发布、审核、核验与结算操作 |
+| [20-product-design](20-product-design.md) | 单俱乐部成员身份、两类报名、自动积分与长期迭代设计 |
 
 contracts 下是设计合同，不会自动创建腾讯云资源。fixtures 是虚构样例，不可导入生产。templates 是留档模板，不是已经完成的审核、备案或法律文件。
 

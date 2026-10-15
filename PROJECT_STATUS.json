@@ -84,5 +84,39 @@
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": false,
-  "wechatValidationScope": "official_compile_and_preview_only_not_phone_or_cloud"
+  "wechatValidationScope": "official_compile_and_preview_only_not_phone_or_cloud",
+  "confirmedProductContext": {
+    "clubCount": 1,
+    "memberCountUpperBound": 200,
+    "activityCadence": "roughly monthly or more frequent",
+    "memberSegments": [
+      "founder/core members",
+      "ordinary/new members"
+    ],
+    "primaryProblems": [
+      "event organization",
+      "participation records",
+      "manual points aggregation"
+    ],
+    "founderRegistrationRequirement": "direct confirmation when identity, eligibility, rules and capacity allow; no collection-confirmation step",
+    "ordinaryRegistrationRequirement": "offline payment reminder; administrator confirms participation",
+    "founderDefaultDisplayRequirement": "preferential display even with lower actual points",
+    "inAppPaymentRequested": false
+  },
+  "productDesign": {
+    "status": "proposal_not_implemented",
+    "document": "docs/20-product-design.md",
+    "asOf": "2026-10-15",
+    "evidence": [
+      "current source review",
+      "user-confirmed business requirements",
+      "first-party public research"
+    ],
+    "userInterviewsConducted": false,
+    "retentionEffectsMeasured": false,
+    "proposedNextVersions": [
+      "0.2a real activity and member-specific registration",
+      "0.2b member statistics, history migration and reconciliation"
+    ]
+  }
 }
