@@ -3,8 +3,8 @@
   "clubId": "oradv",
   "projectPath": "app/miniprogram",
   "privateKeyPath": "",
-  "version": "0.3.0-test.1",
-  "description": "OR ADV 0.2a 云开发接入内测版",
+  "version": "0.3.0-test.2",
+  "description": "修复云端请求字段校验与页面访问",
   "robot": 1,
   "environments": {
     "test": {

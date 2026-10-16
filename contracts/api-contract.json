@@ -1186,5 +1186,8 @@
     "low_points_expulsion",
     "redemption_point_costs",
     "qualification_thresholds"
-  ]
+  ],
+  "nativeTransportMetadata": {
+    "userInfo": "WeChat native callFunction may append this top-level metadata. Cloud entry discards it before dispatch, never derives actor/role from it, and counts it in the original event size. Other unknown fields remain rejected."
+  }
 }

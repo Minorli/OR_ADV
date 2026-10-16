@@ -99,3 +99,9 @@ memberKind与staff_roles、qualifications分别核对。主理人认定身份需
 云媒体草稿按AppID、EnvId和成员隔离；咨询缓存按mode、AppID、EnvId、成员及栏目完整隔离。旧版未绑定环境的云草稿保留，不自动归属、上传或删除。咨询遇到未知提交结果时锁定正文，保存原submissionId与摘要；同一环境按原内容重试，不在新环境复用未知提交编号。
 
 真实云环境不得导入演示成员、角色、题库、照片或积分。本机恢复过程只补缺少的演示内容，先保存校验后的快照，保留原档案与未识别字段；失败不得静默重置。开发者和owner均不得把本机演示通过等同于真实微信或生产数据验收。
+
+## 原生调用事件与后台版本权限修复（0.3.0-test.2）
+
+微信原生callFunction会在顶层自动附加userInfo。入口只兼容并移除这一项平台元数据，再将五字段业务请求交给领域服务；原始事件仍计入大小上限，其他未知顶层字段和payload字段校验不放宽。身份仍仅来自getWXContext，不使用event.userInfo授权。见[CloudBase官方调用说明](https://docs.cloudbase.net/cloud-function/how-use)。
+
+微信平台“开发者权限”用于开发／调试，“登录”用于本人进入后台，“开发管理”用于提交审核、发布、回退等版本操作。具备相应权限的开发负责人可管理体验版本和体验成员，不应把全部版本操作写成只能管理员执行；权限不足时由管理员在成员管理补充授权。云资源购买／账单和产品内owner仍分别管理。见[微信官方协同发布说明](https://developers.weixin.qq.com/miniprogram/dev/framework/quickstart/release.html)。

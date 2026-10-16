@@ -36,7 +36,9 @@ export function validateRuntime(config: RuntimeConfig, context: WeChatContext): 
 
 export function validateEnvelope(value: unknown): RpcRequest {
   if (!object(value)) reject('INVALID_INPUT', '请求格式不正确');
-  const allowed = ['action', 'requestId', 'clubId', 'payload', 'expectedRevision'];
+  // Native wx.cloud.callFunction adds userInfo to the event. It is transport
+  // metadata, never an identity source; validateRuntime still uses SDK context.
+  const allowed = ['action', 'requestId', 'clubId', 'payload', 'expectedRevision', 'userInfo'];
   if (Object.keys(value).some((key) => !allowed.includes(key))) reject('INVALID_INPUT', '请求包含不支持的字段');
   let size: number;
   try { size = Buffer.byteLength(JSON.stringify(value)); } catch { reject('INVALID_INPUT', '请求格式不正确'); }
@@ -46,7 +48,13 @@ export function validateEnvelope(value: unknown): RpcRequest {
     || (value.expectedRevision !== undefined && (!Number.isSafeInteger(value.expectedRevision) || (value.expectedRevision as number) < 0))) {
     reject('INVALID_INPUT', '请求格式、俱乐部或版本不正确');
   }
-  return value as unknown as RpcRequest;
+  return {
+    action: value.action,
+    requestId: value.requestId,
+    clubId: 'oradv',
+    payload: value.payload,
+    ...(value.expectedRevision === undefined ? {} : { expectedRevision: value.expectedRevision as number }),
+  };
 }
 
 async function rateLimit(store: Store, identity: TrustedIdentity, now: number, scope = '', maximum = 120): Promise<void> {
