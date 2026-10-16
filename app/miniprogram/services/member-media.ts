@@ -155,10 +155,17 @@ function currentDraftScope(): DraftScope {
 function matchesScope(draft: MemberMediaDraft, scope: DraftScope): boolean {
   return draft.scope === scope.scope && (scope.scope === 'mock' || draft.appId === scope.appId && draft.envId === scope.envId);
 }
+/** Checking for absence exposes no draft contents and needs no cloud identity. */
+export function hasMemberMediaDrafts(): boolean {
+  const scope = currentDraftScope();
+  return allDrafts().some(item => matchesScope(item, scope));
+}
 export async function memberMediaDrafts(): Promise<MemberMediaDraft[]> {
   const scope = currentDraftScope();
+  const candidates = allDrafts().filter(item => matchesScope(item, scope));
+  if (!candidates.length) return [];
   const member = await currentMember();
-  return member ? allDrafts().filter(item => item.memberId === member.id && matchesScope(item, scope)) : [];
+  return member ? candidates.filter(item => item.memberId === member.id) : [];
 }
 export async function discardMemberMediaDraft(draftId: string): Promise<void> {
   const scope = currentDraftScope();

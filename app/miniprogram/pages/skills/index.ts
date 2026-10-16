@@ -1,5 +1,5 @@
 import { ApiError, call, currentMember, errorMessage, isMock, mockRole, confirm, toast } from '../../services/api';
-import { chooseAndUploadMemberVideo, memberMediaDrafts, MemberMediaError, resolveMemberMedia, retryMemberMediaDraft } from '../../services/member-media';
+import { chooseAndUploadMemberVideo, hasMemberMediaDrafts, memberMediaDrafts, MemberMediaError, resolveMemberMedia, retryMemberMediaDraft } from '../../services/member-media';
 import type { MemberMediaDraft } from '../../services/member-media';
 import type { MemberSummary, PageResult } from '../../../../shared/types';
 import type { SkillHistoryEntry, SkillQueueRow, SkillView } from '../../../../shared/learning-types';
@@ -55,12 +55,11 @@ Page({
   },
   async resume() {
     if (this.data.loadedRole && this.data.loadedRole !== mockRole()) { this.clearPrivate(); await this.load(); return; }
-    if (!this.data.member) { await this.load(); return; }
+    if (!this.data.member || !this.data.busy && !this.data.selected && !this.data.reviewTarget && !this.data.reviewMode) { await this.load(); return; }
     const fence = this.viewerFence();
     try {
       await this.assertViewer(fence);
-      if (this.matches(fence) && !this.data.busy && !this.data.selected && !this.data.reviewTarget && !this.data.reviewMode) await this.load();
-    } catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
+    } catch (error) { if (this.matches(fence)) { this.clearPrivate(); this.setData({ error: message(error) }); } }
   },
   localViewer(owner = false) {
     if (this.matches(this.viewerFence()) && (!owner || this.data.isOwner)) return true;
@@ -81,8 +80,11 @@ Page({
         ...(changed ? { selected: null, assetId: '', previewUrl: '', reviewTarget: null, reviewVideoUrl: '', queue: [], drafts: [] } : {}),
         ...(!member?.roles.includes('owner') ? { queue: [], reviewTarget: null, reviewVideoUrl: '', reviewReason: '' } : {}) });
       if (!member) { this.setData({ items: [], visibleItems: [] }); return; }
-      const result: { items: SkillView[] } = await this.verifiedCall(this.viewerFence(), 'skills.mine');
-      if (version !== this.data.loadVersion || isMock && mockRole() !== role) return;
+      const fence = this.viewerFence();
+      // This read shares only this load's freshly verified identity. Mutations,
+      // open forms and privileged reads retain their fresh verification checks.
+      const result = await call<{ items: SkillView[] }>('skills.mine');
+      if (!this.matches(fence)) return;
       const items = result.items.map((item, index) => ({ ...item, stateText: stateText(item.submission?.state), number: String(index < 5 ? index + 1 : index - 4).padStart(2, '0') }));
       this.setData({ items }); this.filterItems();
       if (this.data.selected) {
@@ -91,7 +93,7 @@ Page({
       }
       await this.loadDrafts();
       if (this.data.reviewMode) await this.loadQueue();
-    } catch (error) { if (version === this.data.loadVersion && (!isMock || mockRole() === role)) this.setData({ error: message(error) }); }
+    } catch (error) { if (version === this.data.loadVersion && (!isMock || mockRole() === role)) { this.clearPrivate(); this.setData({ error: message(error) }); } }
     finally { if (version === this.data.loadVersion && (!isMock || mockRole() === role)) this.setData({ loading: false }); }
   },
   filterItems() {
@@ -120,6 +122,7 @@ Page({
   async loadDrafts() {
     const fence = this.viewerFence();
     try {
+      if (!hasMemberMediaDrafts()) { if (this.matches(fence)) this.setData({ drafts: [] }); return; }
       await this.assertViewer(fence); const drafts = await memberMediaDrafts(); await this.assertViewer(fence);
       if (this.matches(fence)) this.setData({ drafts: drafts.filter(draft => draft.purpose === 'skill' && draft.memberId === fence.memberId) });
     } catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }

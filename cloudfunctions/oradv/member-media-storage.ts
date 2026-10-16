@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { validateAvatarImage } from '../../shared/avatar-image';
 import type { MemberMediaStorage } from '../../shared/member-media-types';
+import { verifyNewImageUpload, type ImageReadbackSdk } from './image-upload';
 
-export interface MemberMediaCloudSdk {
+export interface MemberMediaCloudSdk extends ImageReadbackSdk {
   uploadFile(input: { cloudPath: string; fileContent: Buffer }): Promise<{ fileID: string; statusCode: number }>;
   getTempFileURL(input: { fileList: { fileID: string; maxAge: number }[] }): Promise<{ fileList: { fileID: string; status: number; tempFileURL: string }[] }> | void;
   deleteFile(input: { fileList: string[] }): Promise<{ fileList: { fileID: string; status: number }[] }> | void;
@@ -21,9 +22,9 @@ export function createMemberMediaStorage(sdk: MemberMediaCloudSdk): MemberMediaS
         ? `club-public-assets/${randomUUID()}.${image.extension}`
         : `member-evidence/${memberId}/${assetId}/${randomUUID()}.${image.extension}`;
       const result = await sdk.uploadFile({ cloudPath, fileContent: Buffer.from(image.bytes) });
-      if (!result || typeof result.fileID !== 'string' || !result.fileID.endsWith('/' + cloudPath)
-        || result.statusCode < 200 || result.statusCode >= 300) throw new Error('Evidence upload unavailable');
+      if (!result || typeof result.fileID !== 'string' || !result.fileID.endsWith('/' + cloudPath)) throw new Error('Evidence upload unavailable');
       checkFileId(result.fileID);
+      await verifyNewImageUpload(sdk, result, image.bytes, 'Evidence upload unavailable');
       return { fileId: result.fileID, bytes: image.bytes.length, mimeType: image.extension === 'png' ? 'image/png' : 'image/jpeg' };
     },
     // getUploadMetadata's PUT grant does not bind the 8 MiB maximum. Do not

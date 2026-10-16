@@ -22,15 +22,19 @@ Page({
     this.setData({ mode: options.mode === 'review' && options.memberId ? 'review' : options.mode === 'queue' ? 'queue' : 'own', memberId: options.memberId || '' });
   },
   onShow() { return this.resume(); },
-  onUnload() { this.setData({ version: this.data.version + 1 }); },
+  onUnload() { this.clearPrivate(); },
   clearPrivate() {
     this.renderDraft(emptyDossierDraft(), { version: this.data.version + 1, dossier: null, viewerId: '', dirty: false, consent: false,
       urls: {}, photoErrors: {}, queue: [], nextCursor: null, pendingUploads: [], statusText: '', reviewReason: '',
-      saving: false, uploading: false, uploadLabel: '', notice: '' });
+      saving: false, uploading: false, uploadLabel: '', notice: '', loading: false, loadedRole: '' });
   },
   async resume() {
     const role = mockRole();
     if (this.data.loadedRole && this.data.loadedRole !== role) { this.clearPrivate(); await this.load(); return; }
+    if (!this.data.saving && !this.data.uploading && !this.data.dirty) {
+      // Hide the prior private view while the new load verifies identity once.
+      this.clearPrivate(); await this.load(); return;
+    }
     const version = this.data.version, viewerId = this.data.viewerId;
     try {
       const member = await currentMember();
@@ -40,8 +44,7 @@ Page({
       }
       // Same-identity foregrounding must preserve both unsaved edits and an
       // in-flight media selection, while identity validation always runs.
-      if (!this.data.saving && !this.data.uploading && !this.data.dirty) await this.load();
-    } catch (error) { if (version === this.data.version && (!isMock || mockRole() === role)) this.setData({ error: friendly(error) }); }
+    } catch (error) { if (version === this.data.version && (!isMock || mockRole() === role)) { this.clearPrivate(); this.setData({ error: friendly(error) }); } }
   },
   async assertViewer() {
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
@@ -89,7 +92,7 @@ Page({
       if (!this.matches(version, member.id, role)) return;
       this.renderDraft(clone(dossier.draft), { dossier, statusText: labels[dossier.status], dirty: false, consent: false, urls: {}, photoErrors: {}, notice: '', reviewReason: '' });
       await Promise.all([this.loadPhotos(), this.data.mode === 'own' ? this.loadPendingUploads() : Promise.resolve()]);
-    } catch (error) { if (version === this.data.version && (!isMock || mockRole() === role)) this.setData({ error: friendly(error) }); }
+    } catch (error) { if (version === this.data.version && (!isMock || mockRole() === role)) { this.clearPrivate(); this.setData({ error: friendly(error) }); } }
     finally { if (version === this.data.version && (!isMock || mockRole() === role)) this.setData({ loading: false }); }
   },
   async loadPhotos() {

@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.3.0-test.2",
+  "version": "0.3.0-test.3",
   "asOf": "2026-10-16",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -68,27 +68,27 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.3.0-test.2",
+    "sourceVersion": "0.3.0-test.3",
     "typecheck": "passed",
     "domainTests": 115,
-    "cloudTests": 58,
+    "cloudTests": 64,
     "buildAndTemplateTests": 10,
-    "typescriptTests": 183,
-    "nativePageTests": 40,
+    "typescriptTests": 189,
+    "nativePageTests": 71,
     "pythonToolTests": 14,
-    "totalTests": 237,
+    "totalTests": 274,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
   },
   "previewUpload": {
     "status": "success",
-    "version": "0.3.0-test.2",
+    "version": "0.3.0-test.3",
     "mode": "cloud",
     "sdkVersion": "2.1.31",
     "qrGenerated": true,
     "uploadIpWhitelistDisabledByUser": true,
-    "localQrArtifact": "dist/OR_ADV-cloud-preview-0.3.0-test.2.png"
+    "localQrArtifact": "dist/OR_ADV-cloud-preview-0.3.0-test.3.png"
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": true,
@@ -158,7 +158,7 @@
     "cloudImportImplemented": false
   },
   "loginAndProfile": {
-    "status": "phone_registration_user_confirmed_avatar_and_two_account_acceptance_pending",
+    "status": "user_confirmed_native_registration_cloud_avatar_protocol_verified_new_UI_phone_pending",
     "identitySource": "trusted_WeChat_native_cloud_context",
     "nickname": "optional_native_nickname_input",
     "avatar": "optional_private_self_only",
@@ -166,8 +166,10 @@
     "clientCloudStorageAccess": "actual_CUSTOM_deny_rule_read_back_native_client_denial_not_tested",
     "mockAvatarPersistence": "app_owned_local_files",
     "realWeChatLoginVerified": true,
-    "realCloudAvatarStorageVerified": false,
-    "realLoginEvidence": "user_confirmed_registration_received_member_number_1_after_transaction_fix"
+    "realCloudAvatarStorageVerified": true,
+    "realLoginEvidence": "user_confirmed_registration_received_member_number_1_after_transaction_fix",
+    "cloudAvatarEvidence": "authorized_CLI_temporary_credential_technical_upload_readback_signed_URL_fetch_delete_not_phone",
+    "profileOnboarding": "native_chooseAvatar_and_nickname_editor_after_first_login_optional_and_editable"
   },
   "visualIteration": {
     "reference": "https://yuanbao.tencent.com/sc/5UClRnU5SgSusS1",
@@ -234,14 +236,14 @@
     "functionTimeoutSeconds": 30,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "9cde7a896a9390dcf9ef0b4190cd87f039ced962fa23b425f8b057ee95c9518f",
+    "functionBackendSha256": "05777bb1dae2f8e464abdbc74a9538a61b59e1ff6a6929d699a4f251bdc19497",
     "nativeEventCompatibility": {
       "fixed": "discard_observed_userInfo_and_tcbContext_before_domain",
       "trustedIdentity": "SDK_context_only",
       "rawEventSizeLimitPreserved": true,
       "remoteMalformedProbesPassed": 2,
       "realPhoneRetest": "four_tabs_and_registration_user_confirmed",
-      "diagnosticBuild": "native-envelope-20261016.6",
+      "diagnosticBuild": "native-envelope-20261016.7",
       "actualDeployedSourceVerifiedByDownload": true,
       "diagnosticLoggingVerifiedByRemoteReadback": true
     },
@@ -272,11 +274,11 @@
   },
   "developmentUpload": {
     "status": "success",
-    "version": "0.3.0-test.2",
+    "version": "0.3.0-test.3",
     "mode": "cloud",
-    "experienceSelectionByAdministrator": "pending",
     "formalReviewSubmitted": false,
-    "published": false
+    "published": false,
+    "experienceSelectionByVersionManager": "pending_console_login_and_selection"
   },
   "newPrototypeIteration": {
     "allFourTabsAndLeafFlowsImplemented": true,
@@ -307,7 +309,7 @@
       "stage": "rate_limit",
       "sdkErrorCode": "-501001",
       "status": "deployed_source_verified_real_cloud_and_phone_retest_passed",
-      "diagnosticBuild": "native-envelope-20261016.6",
+      "diagnosticBuild": "native-envelope-20261016.7",
       "backendCode": "DATABASE_TRANSACTION_CONFLICT",
       "runtimeCredentials": "present",
       "singleTransactionErrors": [
@@ -316,6 +318,29 @@
       ],
       "quotaExhaustionObserved": false
     },
-    "performanceFollowup": "user_reports_slow_reads_investigating"
+    "performanceFollowup": "test3_client_single_identity_reads_implemented_uploaded_phone_latency_pending"
+  },
+  "frontendReadOptimization": {
+    "version": "0.3.0-test.3",
+    "scope": [
+      "profile",
+      "skills",
+      "learning",
+      "dossier",
+      "club-content",
+      "history-detail"
+    ],
+    "freshIdentityReadsPerNormalLoad": 1,
+    "nativeRegressionTests": 31,
+    "longLivedIdentityCache": false,
+    "mutationAndIndependentRetryChecksPreserved": true,
+    "phoneLatencyVerified": false
+  },
+  "imageUploadCompatibility": {
+    "SDK": "wx-server-sdk4.0.2",
+    "exactSentinel": -1,
+    "proof": "canonical_new_path_and_downloaded_bytes_equal_validated_image",
+    "actualTechnicalRoundtripPassed": true,
+    "businessRecordsWritten": 0
   }
 }

@@ -17,7 +17,7 @@ export interface HandlerDependencies {
   log?: (entry: { traceId: string; action: string; code: string; serverBuild?: string; rejectedFields?: string[]; rejectedFieldCount?: number; stage?: string; backendCode?: string; backendHints?: string[]; runtimeAuth?: { credentials: string; sessionToken: boolean } }) => void;
 }
 
-const SERVER_BUILD = 'native-envelope-20261016.6';
+const SERVER_BUILD = 'native-envelope-20261016.7';
 class EnvelopeFieldError extends DomainError {
   readonly fields: string[];
   readonly fieldCount: number;

@@ -3,8 +3,8 @@
   "clubId": "oradv",
   "projectPath": "app/miniprogram",
   "privateKeyPath": "",
-  "version": "0.3.0-test.2",
-  "description": "修复云端请求字段校验与页面访问",
+  "version": "0.3.0-test.3",
+  "description": "优化各页读取，修复头像保存与微信资料设置",
   "robot": 1,
   "environments": {
     "test": {

@@ -50,7 +50,8 @@ test('native profile keeps optional avatars private, durable and scoped to the c
   assert.equal(page.data.avatarUrl, '');
   assert.equal(!!page.data.member.hasAvatar, false, 'avatar is optional at login');
   const memberId = page.data.member.id;
-  page.edit();
+  assert.equal(page.data.showEdit, true, 'first login immediately offers the native nickname and avatar editor');
+  assert.equal(page.data.nickname, '', 'the default club label does not occupy the WeChat nickname input');
   page.nicknameBlur({ detail: { value: '微信填写的昵称' } });
   assert.equal(page.data.nickname, '微信填写的昵称', 'nickname blur reads the native fill-in value');
   await page.save();
@@ -64,7 +65,9 @@ test('native profile keeps optional avatars private, durable and scoped to the c
   await page.save(); assert(page.data.nicknameError); assert.notEqual((await api.currentMember()).nickname, '检测超时的称呼');
   page.nickname({ detail: { value: '内测小周' } }); page.nicknameBlur({ detail: { value: '内测小周' } });
   page.nicknameReview({ detail: { pass: true, timeout: false } });
+  page.setData({ showEdit: false });
   await page.chooseAvatar({ detail: { avatarUrl: '/temp/choice.png' } });
+  assert.equal(page.data.showEdit, true, 'choosing from the header opens the save controls');
   assert.equal(calls[0].compressedWidth, 256); assert.equal(calls[0].compressedHeight, 256);
   const draft = page.data.avatarBase64;
   assert(draft); assert.equal(!!(await api.currentMember()).hasAvatar, false, 'selection alone does not save');

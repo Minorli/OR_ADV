@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { AvatarStorage } from '../../shared/models';
 import { validateAvatarImage } from '../../shared/avatar-image';
+import { verifyNewImageUpload, type ImageReadbackSdk } from './image-upload';
 
 interface FileStatus { fileID: string; status: number }
-export interface AvatarCloudSdk {
+export interface AvatarCloudSdk extends ImageReadbackSdk {
   uploadFile(options: { cloudPath: string; fileContent: Buffer }): Promise<{ fileID: string; statusCode: number }>;
   getTempFileURL(options: { fileList: { fileID: string; maxAge: number }[] }): Promise<{ fileList: (FileStatus & { tempFileURL: string })[] }> | void;
   deleteFile(options: { fileList: string[] }): Promise<{ fileList: FileStatus[] }> | void;
@@ -23,9 +24,9 @@ export function createAvatarStorage(sdk: AvatarCloudSdk): AvatarStorage {
       const image = validateAvatarImage(imageBase64);
       const cloudPath = `member-avatars/${memberId}/${randomUUID()}.${image.extension}`;
       const result = await sdk.uploadFile({ cloudPath, fileContent: Buffer.from(image.bytes) });
-      if (!result || typeof result.fileID !== 'string' || !result.fileID.endsWith('/' + cloudPath)
-        || result.statusCode < 200 || result.statusCode >= 300) throw new Error('Avatar upload unavailable');
+      if (!result || typeof result.fileID !== 'string' || !result.fileID.endsWith('/' + cloudPath)) throw new Error('Avatar upload unavailable');
       ownNamespace(result.fileID);
+      await verifyNewImageUpload(sdk, result, image.bytes, 'Avatar upload unavailable');
       return result.fileID;
     },
     url: async fileId => {

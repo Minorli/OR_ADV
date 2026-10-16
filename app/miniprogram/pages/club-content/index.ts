@@ -17,6 +17,7 @@ const formScope = (id: string, kind: string) => ({ mode: runtime.mode, appId: ru
 const formKey = (id: string, kind: string) => `oradv-club-inquiry-draft-v2-${sha256(JSON.stringify(formScope(id, kind)))}`;
 const nonce = () => `inquiry-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 interface ContactRow extends Omit<ClubContactItem, 'method'> { method: string; action: string }
+interface ContentReadSnapshot { version: number; viewerId: string; role: string; environment: string; isOwner: boolean }
 Page({
   data: {
     isMock, section: 'handbook' as ClubContentSection, sectionLabels, sectionIndex: 0, methodLabels: ['电话', '微信', '地址'],
@@ -31,9 +32,19 @@ Page({
     this.setData({ section, sectionIndex: sections.indexOf(section), mode: options.mode === 'manage' ? 'manage' : 'view', draft: blank(section) });
   },
   onShow() { void this.resume(); },
-  async resume() { if (await this.verifyCurrent() && !this.data.busy && !this.data.editorDirty) await this.load(); },
+  async resume() {
+    if (this.data.busy || this.data.editorDirty || Object.values(this.data.replies).some(value => value.trim())) { await this.verifyCurrent(); return; }
+    await this.load();
+  },
   onUnload() { this.setData({ version: this.data.version + 1, member: null, viewerId: '', inquiries: [], shownInquiries: [], inquiryContact: '', inquiryMessage: '', replies: {} }); },
   matches(version: number, viewerId: string, role: string) { return this.data.version === version && this.data.viewerId === viewerId && this.data.loadedEnvironment === environmentScope() && (!isMock || mockRole() === role); },
+  readSnapshot(): ContentReadSnapshot { return { version: this.data.version, viewerId: this.data.viewerId, role: this.data.loadedRole, environment: this.data.loadedEnvironment, isOwner: this.data.isOwner }; },
+  readMatches(snapshot: ContentReadSnapshot) {
+    if (snapshot.version === this.data.version && this.data.loadedEnvironment !== environmentScope()) {
+      this.setData({ version: this.data.version + 1 }); this.clearPrivate(); this.setData({ error: '当前环境已变化，请重新加载栏目' }); return false;
+    }
+    return this.matches(snapshot.version, snapshot.viewerId, snapshot.role) && snapshot.environment === this.data.loadedEnvironment && snapshot.isOwner === this.data.isOwner;
+  },
   clearPrivate() {
     this.setData({ member: null, isOwner: false, identityReady: false, viewerId: '', inquiries: [], shownInquiries: [], nextCursor: null, replies: {}, busy: false, inquiryLoading: false, loading: false,
       inquiryContact: '', inquiryMessage: '', selectedOffer: '', inquiryConsent: false, submissionId: '', formLocked: false,
@@ -60,25 +71,29 @@ Page({
   },
   async load() {
     const version = this.data.version + 1, role = mockRole();
-    if (this.data.loadedRole && this.data.loadedRole !== role) this.clearPrivate();
-    this.setData({ version, loadedRole: role, loadedEnvironment: environmentScope(), identityReady: false, loading: true, error: '' });
+    if (this.data.loadedRole && this.data.loadedRole !== role || this.data.loadedEnvironment && this.data.loadedEnvironment !== environmentScope()) this.clearPrivate();
+    this.setData({ version, loadedRole: role, loadedEnvironment: environmentScope(), identityReady: false, loading: true, inquiryLoading: false, error: '' });
     try {
       const member = await currentMember();
       if (version !== this.data.version) return;
-      if (isMock && mockRole() !== role) { this.setData({ version: version + 1 }); this.clearPrivate(); await this.load(); return; }
+      if (isMock && mockRole() !== role || this.data.loadedEnvironment !== environmentScope()) { this.setData({ version: version + 1 }); this.clearPrivate(); await this.load(); return; }
       if (this.data.viewerId !== (member?.id || '')) this.clearPrivate();
       this.setData({ member, viewerId: member?.id || '', identityReady: true, isOwner: !!member?.roles.includes('owner') });
       if (this.data.mode === 'manage' && !member?.roles.includes('owner')) { this.clearPrivate(); throw new ApiError('FORBIDDEN', '仅主理人可以编辑公开栏目和处理咨询'); }
+      const snapshot = this.readSnapshot();
+      // Initial reads share only this generation's freshly verified identity.
+      // The public queue retry still performs its own fresh verification.
+      const inquiries = member && (this.data.mode === 'manage' || inquiryKind(this.data.section)) ? this.readInquiries(snapshot) : Promise.resolve();
       const [content, primary] = await Promise.all([
         call<ClubContentView>(this.data.mode === 'manage' ? 'staff.club.content.get' : 'club.content.get', { section: this.data.section }),
         call<ClubContact>('club.public'),
       ]);
-      if (!this.matches(version, member?.id || '', role)) return;
+      if (!this.readMatches(snapshot)) return;
       this.setData({ content, draft: copy(editable(content)), primary, editorDirty: false, rights: false });
       this.showContacts();
       if (member && this.data.mode === 'view' && inquiryKind(this.data.section)) this.restoreForm();
-      if (member && (this.data.mode === 'manage' || inquiryKind(this.data.section))) await this.loadInquiries();
-    } catch (error) { if (version === this.data.version && (!isMock || mockRole() === role)) this.setData({ error: errorMessage(error) }); }
+      await inquiries;
+    } catch (error) { if (version === this.data.version && (!isMock || mockRole() === role)) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } }
     finally { if (version === this.data.version && (!isMock || mockRole() === role)) this.setData({ loading: false }); }
   },
   showContacts() {
@@ -234,14 +249,17 @@ Page({
   showInquiries() { this.setData({ shownInquiries: this.data.mode === 'manage' ? this.data.inquiries : this.data.inquiries.filter(item => item.kind === this.data.section) }); },
   async loadInquiries(append = false) {
     if (!this.data.member || this.data.inquiryLoading || this.data.mode !== 'manage' && !inquiryKind(this.data.section) || !await this.verifyCurrent()) return;
-    const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
+    await this.readInquiries(this.readSnapshot(), append);
+  },
+  async readInquiries(snapshot: ContentReadSnapshot, append = false) {
+    if (!snapshot.viewerId || !this.readMatches(snapshot) || this.data.inquiryLoading) return;
     this.setData({ inquiryLoading: true });
     try {
       const result = await call<{ items: ClubInquiry[]; nextCursor: string | null }>(this.data.mode === 'manage' ? 'staff.club.inquiry.list' : 'club.inquiry.mine', append && this.data.nextCursor ? { cursor: this.data.nextCursor } : {});
-      if (!this.matches(version, viewerId, role)) return;
+      if (!this.readMatches(snapshot)) return;
       this.setData({ inquiries: append ? [...this.data.inquiries, ...result.items.filter(row => !this.data.inquiries.some(item => item.id === row.id))] : result.items, nextCursor: result.nextCursor }); this.showInquiries();
-    } catch (error) { if (this.matches(version, viewerId, role)) this.setData({ error: errorMessage(error) }); }
-    finally { if (this.matches(version, viewerId, role)) this.setData({ inquiryLoading: false }); }
+    } catch (error) { if (this.readMatches(snapshot)) this.setData({ error: errorMessage(error) }); }
+    finally { if (this.readMatches(snapshot)) this.setData({ inquiryLoading: false }); }
   },
   refreshInquiries() { if (!this.data.busy) void this.loadInquiries(); },
   moreInquiries() { if (!this.data.busy && this.data.nextCursor) void this.loadInquiries(true); },

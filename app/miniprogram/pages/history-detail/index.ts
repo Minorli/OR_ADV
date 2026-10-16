@@ -1,10 +1,13 @@
-import { ApiError, call, confirm, currentMember, errorMessage, isMock, mockRole, toast } from '../../services/api';
+import { ApiError, call, confirm, currentMember, errorMessage, isMock, mockRole, runtime, toast } from '../../services/api';
 import { chooseAndUploadMemberImage, resolveMemberMedia } from '../../services/member-media';
 import type { ActivityStory, OwnHistoryReview, PublicHistoryDetail, StaffHistoryReview } from '../../../../shared/history-content-types';
 import { HISTORY_REVIEW_CONSENT_VERSION } from '../../../../shared/history-content-types';
 import type { MemberSummary } from '../../../../shared/types';
 
 const dateText = (value: string) => new Date(Date.parse(value) + 8 * 3600000).toISOString().slice(0, 10).replace(/-/g, '.');
+const environmentScope = () => JSON.stringify([runtime.mode, runtime.appId, runtime.envId]);
+interface HistoryReadSnapshot { version: number; role: string; memberId: string; isOwner: boolean; environment: string }
+interface ManagementRead { story: ActivityStory; items: StaffHistoryReview[]; nextCursor: string | null; photoUrls: Record<string, string> }
 Page({
   data: {
     isMock, activityId: '', manage: false, isOwner: false, member: null as MemberSummary | null,
@@ -16,7 +19,7 @@ Page({
     documentaryInput: '', documentaryTitle: '', filmRights: false, photoRights: false, published: false, reason: '',
     queue: [] as (StaffHistoryReview & { starText: string })[], queueCursor: null as string | null, reviewReasons: {} as Record<string, string>,
     honorChoices: [{ label: '不设置', value: '' }], honor0Index: 0, honor1Index: 0, honor0Label: '', honor1Label: '',
-    loading: false, busy: false, dirty: false, error: '', notice: '', loadVersion: 0,
+    loading: false, busy: false, dirty: false, error: '', notice: '', loadVersion: 0, loadedEnvironment: '',
   },
   onLoad(options: Record<string, string>) { this.setData({ activityId: options.activityId || options.id || '', manage: options.mode === 'manage' }); },
   onShow() { return this.resume(); },
@@ -24,12 +27,14 @@ Page({
   async onPullDownRefresh() { await this.load(); wx.stopPullDownRefresh(); },
   valid(version: number, role: string) {
     if (version !== this.data.loadVersion) return false;
-    if (isMock && role !== mockRole()) {
+    if (isMock && role !== mockRole() || this.data.loadedEnvironment && this.data.loadedEnvironment !== environmentScope()) {
       this.clearPrivate();
       return false;
     }
     return true;
   },
+  readSnapshot(): HistoryReadSnapshot { return { version: this.data.loadVersion, role: mockRole(), memberId: this.data.member?.id || '', isOwner: this.data.isOwner, environment: this.data.loadedEnvironment }; },
+  readMatches(snapshot: HistoryReadSnapshot) { return this.valid(snapshot.version, snapshot.role) && this.data.member?.id === snapshot.memberId && this.data.isOwner === snapshot.isOwner && snapshot.environment === this.data.loadedEnvironment; },
   clearPrivate() {
     this.setData({ loadVersion: this.data.loadVersion + 1, member: null, isOwner: false, own: null, story: null, queue: [], photoUrls: {}, photoAssetIds: [],
       loading: false, busy: false, dirty: false, comment: '', stars: 5, intro: '', documentaryInput: '', documentaryTitle: '', reason: '', reviewReasons: {}, queueCursor: null,
@@ -44,59 +49,72 @@ Page({
     throw new ApiError('STALE_IDENTITY', '当前身份已变化，已停止本次操作，请重新打开记录');
   },
   async resume() {
+    if (!this.data.busy && !this.data.dirty) { await this.load(); return; }
     const version = this.data.loadVersion, role = mockRole(), id = this.data.member?.id ?? null;
     try {
       const member = await currentMember();
       if (!this.valid(version, role)) { await this.load(); return; }
       if ((member?.id ?? null) !== id || this.data.manage && !member?.roles.includes('owner')) { this.clearPrivate(); await this.load(); return; }
-      if (!this.data.busy && !this.data.dirty) await this.load();
-    } catch (error) { if (this.valid(version, role)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (this.valid(version, role)) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } }
   },
   async load() {
     const version = this.data.loadVersion + 1, role = mockRole();
-    this.setData({ loadVersion: version, loading: true, busy: false, dirty: false, isOwner: false, error: '', detail: null, member: null, own: null, queue: [], story: null, photos: [], reviews: [], documentaryUrl: '', playing: false, photoUrls: {}, comment: '', publishConsent: false, nicknameConsent: false, honorConsent: false });
+    this.clearPrivate();
+    this.setData({ loadVersion: version, loadedEnvironment: environmentScope(), loading: true, error: '', detail: null, photos: [], reviews: [], documentaryUrl: '', playing: false });
     try {
       const [detail, member] = await Promise.all([call<PublicHistoryDetail>('history.detail', { activityId: this.data.activityId }), currentMember()]);
       if (!this.valid(version, role)) return;
       const isOwner = !!member?.roles.includes('owner');
       this.setData({ detail, member, isOwner, date: dateText(detail.activity.endAt), photos: detail.story?.photos ?? [], documentaryUrl: detail.story?.documentary?.url ?? '', videoError: '',
         reviews: detail.reviews.items.map(row => ({ ...row, starText: '★'.repeat(row.stars) + '☆'.repeat(5 - row.stars) })), nextCursor: detail.reviews.nextCursor });
-      if (member) {
-        const own = await call<OwnHistoryReview>('history.review.mine', { activityId: this.data.activityId });
-        if (!this.valid(version, role)) return;
-        await this.assertViewer();
-        if (!this.valid(version, role)) return;
-        this.setData({ own, stars: own.review?.stars ?? 5, comment: own.review?.comment ?? '',
-          publishConsent: own.review?.publishConsent ?? false, nicknameConsent: own.review?.nicknameConsent ?? false, honorConsent: own.review?.honorConsent ?? false });
-      }
-      if (this.data.manage) {
-        if (!isOwner) throw new Error('仅主理人可以编辑本场回顾');
-        await this.loadManage(version, role);
-      }
-    } catch (error) { if (this.valid(version, role)) this.setData({ error: error instanceof Error ? error.message : errorMessage(error) }); }
+      if (this.data.manage && !isOwner) throw new Error('仅主理人可以编辑本场回顾');
+      const snapshot = this.readSnapshot();
+      // Private initial reads reuse only this load's verified viewer. Independent
+      // management retries and mutations continue to verify identity freshly.
+      await Promise.all([member ? this.readOwn(snapshot) : Promise.resolve(), this.data.manage ? this.readManage(snapshot) : Promise.resolve()]);
+    } catch (error) { if (this.valid(version, role)) { this.clearPrivate(); this.setData({ error: error instanceof Error ? error.message : errorMessage(error) }); } }
     finally { if (this.valid(version, role)) this.setData({ loading: false }); }
+  },
+  async readOwn(snapshot: HistoryReadSnapshot) {
+    if (!this.readMatches(snapshot)) return;
+    const own = await call<OwnHistoryReview>('history.review.mine', { activityId: this.data.activityId });
+    if (!this.readMatches(snapshot)) return;
+    if (own.review && (own.review.memberId !== snapshot.memberId || own.review.activityId !== this.data.activityId)) throw new ApiError('STALE_IDENTITY', '当前成员资料已变化，请重新打开记录');
+    this.setData({ own, stars: own.review?.stars ?? 5, comment: own.review?.comment ?? '',
+      publishConsent: own.review?.publishConsent ?? false, nicknameConsent: own.review?.nicknameConsent ?? false, honorConsent: own.review?.honorConsent ?? false });
   },
   async loadManage(version?: number, role?: string) {
     version = version ?? this.data.loadVersion; role = role ?? mockRole();
     if (!this.valid(version, role)) return;
     await this.assertViewer(true);
     if (!this.valid(version, role)) return;
-    const [story, result] = await Promise.all([call<ActivityStory>('staff.history.get', { activityId: this.data.activityId }), call<{ items: StaffHistoryReview[]; nextCursor: string | null }>('staff.history.reviews', { activityId: this.data.activityId })]);
-    if (!this.valid(version, role)) return;
+    const snapshot = this.readSnapshot(), result = await this.fetchManage(snapshot);
+    if (!result || !this.readMatches(snapshot)) return;
     await this.assertViewer(true);
-    if (!this.valid(version, role)) return;
+    if (this.readMatches(snapshot)) this.showManage(snapshot, result);
+  },
+  async readManage(snapshot: HistoryReadSnapshot) {
+    const result = await this.fetchManage(snapshot);
+    if (result) this.showManage(snapshot, result);
+  },
+  async fetchManage(snapshot: HistoryReadSnapshot): Promise<ManagementRead | null> {
+    if (!snapshot.isOwner || !this.readMatches(snapshot)) return null;
+    const [story, result] = await Promise.all([call<ActivityStory>('staff.history.get', { activityId: this.data.activityId }), call<{ items: StaffHistoryReview[]; nextCursor: string | null }>('staff.history.reviews', { activityId: this.data.activityId })]);
+    if (!this.readMatches(snapshot)) return null;
+    const photos = await Promise.all([...new Set(story.photoAssetIds)].map(async assetId => {
+      try { return { assetId, url: (await resolveMemberMedia(assetId)).url }; }
+      catch { return { assetId, url: '' }; }
+    }));
+    if (!this.readMatches(snapshot)) return null;
+    return { story, items: result.items, nextCursor: result.nextCursor, photoUrls: Object.fromEntries(photos.map(photo => [photo.assetId, photo.url])) };
+  },
+  showManage(snapshot: HistoryReadSnapshot, result: ManagementRead) {
+    if (!this.readMatches(snapshot)) return;
+    const { story } = result;
     this.setData({ story, intro: story.intro, photoAssetIds: story.photoAssetIds, documentaryInput: story.documentaryUrl, documentaryTitle: story.documentaryTitle,
-      filmRights: story.videoRightsAcknowledged, published: story.published, reason: '', queue: result.items.map(row => ({ ...row, starText: '★'.repeat(row.stars) + '☆'.repeat(5 - row.stars) })), queueCursor: result.nextCursor,
+      filmRights: story.videoRightsAcknowledged, published: story.published, reason: '', queue: result.items.map(row => ({ ...row, starText: '★'.repeat(row.stars) + '☆'.repeat(5 - row.stars) })), queueCursor: result.nextCursor, photoUrls: result.photoUrls,
       honor0Label: story.honors[0]?.label ?? '', honor1Label: story.honors[1]?.label ?? '' });
     this.honorOptions();
-    const urls: Record<string, string> = {};
-    for (const assetId of story.photoAssetIds) {
-      try { urls[assetId] = (await resolveMemberMedia(assetId)).url; }
-      catch { urls[assetId] = ''; }
-      if (!this.valid(version, role)) return;
-    }
-    await this.assertViewer(true);
-    this.setData({ photoUrls: urls });
   },
   honorOptions() {
     const choices = [{ label: '不设置', value: '' }, ...this.data.queue.filter(row => row.status === 'approved' && row.honorConsent).map(row => ({ label: row.nickname, value: row.publicId }))];

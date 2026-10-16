@@ -48,12 +48,11 @@ Page({
   },
   async resume() {
     if (this.data.loadedRole && this.data.loadedRole !== mockRole()) { this.clearPrivate(); await this.load(); return; }
-    if (!this.data.member) { await this.load(); return; }
+    if (!this.data.member || !this.data.busy && !this.data.editor && !this.data.practice) { await this.load(); return; }
     const fence = this.viewerFence();
     try {
       await this.assertViewer(fence);
-      if (this.matches(fence) && !this.data.busy && !this.data.editor && !this.data.practice) await this.load();
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (this.matches(fence)) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } }
   },
   localViewer(owner = false) {
     if (this.matches(this.viewerFence()) && (!owner || this.data.isOwner)) return true;
@@ -71,12 +70,15 @@ Page({
       this.setData({ catalog, member, loadedRole: role, isOwner: !!member?.roles.includes('owner'), editor: this.data.editor && !!member?.roles.includes('owner'),
         ...(!member?.roles.includes('owner') ? { bank: null, questionLabels: [], draft: emptyQuestion(), reason: '', instructorConfirmed: false } : {}) });
       if (member) {
-        const result: { attempt: PracticeView | null } = await this.verifiedCall(this.viewerFence(), 'learning.mine');
-        if (version !== this.data.loadVersion || isMock && mockRole() !== role) return;
+        const fence = this.viewerFence();
+        // Reuse this load's fresh identity only for its personal read. Practice
+        // writes and privileged bank operations keep their verification checks.
+        const result = await call<{ attempt: PracticeView | null }>('learning.mine');
+        if (!this.matches(fence)) return;
         this.showPractice(result.attempt);
         if (this.data.editor) await this.loadBank();
       }
-    } catch (error) { if (version === this.data.loadVersion && (!isMock || mockRole() === role)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (version === this.data.loadVersion && (!isMock || mockRole() === role)) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } }
     finally { if (version === this.data.loadVersion && (!isMock || mockRole() === role)) this.setData({ loading: false }); }
   },
   showPractice(practice: PracticeView | null) {
