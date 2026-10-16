@@ -100,6 +100,6 @@ RPC覆盖identity.me、activity.list、club.public、recommendation.list、ranki
 
 实际独立技术头像上传返回-1，经下载字节核对、生成短期链接、HTTP读取图片、删除全部成功。使用CLI授权临时凭据，无会员头像写入；不冒充手机选择头像或运行角色权限验收。存储拒绝规则保持。微信[官方头像昵称填写能力](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/userProfile.html)已核对；昵称键盘建议与头像选择必须本人触发，首次登录展开设置，仍允许稍后填写。
 
-官方test.3预览和开发版本上传均成功；后端构建native-envelope-20261016.7，部署后读回Active／Event及预期变量，实际云代码下载后哈希与暂存包完全一致。用户明确只更新内测体验版，公众平台体验版选择及test.3手机复验仍待完成。
+官方test.3预览和开发版本上传均成功；后端构建native-envelope-20261016.7，部署后读回Active／Event及预期变量，实际云代码下载后哈希与暂存包完全一致。用户明确只更新内测体验版。用户扫码登录后，官方后台test.3记录已有可见体验版标记，备注匹配；开发管理页AppID精确匹配。二维码已保存本机并排除Git，平台提示2026-10-23前有效。临时后台已退出并清理站点数据，未提交正式审核。test.3手机性能及头像设置复验仍待进行。
 
 当前后端SHA256：`05777bb1dae2f8e464abdbc74a9538a61b59e1ff6a6929d699a4f251bdc19497`。

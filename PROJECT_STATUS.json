@@ -278,7 +278,7 @@
     "mode": "cloud",
     "formalReviewSubmitted": false,
     "published": false,
-    "experienceSelectionByVersionManager": "pending_console_login_and_selection"
+    "experienceSelectionByVersionManager": "verified_in_official_console_2026-10-16"
   },
   "newPrototypeIteration": {
     "allFourTabsAndLeafFlowsImplemented": true,
@@ -342,5 +342,18 @@
     "proof": "canonical_new_path_and_downloaded_bytes_equal_validated_image",
     "actualTechnicalRoundtripPassed": true,
     "businessRecordsWritten": 0
+  },
+  "experienceRelease": {
+    "status": "verified_current_experience_version",
+    "version": "0.3.0-test.3",
+    "appNameMatched": true,
+    "appIdMatched": true,
+    "descriptionMatched": true,
+    "officialTrialBadgeVisible": true,
+    "localQrArtifact": "OR_ADV体验版二维码.png",
+    "qrValidBeforePlatformDate": "2026-10-23",
+    "formalReviewSubmitted": false,
+    "phoneRetest": "pending_after_test3_frontend_changes",
+    "temporaryConsoleSessionLoggedOut": true
   }
 }
