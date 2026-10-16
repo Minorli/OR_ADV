@@ -90,7 +90,7 @@ test('profile preserves numbered identity and exposes every new module through n
   assert(p.data.dossierStatus); assert.equal(p.data.error, '');
   for (const method of ['dossier', 'safety', 'basicSkills', 'advancedSkills', 'practice', 'redemption', 'handbook', 'core', 'rules', 'contacts', 'business', 'dossierQueue', 'clubManagement']) p[method]();
   assert(env.navigations.some(x => x.includes('/pages/dossier/index')));
-  assert(env.navigations.some(x => x.includes('section=redemption')));
+  assert(env.navigations.some(x => x === '/pages/redemption/index'));
   assert(env.navigations.some(x => x.includes('mode=manage')));
   assert.equal(p.data.member.growthPoints, (await env.api.currentMember()).growthPoints);
 });
@@ -121,7 +121,7 @@ test('dirty club forms are scoped on resume and before write even when the accou
   manager.field(event({ field: 'introduction' }, '未保存的栏目修改')); assert.equal(manager.data.editorDirty, true);
   manager.publishRights(event({}, ['accepted'])); env.api.switchMockRole('member'); await manager.publish();
   assert.equal(manager.data.isOwner, false); assert.equal(manager.data.content, null); assert.equal(manager.data.inquiries.length, 0);
-  assert.equal(manager.data.draft.introduction, ''); assert(manager.data.error.includes('主理人'));
+  assert.equal(manager.data.draft.introduction, ''); assert(manager.data.error.includes('权限'));
 });
 
 test('redemption consultation snapshots the published offer and never spends points', async () => {

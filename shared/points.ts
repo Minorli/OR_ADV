@@ -4,6 +4,7 @@ import { completionIdFor, key, shanghaiYear, statsIdFor, yearRevisionIdFor } fro
 import type { LedgerEntry, MemberStats, Membership, PublicRanking, Registration, SettlementJob, User, YearRevision } from './models';
 import type { Transaction } from './store';
 import { BETA_MAX_CAPACITY } from './limits';
+import { awardActivityWallet, reverseActivityWallet } from './points-wallet';
 
 async function applyStats(ctx: Context, tx: Transaction, entry: LedgerEntry) {
   for (const scope of ['growth','year'] as const) {
@@ -53,6 +54,7 @@ async function settleMember(ctx: Context, registrationId: string) {
       relatedEntryId: null, actorId: actor.user.id, reason: '活动完整核验后结算' };
     await tx.set('points_ledger', id, entry);
     await applyStats(ctx, tx, entry);
+    await awardActivityWallet(ctx, tx, activity, entry);
     await tx.set('registrations', registration.id, { ...registration, state: 'completed', settlementId: id, revision: registration.revision + 1, updatedAt: ctx.now });
     await ctx.audit(tx, actor, 'points_ledger', id, { growthDelta: entry.growthDelta, annualDelta: entry.annualDelta, year: entry.year });
   });
@@ -114,6 +116,7 @@ export async function reversePoints(ctx: Context) {
       annualDelta: -original.annualDelta, completedCountDelta: -original.completedCountDelta, relatedEntryId: original.id, actorId: actor.user.id, reason };
     await tx.set('points_ledger', id, entry);
     await applyStats(ctx, tx, entry);
+    await reverseActivityWallet(ctx, tx, original, entry);
     const next: Registration = { ...registration, completionVoided: true, voidedAt: ctx.now, revision: registration.revision + 1, reason, updatedAt: ctx.now };
     await tx.set('registrations', next.id, next);
     await ctx.audit(tx, actor, 'points_ledger', id, { relatedEntryId: original.id, growthDelta: entry.growthDelta, annualDelta: entry.annualDelta }, reason);
@@ -136,7 +139,7 @@ export async function ownPoints(ctx: Context) {
     }
     return result;
   });
-  return { growthPoints: summary.growthPoints, annualPoints: summary.annualPoints, completedCount: summary.completedCount, year, ...page, items };
+  return { memberId: summary.id, growthPoints: summary.growthPoints, annualPoints: summary.annualPoints, completedCount: summary.completedCount, year, ...page, items };
 }
 
 export async function listRankings(ctx: Context) {

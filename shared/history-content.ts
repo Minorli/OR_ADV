@@ -5,7 +5,8 @@ import { key, registrationIdFor } from './models';
 import type { Membership, User } from './models';
 import type { Activity, Registration } from './types';
 import type { Transaction } from './store';
-import { bindOwnedMemberMedia, requireOwnedMemberMedia } from './member-media';
+import { bindPublicStoryMedia } from './member-media';
+import { PUBLIC_CONTENT_ROLES } from './permissions';
 import type { MemberMediaAsset } from './member-media-types';
 import { HISTORY_REVIEW_CONSENT_VERSION } from './history-content-types';
 import type { ActivityReview, ActivityStory, HistoryHonor, OwnHistoryReview, PublicActivityReview, PublicHistoryDetail, StaffHistoryReview } from './history-content-types';
@@ -136,7 +137,7 @@ export async function withdrawHistoryReview(ctx: Context): Promise<OwnHistoryRev
 }
 export async function staffHistoryGet(ctx: Context): Promise<ActivityStory> {
   fields(ctx, ['activityId']);
-  return ctx.store.transaction(async tx => { await ctx.staff(tx, ['owner']); const a = await activity(ctx, tx); return await tx.get<ActivityStory>('activity_stories', storyId(ctx, a.id)) ?? blankStory(ctx, a.id); });
+  return ctx.store.transaction(async tx => { await ctx.staff(tx, PUBLIC_CONTENT_ROLES); const a = await activity(ctx, tx); return await tx.get<ActivityStory>('activity_stories', storyId(ctx, a.id)) ?? blankStory(ctx, a.id); });
 }
 export async function staffHistorySave(ctx: Context): Promise<ActivityStory> {
   fields(ctx, ['activityId', 'intro', 'photoAssetIds', 'documentaryUrl', 'documentaryTitle', 'published', 'videoRightsAcknowledged', 'reason', 'honors']);
@@ -150,16 +151,12 @@ export async function staffHistorySave(ctx: Context): Promise<ActivityStory> {
     requireThat(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).every(key => ['reviewPublicId', 'label'].includes(key)), 'INVALID_INPUT', '荣誉标签格式不正确');
     return { reviewPublicId: text(value.reviewPublicId, '评价标识', 100), label: text(value.label, '荣誉名称', 30) };
   });
-  await ctx.store.transaction(tx => ctx.staff(tx, ['owner']));
+  await ctx.store.transaction(tx => ctx.staff(tx, PUBLIC_CONTENT_ROLES));
   const honorRows = await Promise.all(honors.map(honor => findPublicReview(ctx, id, honor.reviewPublicId)));
   return ctx.store.transaction(async tx => {
-    const actor = await ctx.staff(tx, ['owner']), a = await activity(ctx, tx), previous = await tx.get<ActivityStory>('activity_stories', storyId(ctx, a.id));
+    const actor = await ctx.staff(tx, PUBLIC_CONTENT_ROLES), a = await activity(ctx, tx), previous = await tx.get<ActivityStory>('activity_stories', storyId(ctx, a.id));
     ctx.revision(previous ?? { revision: 0 });
-    const assets = await requireOwnedMemberMedia(tx, ctx.clubId, actor.member.id, p.photoAssetIds, 'club_public');
-    for (const asset of assets) {
-      const row = await tx.get<MemberMediaAsset>('member_media', asset.id);
-      requireThat(asset.kind === 'image' && row?.rightsAcknowledged, 'FORBIDDEN', '仅能发布本人已确认公开使用权的图片');
-    }
+    const assets = await bindPublicStoryMedia(tx, ctx.clubId, actor.member.id, p.photoAssetIds, storyId(ctx, a.id), previous?.photoAssetIds ?? []);
     if (p.published === true) for (const row of honorRows) {
       const live = row && await visibleReview(ctx, tx, await tx.get<ActivityReview>('activity_reviews', row.id));
       requireThat(live?.row.honorConsent && live.row.activityId === a.id, 'CONSENT_REQUIRED', '荣誉需选择同意展示的已发布评价作者');
@@ -167,34 +164,43 @@ export async function staffHistorySave(ctx: Context): Promise<ActivityStory> {
     const row: ActivityStory = { ...(previous ?? blankStory(ctx, a.id)), intro, photoAssetIds: assets.map(asset => asset.id), documentaryUrl: video,
       documentaryTitle: title, videoRightsAcknowledged: p.videoRightsAcknowledged as boolean, honors, published: p.published as boolean,
       revision: (previous?.revision ?? 0) + 1, updatedBy: actor.user.id, updatedAt: ctx.now };
-    await bindOwnedMemberMedia(tx, ctx.clubId, actor.member.id, row.photoAssetIds, 'club_public', row.id);
     await tx.set('activity_stories', row.id, row); await ctx.audit(tx, actor, 'activity_story', row.id, { published: row.published, photoCount: row.photoAssetIds.length, revision: row.revision }, reason);
     return row;
   });
 }
 export async function staffHistoryReviews(ctx: Context): Promise<{ items: StaffHistoryReview[]; nextCursor: string | null }> {
   fields(ctx, ['activityId', 'cursor']);
-  const id = await ctx.store.transaction(async tx => { await ctx.staff(tx, ['owner']); return (await activity(ctx, tx)).id; });
+  const id = await ctx.store.transaction(async tx => { await ctx.staff(tx, PUBLIC_CONTENT_ROLES); return (await activity(ctx, tx)).id; });
   const after = ctx.request.payload.cursor ? { value: text(ctx.request.payload.cursor, '分页位置', 100), id: text(ctx.request.payload.cursor, '分页位置', 100) } : undefined;
   const rows = await ctx.store.query<ActivityReview>('activity_reviews', { clubId: ctx.clubId, activityId: id }, { limit: 21, after });
   return ctx.store.transaction(async tx => {
-    await ctx.staff(tx, ['owner']); const items: StaffHistoryReview[] = [];
+    const actor = await ctx.staff(tx, PUBLIC_CONTENT_ROLES), owner = (await ctx.roles(tx, actor)).some(role => role.role === 'owner');
+    const items: StaffHistoryReview[] = [];
     for (const candidate of rows.slice(0, 20)) {
       const row = await tx.get<ActivityReview>('activity_reviews', candidate.id);
       if (!row || row.clubId !== ctx.clubId || row.activityId !== id) continue;
-      const member = await tx.get<Membership>('memberships', row.memberId);
+      const member = owner ? await tx.get<Membership>('memberships', row.memberId) : await consentingSubmission(ctx, tx, row);
+      if (!owner && !member) continue;
       items.push({ id: row.id, publicId: row.publicId, nickname: member?.nickname ?? '已离开的车友', stars: row.stars, comment: row.comment, honorConsent: row.honorConsent, status: row.status, revision: row.revision, reason: row.reason });
     }
     return { items, nextCursor: rows.length > 20 ? rows[19].id : null };
   });
+}
+async function consentingSubmission(ctx: Context, tx: Transaction, row: ActivityReview): Promise<Membership | null> {
+  if (row.status === 'withdrawn' || !row.publishConsent || !row.nicknameConsent || row.consentVersion !== HISTORY_REVIEW_CONSENT_VERSION) return null;
+  const member = await tx.get<Membership>('memberships', row.memberId), user = await tx.get<User>('users', row.userId);
+  return member?.clubId === ctx.clubId && member.userId === row.userId && user?.status === 'active' && user.clubId === ctx.clubId
+    && await participant(ctx, tx, row.activityId, row.memberId) ? member : null;
 }
 export async function staffHistoryReview(ctx: Context): Promise<StaffHistoryReview> {
   fields(ctx, ['activityId', 'reviewId', 'decision', 'reason']);
   const p = ctx.request.payload, reason = text(p.reason, '核对说明', 500);
   requireThat(['approved', 'rejected'].includes(String(p.decision)), 'INVALID_INPUT', '请选择评价处理结果');
   return ctx.store.transaction(async tx => {
-    const actor = await ctx.staff(tx, ['owner']), a = await activity(ctx, tx), row = await tx.get<ActivityReview>('activity_reviews', text(p.reviewId, '评价编号', 100));
+    const actor = await ctx.staff(tx, PUBLIC_CONTENT_ROLES), a = await activity(ctx, tx), row = await tx.get<ActivityReview>('activity_reviews', text(p.reviewId, '评价编号', 100));
     requireThat(row?.clubId === ctx.clubId && row.activityId === a.id && row.status !== 'withdrawn', 'STATE_CONFLICT', '评价已撤回或不可处理'); ctx.revision(row);
+    const owner = (await ctx.roles(tx, actor)).some(role => role.role === 'owner');
+    if (!owner) requireThat(await consentingSubmission(ctx, tx, row), 'FORBIDDEN', '这条投稿已不再授权内容管理');
     if (p.decision === 'approved') {
       const author = await tx.get<User>('users', row.userId);
       requireThat(author?.status === 'active' && row.publishConsent && row.nicknameConsent && await participant(ctx, tx, a.id, row.memberId), 'CONSENT_REQUIRED', '作者或参加记录已失效，不能发布');

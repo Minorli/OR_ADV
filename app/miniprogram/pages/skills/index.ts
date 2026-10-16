@@ -4,6 +4,7 @@ import type { MemberMediaDraft } from '../../services/member-media';
 import type { MemberSummary, PageResult } from '../../../../shared/types';
 import type { SkillHistoryEntry, SkillQueueRow, SkillView } from '../../../../shared/learning-types';
 import { dateText } from '../../services/presentation';
+import { canManagePublicContent } from '../../../../shared/permissions';
 
 const message = (error: unknown) => error instanceof MemberMediaError ? error.message : errorMessage(error);
 const stateText = (state?: string) => state === 'approved' ? '记录已复核' : state === 'submitted' ? '等待复核' : state === 'changes_requested' ? '请补充记录' : state === 'withdrawn' ? '已撤回' : '尚未提交';
@@ -12,7 +13,7 @@ interface ViewerFence { version: number; memberId: string; role: string }
 Page({
   data: { isMock, member: null as MemberSummary | null, level: 'basic', items: [] as SkillCard[], visibleItems: [] as SkillCard[],
     approvedCount: 0, submittedCount: 0, selected: null as SkillCard | null, note: '', assetId: '', previewUrl: '', mediaConsent: false,
-    drafts: [] as MemberMediaDraft[], isOwner: false, reviewMode: false, queue: [] as SkillQueueRow[], nextCursor: null as string | null,
+    drafts: [] as MemberMediaDraft[], isOwner: false, canManageContent: false, reviewMode: false, queue: [] as SkillQueueRow[], nextCursor: null as string | null,
     reviewTarget: null as SkillQueueRow | null, reviewReason: '', reviewVideoUrl: '',
     referenceEditor: false, referenceTitle: '', referenceUrl: '', referenceReason: '', referenceVerified: false,
     historyItems: [] as (SkillHistoryEntry & { stateText: string; dateText: string })[], historyCursor: null as string | null,
@@ -24,7 +25,7 @@ Page({
   onUnload() { this.clearPrivate(); },
   clearPrivate() {
     this.setData({ loadVersion: this.data.loadVersion + 1, loadedRole: '', member: null, items: [], visibleItems: [], approvedCount: 0, submittedCount: 0,
-      selected: null, note: '', assetId: '', previewUrl: '', mediaConsent: false, drafts: [], isOwner: false, reviewMode: false,
+      selected: null, note: '', assetId: '', previewUrl: '', mediaConsent: false, drafts: [], isOwner: false, canManageContent: false, reviewMode: false,
       queue: [], nextCursor: null, reviewTarget: null, reviewReason: '', reviewVideoUrl: '', referenceEditor: false,
       referenceTitle: '', referenceUrl: '', referenceReason: '', referenceVerified: false, historyItems: [], historyCursor: null,
       historyLoaded: false, historyTitle: '', historyMissing: 0, historyVideoUrl: '', loading: false, busy: false, error: '', notice: '' });
@@ -34,11 +35,12 @@ Page({
     return !!fence.memberId && this.data.loadVersion === fence.version && this.data.member?.id === fence.memberId
       && this.data.loadedRole === fence.role && (!isMock || mockRole() === fence.role);
   },
-  async assertViewer(fence: ViewerFence, owner = false) {
+  async assertViewer(fence: ViewerFence, owner = false, content = false) {
     if (this.matches(fence)) {
-      const member = await currentMember(), owns = !!member?.roles.includes('owner');
-      if (this.matches(fence) && member?.id === fence.memberId && owns === this.data.isOwner) {
-        if (owner && !owns) throw new ApiError('FORBIDDEN', '仅主理人可以复核或维护示范资料');
+      const member = await currentMember(), owns = !!member?.roles.includes('owner'), manages = canManagePublicContent(member);
+      if (this.matches(fence) && member?.id === fence.memberId && owns === this.data.isOwner && manages === this.data.canManageContent) {
+        if (owner && !owns) throw new ApiError('FORBIDDEN', '仅业务管理员可以复核私人练习记录');
+        if (content && !manages) throw new ApiError('FORBIDDEN', '没有公开示范内容管理权限');
         return;
       }
     }
@@ -47,10 +49,10 @@ Page({
     }
     throw new ApiError('STALE_IDENTITY', '当前身份或权限已变化，请重新核对');
   },
-  async verifiedCall(fence: ViewerFence, action: string, payload: Record<string, unknown> = {}, revision?: number, owner = false): Promise<unknown> {
-    await this.assertViewer(fence, owner);
+  async verifiedCall(fence: ViewerFence, action: string, payload: Record<string, unknown> = {}, revision?: number, owner = false, content = false): Promise<unknown> {
+    await this.assertViewer(fence, owner, content);
     const result = await call(action, payload, revision);
-    await this.assertViewer(fence, owner);
+    await this.assertViewer(fence, owner, content);
     return result;
   },
   async resume() {
@@ -74,9 +76,9 @@ Page({
     try {
       const member = await currentMember();
       if (version !== this.data.loadVersion || isMock && mockRole() !== role) return;
-      if (previousMemberId && (member?.id !== previousMemberId || !!member.roles.includes('owner') !== this.data.isOwner)) { this.clearPrivate(); await this.load(); return; }
+      if (previousMemberId && (member?.id !== previousMemberId || !!member.roles.includes('owner') !== this.data.isOwner || canManagePublicContent(member) !== this.data.canManageContent)) { this.clearPrivate(); await this.load(); return; }
       const changed = this.data.member?.id !== member?.id;
-      this.setData({ member, loadedRole: role, isOwner: !!member?.roles.includes('owner'), reviewMode: this.data.reviewMode && !!member?.roles.includes('owner'),
+      this.setData({ member, loadedRole: role, isOwner: !!member?.roles.includes('owner'), canManageContent: canManagePublicContent(member), reviewMode: this.data.reviewMode && !!member?.roles.includes('owner'),
         ...(changed ? { selected: null, assetId: '', previewUrl: '', reviewTarget: null, reviewVideoUrl: '', queue: [], drafts: [] } : {}),
         ...(!member?.roles.includes('owner') ? { queue: [], reviewTarget: null, reviewVideoUrl: '', reviewReason: '' } : {}) });
       if (!member) { this.setData({ items: [], visibleItems: [] }); return; }
@@ -227,17 +229,17 @@ Page({
   },
   async toggleReference() {
     const fence = this.viewerFence();
-    try { await this.assertViewer(fence, true); if (this.matches(fence)) this.setData({ referenceEditor: !this.data.referenceEditor }); }
+    try { await this.assertViewer(fence, false, true); if (this.matches(fence)) this.setData({ referenceEditor: !this.data.referenceEditor }); }
     catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
   },
-  referenceConsent(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { if (this.localViewer(true)) this.setData({ referenceVerified: event.detail.value.includes('verified') }); },
+  referenceConsent(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { if (this.localViewer() && this.data.canManageContent) this.setData({ referenceVerified: event.detail.value.includes('verified') }); },
   async saveReference() {
     const selected = this.data.selected;
     if (!selected || this.data.busy) return;
     const fence = this.viewerFence();
     this.setData({ busy: true, error: '' });
     try {
-      await this.verifiedCall(fence, 'staff.skills.reference.save', { skillId: selected.id, title: this.data.referenceTitle.trim(), url: this.data.referenceUrl.trim(), verified: this.data.referenceVerified, reason: this.data.referenceReason.trim() }, selected.reference?.revision ?? 0, true);
+      await this.verifiedCall(fence, 'staff.skills.reference.save', { skillId: selected.id, title: this.data.referenceTitle.trim(), url: this.data.referenceUrl.trim(), verified: this.data.referenceVerified, reason: this.data.referenceReason.trim() }, selected.reference?.revision ?? 0, false, true);
       if (this.matches(fence)) { this.setData({ notice: '示范资料已更新。' }); await this.load(); }
     } catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }

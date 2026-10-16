@@ -20,6 +20,8 @@ import { CLUB_CONTENT_ACTIONS, dispatchClubContent } from './club-content';
 import { HISTORY_CONTENT_ACTIONS, dispatchHistoryContent } from './history-content';
 import { OVERVIEW_ACTIONS, dispatchClubOverview } from './club-overview';
 import { profileOverview } from './profile-overview';
+import { WALLET_ACTIONS, dispatchWallet } from './points-wallet';
+import { REDEMPTION_ACTIONS, dispatchRedemptions } from './redemptions';
 
 export function createService(store: Store, options: ServiceOptions = {}) {
   return {
@@ -33,7 +35,9 @@ export function createService(store: Store, options: ServiceOptions = {}) {
         ctx = new Context(store, options, request, identity, traceId);
         requireThat(request.clubId === ctx.clubId, 'FORBIDDEN', '没有此俱乐部访问权限');
         let data: unknown;
-        if (LEARNING_ACTIONS.some(action => action === request.action)) data = await dispatchLearning(ctx);
+        if (WALLET_ACTIONS.some(action => action === request.action)) data = await dispatchWallet(ctx);
+        else if (REDEMPTION_ACTIONS.some(action => action === request.action)) data = await dispatchRedemptions(ctx);
+        else if (LEARNING_ACTIONS.some(action => action === request.action)) data = await dispatchLearning(ctx);
         else if (CLUB_CONTENT_ACTIONS.some(action => action === request.action)) data = await dispatchClubContent(ctx);
         else if (HISTORY_CONTENT_ACTIONS.some(action => action === request.action)) data = await dispatchHistoryContent(ctx);
         else if (OVERVIEW_ACTIONS.some(action => action === request.action)) data = await dispatchClubOverview(ctx);

@@ -1,7 +1,7 @@
 export const CLUB_ID = 'oradv';
 export type ActivityState = 'draft' | 'published' | 'closed' | 'in_progress' | 'ended' | 'settled' | 'cancelled';
 export type RegistrationState = 'pending_review' | 'waitlisted' | 'pending_confirmation' | 'confirmed' | 'checked_in' | 'pending_settlement' | 'completed' | 'safe_exit' | 'no_show' | 'cancelled' | 'rejected';
-export type Role = 'owner' | 'operator' | 'leader' | 'checkin';
+export type Role = 'owner' | 'operator' | 'leader' | 'checkin' | 'content_admin';
 export type MemberKind = 'founder' | 'regular';
 export type ContactMethod = 'phone' | 'wechat' | 'other';
 export interface Activity {
@@ -9,7 +9,7 @@ export interface Activity {
   difficulty: string; state: ActivityState; startAt: string; endAt: string;
   applicationClosesAt: string; capacity: number; reservedSeats: number;
   minGrowthPoints: number; requiredQualifications: string[]; requiresReview: boolean;
-  ruleVersion: number; revision: number; pointsRule: { growth: number; annual: number };
+  ruleVersion: number; revision: number; pointsRule: { growth: number; annual: number; redeemable?: number; walletPolicyVersion?: number };
   nextQueueSeq: number; actualCompletedAt: string | null; fixtureOnly?: boolean;
   safetyNotice: string; equipment: string;
   waitlistCount?: number;
@@ -43,6 +43,7 @@ export interface MemberSummary {
   hasAvatar?: boolean;
   rankingConsentVersion: number; growthPoints: number; annualPoints: number;
   completedCount: number; revision: number; roles: Role[];
+  adminDesignation?: 'manager';
   memberKind: MemberKind; memberKindVersion: number; memberKindExpiresAt: string | null;
   recommendationOptIn: boolean; recommendationConsentVersion: number;
   kindRequestStatus: 'pending' | 'resolved' | null; kindRequestedAt: string | null;
@@ -60,7 +61,7 @@ export interface RecommendationEntry {
   memberPublicId: string; nickname: string; memberKind: MemberKind;
   displayOrder: number; growthPoints?: number; completedCount?: number;
 }
-export interface StaffRoleSummary { role: Role; revision: number; activityIds: string[] | null; enabled: boolean; expiresAt: string | null }
+export interface StaffRoleSummary { role: Role; revision: number; activityIds: string[] | null; enabled: boolean; expiresAt: string | null; designation?: 'manager' }
 export interface StaffMemberSummary {
   id: string; memberId: string; nickname: string; memberKind: MemberKind;
   memberNumber?: number;
@@ -68,6 +69,7 @@ export interface StaffMemberSummary {
   recommendationOptIn: boolean; recommendationPriority: number;
   kindRequestStatus: 'pending' | 'resolved' | null; kindRequestedAt: string | null;
   status: string; staffRoles: StaffRoleSummary[];
+  isPrimaryOwner?: boolean;
 }
 export interface LedgerEntry {
   id: string; clubId: string; memberId: string; activityId: string;
@@ -83,6 +85,7 @@ export interface RankingEntry {
 }
 export interface PageResult<T> { items: T[]; nextCursor: string | null }
 export interface PointsResult {
+  memberId: string;
   growthPoints: number; annualPoints: number; completedCount: number;
   year: number; items: LedgerEntry[]; nextCursor: string | null;
 }

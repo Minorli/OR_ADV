@@ -5,6 +5,7 @@ import type { Store, Transaction } from './store';
 import { key, memberIdFor, shanghaiYear, statsIdFor, userIdFor } from './models';
 import { memberIdentityFields } from './member-identity';
 import { readMemberNumber } from './member-number';
+import { STAFF_ROLES } from './permissions';
 import type { Actor, Activity, Audit, MemberStats, Membership, PublicRanking, ServiceOptions, StaffRole, User } from './models';
 
 export class Context {
@@ -27,9 +28,9 @@ export class Context {
     return { user, member };
   }
   async roles(tx: Transaction, actor: Actor): Promise<StaffRole[]> {
-    const roles = await Promise.all((['owner','operator','leader','checkin'] as Role[]).map((role) => tx.get<StaffRole>('staff_roles', key('role', this.clubId, actor.user.id, role))));
+    const roles = await Promise.all(STAFF_ROLES.map((role) => tx.get<StaffRole>('staff_roles', key('role', this.clubId, actor.user.id, role))));
     return roles.filter((role): role is StaffRole => !!role && role.clubId === this.clubId && role.userId === actor.user.id && role.enabled && (!role.expiresAt || role.expiresAt > this.now)
-      && (['owner','operator'].includes(role.role) ? role.activityIds === null : Array.isArray(role.activityIds) && role.activityIds.length > 0));
+      && (['owner','operator','content_admin'].includes(role.role) ? role.activityIds === null : Array.isArray(role.activityIds) && role.activityIds.length > 0));
   }
   async staff(tx: Transaction, allowed: Role[], activityId?: string): Promise<Actor> {
     const actor = await this.actor(tx);
@@ -49,10 +50,11 @@ export class Context {
   async summary(tx: Transaction, actor: Actor, year = shanghaiYear(this.now)): Promise<MemberSummary> {
     const growth = await tx.get<MemberStats>('member_stats', statsIdFor(this.clubId, actor.member.id, null));
     const annual = await tx.get<MemberStats>('member_stats', statsIdFor(this.clubId, actor.member.id, year));
+    const roles = await this.roles(tx, actor), owner = roles.find(role => role.role === 'owner');
     return { id: actor.member.id, clubId: this.clubId, nickname: actor.member.nickname, memberNumber: readMemberNumber(actor.member.memberNumber), hasAvatar: !!actor.member.avatarFileId, rankingOptIn: actor.member.rankingOptIn,
       rankingConsentVersion: actor.member.rankingConsentVersion, growthPoints: growth?.points ?? 0,
       annualPoints: annual?.points ?? 0, completedCount: growth?.completedCount ?? 0, revision: actor.member.revision,
-      roles: (await this.roles(tx, actor)).map((role) => role.role), ...memberIdentityFields(actor.member, this.now) };
+      roles: roles.map(role => role.role), ...(owner?.designation === 'manager' ? { adminDesignation: 'manager' as const } : {}), ...memberIdentityFields(actor.member, this.now) };
   }
   async audit(tx: Transaction, actor: Actor, targetType: string, targetId: string, summary: Record<string, unknown>, reason = '') {
     const id = this.id();

@@ -27,6 +27,18 @@ function fill(p) {
   for (const [field, value] of Object.entries({ title: '周末林道同行', description: '按本场准备说明集合，完成出发与回场核对。', location: '北京周边公开区域', safetyNotice: '活动中遇到状况及时联系现场负责人。', equipment: '请按本场核定的装备要求准备。' })) p.field(event(field, value));
 }
 
+test('activity editor saves an explicit redeemable reward under the approved policy and locks it after publication', async () => {
+  const env = environment(), p = env.p;
+  try {
+    await env.api.call('staff.points.policy.save', { enabled: false, defaultRewardMode: 'growth', ruleText: '活动完成后记录兑换奖励，交付时核销。', reason: '核定本轮规则' }, 0);
+    await p.load(); await p.newActivity(); fill(p); p.field(event('redeemable', '75')); await p.save();
+    assert.equal(p.data.error, ''); assert.equal(p.data.selected.pointsRule.redeemable, 75); assert.equal(p.data.selected.pointsRule.walletPolicyVersion, 1);
+    await p.lifecycle({ currentTarget: { dataset: { action: 'publish' } } }); await p.edit();
+    p.field(event('redeemable', '999')); assert.equal(p.data.form.redeemable, '75', 'content corrections cannot alter the frozen wallet reward');
+    const selected = await env.api.call('activity.get', { activityId: p.data.selected.id }); assert.equal(selected.pointsRule.redeemable, 75);
+  } finally { env.restore(); }
+});
+
 test('owner can create, find the publish action, preview, publish, and correct wording without changing frozen rules', async () => {
   const env = environment(), p = env.p;
   try {

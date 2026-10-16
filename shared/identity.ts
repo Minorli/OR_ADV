@@ -2,9 +2,10 @@ import { requireThat, text } from './errors';
 import type { Context } from './context';
 import { collect, refreshRankings } from './context';
 import { key, memberIdFor, shanghaiYear, userIdFor } from './models';
-import type { Membership, User } from './models';
+import type { Membership, StaffRole, User } from './models';
 import { syncRecommendation } from './members';
-import { allocateMemberNumber } from './member-number';
+import { allocateMemberNumber, memberSequenceId, validateMemberSequence } from './member-number';
+import type { MemberNumberSequence } from './member-number';
 
 export async function syncProfileProjections(ctx: Context, memberId: string) {
   const projections = await collect<{ id: string }>(ctx.store, 'public_rankings', { clubId: ctx.clubId, memberId });
@@ -88,6 +89,26 @@ export async function requestDeletion(ctx: Context) {
   const actor = await ctx.store.transaction((tx) => ctx.actor(tx));
   const result = await ctx.store.transaction(async (tx) => {
     const current = await ctx.actor(tx);
+    const sequence = await tx.get<MemberNumberSequence>('clubs', memberSequenceId(ctx.clubId));
+    if (sequence) validateMemberSequence(sequence, ctx.clubId);
+    const primaryId = sequence?.primaryOwnerMemberId;
+    requireThat(current.member.id !== primaryId, 'STATE_CONFLICT', '主理人账号不可直接注销，请通过可信管理流程处理');
+    if ((await ctx.roles(tx, current)).some(role => role.role === 'owner')) {
+      // A different, permanent trusted primary is the retained administrator.
+      // Keep the witness reads in this deletion transaction, never a prior check.
+      const primary = primaryId ? await tx.get<Membership>('memberships', primaryId) : null;
+      requireThat(primary && primary.clubId === ctx.clubId && primary.id === primaryId && primary.id === memberIdFor(ctx.clubId, primary.userId),
+        'STATE_CONFLICT', '必须保留有效的主理人账号，请先核对管理权限');
+      const primaryUser = await tx.get<User>('users', primary.userId);
+      const primaryRole = await tx.get<StaffRole>('staff_roles', key('role', ctx.clubId, primary.userId, 'owner'));
+      requireThat(primaryUser?.id === primary.userId && primaryUser.clubId === ctx.clubId && primaryUser.status === 'active'
+        && primaryUser.appId === current.user.appId && typeof primaryUser.wxOpenId === 'string' && primaryUser.wxOpenId.length > 0
+        && primaryUser.id === userIdFor({ appId: primaryUser.appId, openId: primaryUser.wxOpenId })
+        && primaryRole?.id === key('role', ctx.clubId, primary.userId, 'owner') && primaryRole.clubId === ctx.clubId
+        && primaryRole.userId === primary.userId && primaryRole.role === 'owner' && primaryRole.enabled === true
+        && primaryRole.activityIds === null && primaryRole.expiresAt === null,
+      'STATE_CONFLICT', '必须保留长期有效的主理人权限，请先核对管理权限');
+    }
     const user = { ...current.user, status: 'deletion_requested' as const, updatedAt: ctx.now };
     const member = { ...current.member, rankingOptIn: false, recommendationOptIn: false, revision: current.member.revision + 1, updatedAt: ctx.now };
     await tx.set('users', user.id, user);

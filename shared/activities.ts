@@ -3,6 +3,7 @@ import { integer, requireThat, text } from './errors';
 import type { Activity } from './types';
 import { BETA_MAX_CAPACITY } from './limits';
 import { publicClub } from './club';
+import { activityWalletReward, validateActivityWalletReward } from './points-wallet';
 
 const publicStates = ['published','closed','in_progress','ended','settled','cancelled'];
 export async function listActivities(ctx: Context, staff = false) {
@@ -69,7 +70,10 @@ export async function saveActivity(ctx: Context) {
     const qualifications = value.requiredQualifications ?? [];
     requireThat(Array.isArray(qualifications) && qualifications.length <= 10 && qualifications.every((item) => typeof item === 'string' && item.length > 0 && item.length <= 60), 'INVALID_INPUT', '资格条件不正确');
     const points = value.pointsRule as Record<string, unknown>;
-    requireThat(points && typeof points === 'object', 'INVALID_INPUT', '请设置活动积分草案');
+    requireThat(points && typeof points === 'object' && !Array.isArray(points), 'INVALID_INPUT', '请设置活动积分草案');
+    requireThat(Object.keys(points).every(field => ['growth', 'annual', 'redeemable', 'walletPolicyVersion'].includes(field)), 'INVALID_INPUT', '积分规则包含不支持的字段');
+    const growth = integer(points.growth, '成长奖励'), annual = integer(points.annual, '年度奖励');
+    const walletRule = await activityWalletReward(ctx, tx, points.redeemable, growth);
     const startAt = timestamp(value.startAt, '开始时间'), endAt = timestamp(value.endAt, '结束时间'), deadline = timestamp(value.applicationClosesAt, '报名截止时间');
     requireThat(deadline <= startAt && startAt < endAt, 'INVALID_INPUT', '活动时间顺序不正确');
     const id = existing?.id ?? ctx.id();
@@ -78,7 +82,7 @@ export async function saveActivity(ctx: Context) {
       startAt, endAt, applicationClosesAt: deadline, capacity, reservedSeats: 0,
       minGrowthPoints: integer(value.minGrowthPoints ?? 0, '成长门槛'), requiredQualifications: qualifications as string[], requiresReview: value.requiresReview !== false,
       ruleVersion: existing?.ruleVersion ?? 1, revision: (existing?.revision ?? 0) + 1,
-      pointsRule: { growth: integer(points.growth, '成长奖励'), annual: integer(points.annual, '年度奖励') },
+      pointsRule: { growth, annual, ...walletRule },
       nextQueueSeq: 0, actualCompletedAt: null, safetyNotice: text(value.safetyNotice, '风险说明', 2000), equipment: text(value.equipment, '装备要求', 1000) };
     await tx.set('activities', id, activity);
     await ctx.audit(tx, actor, 'activity', id, { state: activity.state, revision: activity.revision });
@@ -119,6 +123,7 @@ export async function changeActivity(ctx: Context, operation: string) {
     const transition = transitions[operation];
     requireThat(transition?.from.includes(activity.state), 'STATE_CONFLICT', '当前活动状态不允许此操作');
     if (operation === 'publish') {
+      await validateActivityWalletReward(ctx, tx, activity);
       requireThat(activity.applicationClosesAt > ctx.now, 'REGISTRATION_CLOSED', '报名截止时间已经过去');
       requireThat((await publicClub(ctx, tx)).configured, 'INVALID_INPUT', '请先由主理人配置有效的组织方联系方式');
     }

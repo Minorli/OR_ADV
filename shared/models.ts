@@ -19,6 +19,7 @@ export interface Membership {
 }
 export interface StaffRole {
   id: string; clubId: string; userId: string; role: Role;
+  designation?: 'manager';
   activityIds: string[] | null; enabled: boolean; expiresAt: string | null;
   grantedBy: string; revision: number;
 }

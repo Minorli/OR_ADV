@@ -1,32 +1,32 @@
 <view class="page">
-  <view class="eyebrow">CLUB MANAGEMENT</view><view class="title">会员与俱乐部</view><view class="subtitle">身份、员工授权与技能分别核实，每次变更都有依据。</view>
-  <view wx:if="{{loading}}" class="loading">正在核对主理人权限…</view>
+  <view class="eyebrow">CLUB MANAGEMENT</view><view class="title">会员与俱乐部</view><view class="subtitle">按昵称和编号核对成员，分别设置业务身份、工作权限与技能资格。</view>
+  <view wx:if="{{loading}}" class="loading">正在核对管理权限…</view>
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="load">刷新</button></view>
   <view wx:if="{{notice}}" class="notice">{{notice}}</view>
-  <view wx:if="{{!authorized && !loading}}" class="empty">仅主理人可管理此处资料。<button class="secondary full mt" bindtap="back">返回工作台</button></view>
-  <block wx:if="{{authorized}}">
+  <view wx:if="{{!authorized && !loading}}" class="empty">仅主理人和车队经理可管理此处资料。<button class="secondary full mt" bindtap="back">返回工作台</button></view>
+  <block wx:if="{{authorized}}"><view class="member-admin-banner"><text>{{adminTitle}}</text><text>业务身份与工作权限分开设置</text></view>
     <view class="filter-row"><button class="pill {{pane === 'members' ? 'active' : ''}}" data-pane="members" bindtap="pane">会员管理</button><button class="pill {{pane === 'settings' ? 'active' : ''}}" data-pane="settings" bindtap="pane">公开联络设置</button></view>
     <block wx:if="{{pane === 'members'}}">
       <view class="search-row"><input value="{{query}}" maxlength="30" bindinput="query" bindconfirm="search" placeholder="搜索昵称或完整成员编号"/><button class="secondary" bindtap="search">查找</button></view>
-      <view class="small muted mt">查看成员资料。成员身份不授予员工权限，普通成员与创始成员使用同一套安全核验标准。</view>
+      <view class="small muted mt">查看成员资料。成员身份不授予员工权限，俱乐部成员与创始合伙人使用同一套安全核验标准。</view>
       <view wx:if="{{!loadingMore && !items.length}}" class="empty">没有找到匹配会员。</view>
-      <view wx:for="{{items}}" wx:key="id" class="card mt" data-id="{{item.id}}" bindtap="select"><view class="row"><text class="card-title">{{item.nickname}}</text><text class="tag {{item.memberKind === 'founder' ? 'tag-dark' : ''}}">{{item.memberKind === 'founder' ? '创始成员' : '普通成员'}}</text></view><view class="member-code tiny muted mt">成员编号 · {{item.memberCode}}</view><view class="row small mt"><text class="muted">{{item.kindRequestStatus === 'pending' ? '身份核实待处理' : '查看身份、授权与技能'}}</text><text>管理 →</text></view></view>
+      <view wx:for="{{items}}" wx:key="id" class="card mt" data-id="{{item.id}}" bindtap="select"><view class="row"><text class="card-title">{{item.nickname}}</text><text class="tag {{item.memberKind === 'founder' ? 'tag-dark' : ''}}">{{item.memberKind === 'founder' ? '创始合伙人' : '俱乐部成员'}}</text></view><view class="member-code tiny muted mt">成员编号 · {{item.memberCode}}</view><view wx:if="{{item.roleBadges.length}}" class="member-role-badges"><text wx:for="{{item.roleBadges}}" wx:for-item="badge" wx:key="*this" class="tag tag-dark">{{badge}}</text></view><view class="row small mt"><text class="muted">{{item.kindRequestStatus === 'pending' ? '身份核实待处理' : '查看身份、授权与技能'}}</text><text>管理 →</text></view></view>
       <button wx:if="{{nextCursor}}" class="secondary full" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="more">查看更多成员</button>
       <view wx:if="{{selected}}" class="card mt member-editor">
-        <view class="row"><text class="card-title">{{selected.nickname}}</text><text class="tag">{{selected.memberKind === 'founder' ? '创始成员' : '普通成员'}}</text></view>
+        <view class="row"><text class="card-title">{{selected.nickname}}</text><text class="tag">{{selected.memberKind === 'founder' ? '创始合伙人' : '俱乐部成员'}}</text></view>
         <view class="member-code tiny muted mt">成员编号 · {{selected.memberCode}} · 请通过既有可信联络渠道核对本人</view>
-        <view class="field"><text class="field-label">变更原因 / 核验依据（必填）</text><textarea value="{{reason}}" data-field="reason" bindinput="field" maxlength="500" placeholder="填写客观核实依据，不录入证件或敏感原件"/></view>
-        <view class="section-title mt">成员身份</view><view class="small muted mt">创始身份可用于符合条件活动的自动确认；名额、活动门槛与技能要求继续生效。</view>
+        <view wx:if="{{selected.roleBadges.length}}" class="member-role-badges"><text wx:for="{{selected.roleBadges}}" wx:for-item="badge" wx:key="*this" class="tag tag-dark">{{badge}}</text></view><view class="field"><text class="field-label">变更原因 / 核验依据（必填）</text><textarea value="{{reason}}" data-field="reason" bindinput="field" maxlength="500" placeholder="填写客观核实依据，不录入证件或敏感原件"/></view>
+        <view class="section-title mt">业务身份</view><view class="small muted mt">创始身份可用于符合条件活动的自动确认；名额、活动门槛与技能要求继续生效。</view>
         <view class="row field"><picker mode="date" value="{{expiryDate}}" data-field="expiryDate" bindchange="field"><view class="picker">{{expiryDate || '创始身份到期日（选填）'}} ▾</view></picker><button class="text-button" bindtap="clearExpiry">不设到期日</button></view>
-        <view class="actions"><button class="primary grow" data-kind="founder" disabled="{{!!busy}}" bindtap="assignKind">核实并设为创始成员</button><button class="secondary" data-kind="regular" disabled="{{!!busy}}" bindtap="assignKind">设为普通成员</button></view>
-        <view class="divider"></view><view class="section-title">推荐展示</view><view class="small muted mt">{{selected.recommendationOptIn ? '本人已同意公开推荐资料。' : '本人尚未同意公开，不会展示。'}} 调整顺序不会代替本人同意。</view>
+        <view class="actions"><button class="primary grow" data-kind="founder" disabled="{{!!busy}}" bindtap="assignKind">核实并设为创始合伙人</button><button class="secondary" data-kind="regular" disabled="{{!!busy}}" bindtap="assignKind">设为俱乐部成员</button></view>
+        <view class="divider"></view><view class="section-title">推荐展示</view><view class="small muted mt">{{selected.recommendationOptIn ? '本人已同意公开推荐资料。' : '本人尚未同意公开，不会展示。'}} 调整顺序不会代替本人同意，也不改变积分。尚未公开时，请本人到「我的 → 公开展示」开启俱乐部推荐。</view>
         <view class="field"><text class="field-label">展示优先级（0–999，越大越优先）</text><input type="number" value="{{priority}}" data-field="priority" bindinput="field"/></view><button class="secondary full" disabled="{{!!busy}}" bindtap="savePriority">保存推荐顺序</button>
-        <view class="divider"></view><view class="section-title">员工授权</view><view class="small muted mt">运营与主理人为本俱乐部权限；领队、现场核验员须指定活动。</view>
+        <view class="divider"></view><view class="section-title">员工授权</view><view class="small muted mt">主理人与车队经理拥有完整业务管理权限。内容管理员只维护公开内容，不查看成员档案、私人咨询或积分记录。领队与核验员须指定活动。</view>
         <picker range="{{roleLabels}}" value="{{roleIndex}}" bindchange="role"><view class="picker mt">{{roleLabels[roleIndex]}} ▾</view></picker>
-        <view class="switch-row field"><text>启用该角色</text><switch checked="{{roleEnabled}}" color="#ff6b00" bindchange="roleEnabled"/></view>
-        <view class="row field"><picker mode="date" value="{{roleExpiryDate}}" data-field="roleExpiryDate" bindchange="field"><view class="picker">{{roleExpiryDate || '员工授权到期日（选填）'}} ▾</view></picker><button class="text-button" bindtap="clearRoleExpiry">不设到期日</button></view>
-        <checkbox-group wx:if="{{roleIndex === 1 || roleIndex === 2}}" bindchange="scopes"><label wx:for="{{scopeOptions}}" wx:key="id" class="check-line"><checkbox value="{{item.id}}" checked="{{item.checked}}" color="#ff6b00"/><text>{{item.title}}</text></label></checkbox-group>
-        <view class="small muted" wx:if="{{roleIndex === 1 || roleIndex === 2}}">只勾选本次需要授权的场次，当前选择 {{scopeIds.length}} 场。</view><button class="secondary full mt" disabled="{{!!busy}}" bindtap="saveRole">保存员工授权</button>
+        <view wx:if="{{roleProtected}}" class="notice">可信主理人的权限长期有效，不能撤销、设置到期或直接注销。</view><view wx:if="{{roleValues[roleIndex] === 'owner' && !roleProtected}}" class="switch-row field"><text>显示称谓为车队经理</text><switch checked="{{roleManager}}" color="#ff6b00" bindchange="roleManager"/></view><view class="switch-row field"><text>启用该角色</text><switch checked="{{roleEnabled}}" disabled="{{roleProtected || !!busy}}" color="#ff6b00" bindchange="roleEnabled"/></view>
+        <view class="row field"><picker mode="date" disabled="{{roleProtected || !!busy}}" value="{{roleExpiryDate}}" data-field="roleExpiryDate" bindchange="field"><view class="picker">{{roleExpiryDate || '员工授权到期日（选填）'}} ▾</view></picker><button class="text-button" bindtap="clearRoleExpiry" disabled="{{roleProtected}}">不设到期日</button></view>
+        <checkbox-group wx:if="{{roleScoped}}" bindchange="scopes"><label wx:for="{{scopeOptions}}" wx:key="id" class="check-line"><checkbox value="{{item.id}}" checked="{{item.checked}}" color="#ff6b00"/><text>{{item.title}}</text></label></checkbox-group>
+        <view class="small muted" wx:if="{{roleScoped}}">只勾选本次需要授权的场次，当前选择 {{scopeIds.length}} 场。</view><button class="secondary full mt" disabled="{{!!busy}}" bindtap="saveRole">保存员工授权</button>
         <view class="divider"></view><view class="section-title">技能资格核验</view><view class="small muted mt">只记录实际核验结论；参加次数和积分不代表掌握技能。</view>
         <view wx:for="{{qualifications}}" wx:key="id" class="list-link" data-id="{{item.id}}" bindtap="qualification"><text>{{item.type}}</text><text class="tag">{{item.decision === 'approved' ? '已核验' : item.decision === 'rejected' ? '未通过' : '待核验'}}</text></view>
         <button wx:if="{{qualificationCursor}}" class="text-button" disabled="{{!!busy}}" bindtap="moreQualifications">查看更多技能资格</button>

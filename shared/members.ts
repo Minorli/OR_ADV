@@ -5,8 +5,10 @@ import type { Membership, RecommendationProjection, StaffRole, User, MemberStats
 import { effectiveMemberKind, memberIdentityFields, recommendationSortKey } from './member-identity';
 import { sha256 } from './hash';
 import type { Transaction } from './store';
-import type { RecommendationEntry, Role, StaffMemberSummary, StaffRoleSummary } from './types';
-import { readMemberNumber } from './member-number';
+import type { RecommendationEntry, StaffMemberSummary, StaffRoleSummary } from './types';
+import { readMemberNumber, memberSequenceId, validateMemberSequence } from './member-number';
+import type { MemberNumberSequence } from './member-number';
+import { STAFF_ROLES } from './permissions';
 
 async function clubRows<T extends { id: string }>(ctx: Context, collection: string, filters: Record<string, unknown>): Promise<T[]> {
   const rows: T[] = [];
@@ -23,15 +25,20 @@ async function clubRows<T extends { id: string }>(ctx: Context, collection: stri
 }
 
 export async function roleSummaries(ctx: Context, tx: Transaction, member: Membership): Promise<StaffRoleSummary[]> {
-  const rows = await Promise.all((['owner','operator','leader','checkin'] as Role[]).map((role) => tx.get<StaffRole>('staff_roles', key('role', ctx.clubId, member.userId, role))));
+  const rows = await Promise.all(STAFF_ROLES.map((role) => tx.get<StaffRole>('staff_roles', key('role', ctx.clubId, member.userId, role))));
   return rows.filter((row): row is StaffRole => !!row && row.clubId === ctx.clubId && row.userId === member.userId)
-    .map((row) => ({ role: row.role, revision: row.revision ?? 0, activityIds: row.activityIds, enabled: row.enabled, expiresAt: row.expiresAt }));
+    .map((row) => ({ role: row.role, revision: row.revision ?? 0, activityIds: row.activityIds, enabled: row.enabled, expiresAt: row.expiresAt, ...(row.role === 'owner' && row.designation === 'manager' ? { designation: 'manager' as const } : {}) }));
+}
+async function isPrimaryOwner(ctx: Context, tx: Transaction, member: Membership): Promise<boolean> {
+  const sequence = await tx.get<MemberNumberSequence>('clubs', memberSequenceId(ctx.clubId));
+  if (sequence) validateMemberSequence(sequence, ctx.clubId);
+  return sequence?.primaryOwnerMemberId === member.id;
 }
 async function staffMember(ctx: Context, tx: Transaction, member: Membership): Promise<StaffMemberSummary> {
   const user = await tx.get<User>('users', member.userId);
   return { id: member.id, memberId: member.id, nickname: member.nickname, memberNumber: readMemberNumber(member.memberNumber), ...memberIdentityFields(member, ctx.now),
     recommendationPriority: member.recommendationPriority ?? 0, revision: member.revision,
-    status: user?.status ?? 'unavailable', staffRoles: await roleSummaries(ctx, tx, member) };
+    status: user?.status ?? 'unavailable', staffRoles: await roleSummaries(ctx, tx, member), isPrimaryOwner: await isPrimaryOwner(ctx, tx, member) };
 }
 export async function syncRecommendation(ctx: Context, tx: Transaction, member: Membership) {
   const id = key('recommendation', ctx.clubId, member.id);
@@ -70,7 +77,7 @@ export async function listMembers(ctx: Context) {
   const selected = rows.slice(previous + 1, previous + 21), last = selected[selected.length - 1];
   const page = { items: selected, nextCursor: last && rows.length > previous + 21 ? encodeCursor({ value: last.memberNumber ?? null, id: last.id, signature }) : null };
   const items: StaffMemberSummary[] = [];
-  // Role summaries need four reads per member. Ten per transaction stays
+  // Role summaries need five reads per member. Ten per transaction stays
   // safely below CloudBase's 100-operation limit for a 20-member page.
   for (let start = 0; start < page.items.length; start += 10) {
     items.push(...await ctx.store.transaction(async (tx) => {
@@ -90,7 +97,7 @@ export async function listMemberRoles(ctx: Context) {
     await ctx.staff(tx, ['owner']);
     const member = await tx.get<Membership>('memberships', text(ctx.request.payload.memberId, 'memberId', 100));
     requireThat(member?.clubId === ctx.clubId, 'FORBIDDEN', '成员不可访问');
-    return { items: await roleSummaries(ctx, tx, member) };
+    return { items: await roleSummaries(ctx, tx, member), isPrimaryOwner: await isPrimaryOwner(ctx, tx, member) };
   });
 }
 export async function assignMemberKind(ctx: Context, priorityOnly = false) {

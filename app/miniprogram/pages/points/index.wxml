@@ -1,21 +1,23 @@
-<view class="page">
-  <view class="masthead"><view><view class="eyebrow">EXPERIENCE BECOMES GROWTH</view><view class="title">成长记录</view></view></view>
-  <view class="subtitle">查看成长积分、年度积分和活动明细。</view>
+<view class="page points-page">
+  <view class="points-heading"><view><view class="eyebrow">ORIGINAL RALLY</view><view class="title">我的积分</view></view><button class="text-button" bindtap="redemption">去兑换 ›</button></view>
+  <view wx:if="{{loading}}" class="loading">正在整理积分…</view>
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
-  <block wx:if="{{summary}}">
-    <view class="stats"><view class="stat"><view class="stat-number">{{summary.growthPoints}}</view><view class="stat-label">累计成长积分</view></view><view class="stat"><view class="stat-number">{{summary.annualPoints}}</view><view class="stat-label">{{year}} 年度积分</view></view><view class="stat"><view class="stat-number">{{summary.completedCount}}</view><view class="stat-label">有效完成次数</view></view></view>
-    <view class="notice">成长分累计不清零，供报名门槛参考；年度分按活动实际完成的北京时间年度记录，用于线下年度奖励。积分不等于技能资格，不可交易或提现。</view>
-    <view class="section-head"><text class="section-title">积分流水</text><picker mode="selector" range="{{years}}" bindchange="year"><view class="tag">{{year}} 年 ▾</view></picker></view>
-    <view wx:for="{{items}}" wx:key="id" class="card">
-      <view class="row"><view><view class="card-title" data-id="{{item.activityId}}" bindtap="activity">{{item.title}} →</view><view class="tiny muted mt">{{item.dateText}}</view></view><text class="ledger-value {{item.growthDelta < 0 ? 'negative' : ''}}">{{item.growthDelta > 0 ? '+' : ''}}{{item.growthDelta}}</text></view>
-      <view class="divider"></view><view class="row small"><text class="muted">年度积分 {{item.annualDelta > 0 ? '+' : ''}}{{item.annualDelta}}</text><text class="muted">完成次数 {{item.completedCountDelta > 0 ? '+' : ''}}{{item.completedCountDelta}}</text></view>
-      <view class="small muted mt paragraph">{{item.awardType === 'reversal' ? '更正记录 · ' : ''}}{{item.reason || '按本场活动规则记录'}} · 规则 v{{item.ruleVersion}}</view>
-    </view>
-    <view wx:if="{{!loading && !items.length}}" class="empty">本年度暂无积分流水。<text>{{'\n'}}</text>完成核验并结算后可查看记录。</view>
-    <button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更早流水</button>
-    <button class="text-button full mt" bindtap="profile">记录有疑问？查看反馈与隐私说明 ↗</button>
+  <block wx:if="{{member && wallet}}">
+    <view class="wallet-card"><view class="wallet-top"><text>可用兑换积分</text><text class="wallet-status">{{wallet.policy.enabled ? '兑换已开放' : '暂未开放新兑换'}}</text></view><view class="wallet-amount">{{wallet.available}}<text>分</text></view><view class="wallet-breakdown"><view><text class="wallet-detail-number">{{wallet.balance}}</text><text>兑换余额</text></view><view><text class="wallet-detail-number">{{wallet.held}}</text><text>申请预留</text></view></view><button class="wallet-action" bindtap="redemption">查看物品与服务 <text>→</text></button></view>
+    <view wx:if="{{wallet.restricted}}" class="notice error">账户有积分待核对，暂不能新增兑换。<text wx:if="{{wallet.deficit}}">待核对差额 {{wallet.deficit}} 分。</text><text wx:if="{{wallet.reservedShortfall}}">已有预留不足 {{wallet.reservedShortfall}} 分。</text>请联系主理人处理。</view>
+    <view class="points-explanation">兑换使用独立余额。申请先预留，实际领取物品或使用服务后扣除；成长积分和年度积分保持原值。</view>
+    <view class="stats"><view class="stat"><view class="stat-number">{{member.growthPoints}}</view><view class="stat-label">成长积分</view></view><view class="stat"><view class="stat-number">{{member.annualPoints}}</view><view class="stat-label">本年积分</view></view><view class="stat"><view class="stat-number">{{member.completedCount}}</view><view class="stat-label">完成同行</view></view></view>
+    <view class="section-head"><text class="section-title">兑换积分明细</text><button class="text-button" bindtap="redemption">我的兑换 ›</button></view>
+    <view wx:if="{{wallet.policy.ruleText}}" class="points-policy">{{wallet.policy.ruleText}}</view>
+    <view wx:for="{{walletItems}}" wx:key="id" class="wallet-ledger"><view class="row"><view class="grow"><view class="card-title">{{item.label || item.kindText}}</view><view class="tiny muted mt">{{item.kindText}} · {{item.dateText}}</view></view><text class="wallet-delta {{item.balanceDelta < 0 ? 'negative' : ''}}">{{item.balanceDelta > 0 ? '+' : ''}}{{item.balanceDelta}}<text wx:if="{{!item.balanceDelta && item.heldDelta}}">余额</text></text></view><view wx:if="{{item.heldDelta}}" class="small muted mt">预留 {{item.heldDelta > 0 ? '+' : ''}}{{item.heldDelta}} 分</view><view wx:if="{{item.reason}}" class="small muted mt">{{item.reason}}</view></view>
+    <view wx:if="{{!walletItems.length}}" class="empty points-empty">还没有兑换积分明细。符合已公布规则的活动完成结算后，会在这里记录。</view>
+    <view wx:if="{{walletError}}" class="notice error">{{walletError}}</view><button wx:if="{{walletCursor}}" class="secondary full" disabled="{{walletLoading}}" loading="{{walletLoading}}" bindtap="moreWallet">查看更多兑换明细</button>
+    <view class="section-head"><text class="section-title">成长与年度明细</text><picker mode="selector" range="{{years}}" value="{{yearIndex}}" bindchange="year"><view class="tag">{{year}} 年 ▾</view></picker></view>
+    <view wx:if="{{ledgerError}}" class="notice error">{{ledgerError}}<button class="text-button" bindtap="retry">重试</button></view>
+    <view wx:for="{{items}}" wx:key="id" class="card"><view class="row"><view class="grow"><view class="card-title" data-id="{{item.activityId}}" bindtap="activity">{{item.title}} →</view><view class="tiny muted mt">{{item.dateText}}</view></view><text class="ledger-value {{item.growthDelta < 0 ? 'negative' : ''}}">{{item.growthDelta > 0 ? '+' : ''}}{{item.growthDelta}}</text></view><view class="divider"></view><view class="row small"><text class="muted">年度积分 {{item.annualDelta > 0 ? '+' : ''}}{{item.annualDelta}}</text><text class="muted">完成次数 {{item.completedCountDelta > 0 ? '+' : ''}}{{item.completedCountDelta}}</text></view><view class="small muted mt paragraph">{{item.awardType === 'reversal' ? '更正记录 · ' : ''}}{{item.reason || '按本场活动规则记录'}} · 规则 v{{item.ruleVersion}}</view></view>
+    <view wx:if="{{!loading && !ledgerError && !items.length}}" class="empty points-empty">{{year}} 年暂无成长积分流水。</view><button wx:if="{{nextCursor && !loading}}" class="secondary full" bindtap="more">查看更早流水</button>
+    <button class="text-button full mt" bindtap="profile">记录有疑问？联系组织方 ›</button>
   </block>
-  <view wx:if="{{!loading && !member && !error}}" class="empty">还没有建立车友身份。<text>{{'\n'}}</text>报名时可建立档案，初始积分为零。<button class="primary full mt" bindtap="explore">寻找入门同行</button></view>
-  <view wx:if="{{loading}}" class="loading">正在核对成长记录…</view>
-  <view class="footer-note">更正以新的冲正记录保留痕迹，不修改原流水。<text>{{'\n'}}</text>核验与结算由有权限的工作人员办理。</view>
+  <view wx:if="{{!loading && !member && !error}}" class="empty">登录后查看自己的积分和兑换记录。<button class="primary full mt" bindtap="profile">前往登录</button></view>
+  <view class="footer-note">成长积分用于报名门槛和经历记录；年度积分按实际完成年份累计。积分不能交易或提现。</view>
 </view>

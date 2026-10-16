@@ -6,6 +6,8 @@ import { validateAvatarImage } from './avatar-image';
 import type { Transaction } from './store';
 import type { MemberMediaAsset, MemberMediaKind, MemberMediaPurpose, MemberMediaStorage, MemberMediaStoredFile, MemberMediaSummary } from './member-media-types';
 import { MEMBER_MEDIA_VIDEO_MAX_BYTES } from './member-media-types';
+import { PUBLIC_CONTENT_ROLES } from './permissions';
+import type { ActivityStory } from './history-content-types';
 export type { MemberMediaSummary, MemberMediaStorage } from './member-media-types';
 
 function storage(ctx: Context): MemberMediaStorage {
@@ -53,7 +55,7 @@ async function save(ctx: Context, kind: MemberMediaKind): Promise<MemberMediaSum
   const initial = await ctx.store.transaction(async tx => {
     const actor = await ctx.actor(tx);
     if (use === 'club_public') {
-      await ctx.staff(tx, ['owner']);
+      await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
       requireThat(p.rightsAcknowledged === true, 'INVALID_INPUT', '请确认拥有图片的公开使用权');
     }
     if (kind === 'video' && (provider.mode !== 'local' || !provider.saveVideo)) {
@@ -88,6 +90,7 @@ async function save(ctx: Context, kind: MemberMediaKind): Promise<MemberMediaSum
   let result: { row: MemberMediaAsset; discarded: boolean };
   try {
     result = await ctx.store.transaction(async tx => {
+      if (use === 'club_public') await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
       const row = await own(ctx, tx, initial.id);
       if (row.status === 'ready') return { row, discarded: row.fileId !== file.fileId };
       requireThat(row.status === 'uploading' && row.requestDigest === digest, 'STATE_CONFLICT', '资料已取消或更新，请重新选择');
@@ -128,15 +131,44 @@ export async function bindOwnedMemberMedia(tx: Transaction, clubId: string, memb
   }
   return result;
 }
+/** Editors may retain another author's image only in the story that already uses it. */
+export async function bindPublicStoryMedia(tx: Transaction, clubId: string, memberId: string, assetIds: unknown, bindingId: string, previousIds: readonly string[]): Promise<MemberMediaSummary[]> {
+  requireThat(Array.isArray(assetIds) && assetIds.length <= 12 && new Set(assetIds).size === assetIds.length
+    && assetIds.every(id => typeof id === 'string' && /^media_[a-f0-9]{64}$/.test(id)), 'INVALID_INPUT', '活动图片编号不正确');
+  const result: MemberMediaSummary[] = [];
+  for (const id of assetIds) {
+    const row = await tx.get<MemberMediaAsset>('member_media', id);
+    requireThat(row?.clubId === clubId && row.status === 'ready' && row.kind === 'image' && row.purpose === 'club_public' && row.rightsAcknowledged
+      && (row.memberId === memberId || previousIds.includes(id) && row.bindings.includes(bindingId)), 'FORBIDDEN', '仅能选用本人公开图片或保留本场已授权图片');
+    if (!row.bindings.includes(bindingId)) {
+      requireThat(row.bindings.length < 100, 'STATE_CONFLICT', '资料引用过多，请重新选择');
+      await tx.set('member_media', id, { ...row, bindings: [...row.bindings, bindingId], revision: row.revision + 1 });
+    }
+    result.push(summary(row));
+  }
+  return result;
+}
+async function readOtherMedia(ctx: Context, tx: Transaction, asset: MemberMediaAsset) {
+  if (asset.purpose !== 'club_public') {
+    await ctx.staff(tx, ['owner']);
+    requireThat(['dossier', 'skill'].includes(asset.purpose) && asset.bindings.length > 0, 'FORBIDDEN', '仅可核对已提交资料');
+    return;
+  }
+  await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
+  const bindingId = ctx.request.payload.bindingId;
+  requireThat(typeof bindingId === 'string' && /^activity_story_[a-f0-9]{64}$/.test(bindingId) && asset.bindings.includes(bindingId)
+    && asset.kind === 'image' && asset.rightsAcknowledged, 'FORBIDDEN', '仅可管理本场已授权的公开图片');
+  const story = await tx.get<ActivityStory>('activity_stories', bindingId);
+  requireThat(story?.clubId === ctx.clubId && story.photoAssetIds.includes(asset.id), 'FORBIDDEN', '活动图片已移除或更新');
+}
 export async function getMemberMediaUrl(ctx: Context): Promise<{ asset: MemberMediaSummary; url: string }> {
-  requireThat(Object.keys(ctx.request.payload).every(field => field === 'assetId'), 'INVALID_INPUT', '包含不支持的资料字段');
+  requireThat(Object.keys(ctx.request.payload).every(field => ['assetId', 'bindingId'].includes(field)), 'INVALID_INPUT', '包含不支持的资料字段');
   const id = text(ctx.request.payload.assetId, '资料编号', 100), provider = storage(ctx);
   const row = await ctx.store.transaction(async tx => {
     const actor = await ctx.actor(tx), asset = await tx.get<MemberMediaAsset>('member_media', id);
     requireThat(asset?.clubId === ctx.clubId && asset.status === 'ready' && asset.storageMode === provider.mode, 'FORBIDDEN', '无法访问这份资料');
     if (asset.memberId !== actor.member.id) {
-      await ctx.staff(tx, ['owner']);
-      requireThat(['dossier', 'skill'].includes(asset.purpose) && asset.bindings.length > 0, 'FORBIDDEN', '仅可核对已提交资料');
+      await readOtherMedia(ctx, tx, asset);
     }
     return asset;
   });
@@ -145,8 +177,8 @@ export async function getMemberMediaUrl(ctx: Context): Promise<{ asset: MemberMe
   catch { throw new DomainError('TEMPORARY_FAILURE', '资料暂时无法打开，请重试', true); }
   await ctx.store.transaction(async tx => {
     const actor = await ctx.actor(tx), current = await tx.get<MemberMediaAsset>('member_media', row.id);
-    requireThat(current?.status === 'ready' && current.fileId === row.fileId, 'FORBIDDEN', '资料已取消或更新');
-    if (current.memberId !== actor.member.id) { await ctx.staff(tx, ['owner']); requireThat(current.bindings.length > 0, 'FORBIDDEN', '仅可核对已提交资料'); }
+    requireThat(current?.status === 'ready' && current.fileId === row.fileId && current.purpose === row.purpose, 'FORBIDDEN', '资料已取消或更新');
+    if (current.memberId !== actor.member.id) await readOtherMedia(ctx, tx, current);
   });
   return { asset: summary(row), url };
 }

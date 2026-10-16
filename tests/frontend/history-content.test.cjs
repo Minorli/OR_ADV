@@ -71,7 +71,7 @@ test('native history clears private editor state and ignores late responses afte
   } };
   const p = page('manage'); apiModule.exports = real; const loading = p.load(); await began;
   env.api.switchMockRole('founder'); release(); await loading; assert.equal(p.data.story, null); assert.deepEqual(p.data.queue, []); assert.deepEqual(p.data.photoUrls, {});
-  await p.load(); assert(p.data.error.includes('主理人')); assert.equal(p.data.isOwner, false); assert.equal(p.data.story, null);
+  await p.load(); assert(p.data.error.includes('权限')); assert.equal(p.data.isOwner, false); assert.equal(p.data.story, null);
   p.onUnload(); assert.equal(p.data.member, null); assert.equal(p.data.documentaryUrl, '');
 });
 

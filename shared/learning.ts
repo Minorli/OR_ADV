@@ -7,6 +7,7 @@ import { bindOwnedMemberMedia, requireOwnedMemberMedia } from './member-media';
 import { SKILL_CATALOG } from './learning-content';
 import { sha256 } from './hash';
 import { validatePublicVideoUrl } from './public-video-url';
+import { PUBLIC_CONTENT_ROLES } from './permissions';
 import type { LearningBank, PracticeFeedback, PracticeView, SafetyQuestion, SkillHistoryEntry, SkillReference, SkillSubmission, SkillView } from './learning-types';
 
 export const LEARNING_ACTIONS = [
@@ -52,7 +53,7 @@ function validQuestion(value: unknown): SafetyQuestion {
 async function catalog(ctx: Context, staff = false) {
   fields(ctx, []);
   return ctx.store.transaction(async tx => {
-    if (staff) await ctx.staff(tx, ['owner']);
+    if (staff) await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const bank = await tx.get<LearningBank>('learning_catalog', bankId(ctx));
     requireThat(!bank || bank.clubId === ctx.clubId, 'FORBIDDEN', '题库不可访问');
     if (staff) return bank ?? emptyBank(ctx);
@@ -64,7 +65,7 @@ async function catalog(ctx: Context, staff = false) {
 async function saveCatalog(ctx: Context) {
   fields(ctx, ['title', 'question', 'removeQuestionId', 'published', 'instructorConfirmed', 'reason']);
   return ctx.store.transaction(async tx => {
-    const actor = await ctx.staff(tx, ['owner']);
+    const actor = await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const previous = await tx.get<LearningBank>('learning_catalog', bankId(ctx)) ?? emptyBank(ctx);
     ctx.revision(previous);
     const p = ctx.request.payload;
@@ -318,7 +319,7 @@ async function reviewSkill(ctx: Context) {
 async function saveReference(ctx: Context) {
   fields(ctx, ['skillId', 'title', 'url', 'verified', 'reason']);
   return ctx.store.transaction(async tx => {
-    const actor = await ctx.staff(tx, ['owner']);
+    const actor = await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const skill = skillDefinition(ctx.request.payload.skillId);
     const url = validatePublicVideoUrl(text(ctx.request.payload.url, '示范视频地址', 1000));
     requireThat(ctx.request.payload.verified === true, 'INVALID_INPUT', '请核实视频来源、内容及使用权限');

@@ -1,2 +1,6 @@
 .search-row{display:flex;gap:16rpx;margin-top:24rpx}.search-row input{flex:1;min-width:0}.search-row button{flex-shrink:0}.member-editor{border-top:5rpx solid #ff6b00}.member-editor .section-title{font-size:28rpx}.member-editor .check-line{margin:18rpx 0}
 .member-code{letter-spacing:1rpx;font-variant-numeric:tabular-nums}
+
+.member-admin-banner{display:flex;flex-direction:column;gap:8rpx;padding:24rpx;margin:24rpx 0;background:#241b14;border:1rpx solid #67411f;border-radius:14rpx}.member-admin-banner text:first-child{color:#ff9b56;font-size:29rpx;font-weight:600}.member-admin-banner text:last-child{font-size:23rpx;color:#b7aaa0}
+
+.member-role-badges{display:flex;flex-wrap:wrap;gap:12rpx;margin-top:16rpx}

@@ -4,7 +4,7 @@
   <view wx:if="{{notice}}" class="notice">{{notice}}</view>
   <block wx:if="{{detail}}">
     <view class="history-heading"><view class="eyebrow">OR / RIDE JOURNAL</view><view class="title">{{detail.activity.title}}</view><view class="history-meta">{{date}} · {{detail.activity.location}}</view><view class="history-line"></view><view class="history-caption">{{detail.activity.difficulty}} · 已完成结算</view></view>
-    <view class="section-head"><text class="section-title">本场回顾</text><button wx:if="{{isOwner && !manage}}" class="text-button" bindtap="manage">编辑回顾 ›</button></view>
+    <view class="section-head"><text class="section-title">本场回顾</text><button wx:if="{{canManageContent && !manage}}" class="text-button" bindtap="manage">编辑回顾 ›</button></view>
     <view class="card paragraph">{{detail.story.intro || detail.activity.description}}</view>
     <view wx:if="{{photos.length}}" class="section-head"><text class="section-title">本场影像</text><text class="section-index">{{photos.length}} 张</text></view>
     <view wx:if="{{photos.length}}" class="photo-grid"><view wx:for="{{photos}}" wx:key="url" class="photo-tile" data-url="{{item.url}}" bindtap="preview"><image src="{{item.url}}" mode="aspectFill" lazy-load data-url="{{item.url}}" binderror="photoFailed"/><view class="photo-label">{{item.label}}</view></view></view>
@@ -21,8 +21,8 @@
       <button class="primary full" disabled="{{busy}}" bindtap="saveReview">交给主理人核对</button><button wx:if="{{own.review && own.review.status !== 'withdrawn'}}" class="text-button withdraw" disabled="{{busy}}" bindtap="withdraw">撤回公开评价</button>
     </view>
   </block>
-  <block wx:if="{{manage && isOwner && story}}">
-    <view class="section-head"><text class="section-title">编辑本场内容</text><text class="section-index">主理人</text></view>
+  <block wx:if="{{manage && canManageContent && story}}">
+    <view class="section-head"><text class="section-title">编辑本场内容</text><text class="section-index">内容管理</text></view>
     <view class="card"><view class="field-label">活动回顾</view><textarea class="intro-input" value="{{intro}}" data-field="intro" maxlength="4000" bindinput="field" placeholder="写下这一次同行的真实记录"/><view class="field"><view class="field-label">本场图片 · {{photoAssetIds.length}} / 12</view><view class="edit-photo-grid"><view wx:for="{{photoAssetIds}}" wx:key="*this" class="edit-photo"><image wx:if="{{photoUrls[item]}}" src="{{photoUrls[item]}}" mode="aspectFill"/><text wx:else class="small muted">图片暂不可用</text><button class="remove-photo" data-id="{{item}}" bindtap="removePhoto">移除</button></view></view></view>
       <checkbox-group bindchange="rights"><label class="check-line"><checkbox value="photos" checked="{{photoRights}}" color="#ff6b00"/><text>确认选用图片已获得拍摄者与相关人物的公开展示许可。</text></label><label class="check-line"><checkbox value="film" checked="{{filmRights}}" color="#ff6b00"/><text>确认影片可公开播放，并已获得相关使用许可。</text></label></checkbox-group><button class="secondary full" disabled="{{busy}}" bindtap="uploadPhoto">选择本场图片</button>
       <view class="field"><view class="field-label">纪录片名称</view><input value="{{documentaryTitle}}" data-field="documentaryTitle" maxlength="80" bindinput="field" placeholder="没有影片可留空"/></view><view class="field"><view class="field-label">公开影片直连地址</view><input value="{{documentaryInput}}" data-field="documentaryInput" maxlength="1500" bindinput="field" placeholder="https://…/film.mp4"/><view class="small muted mt">使用可公开播放、无查询参数的HTTPS MP4链接。填写链接不会生成影片。</view></view>

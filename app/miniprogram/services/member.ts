@@ -7,7 +7,7 @@ export interface TimelineEntry {
 }
 export const emptyContact: ClubPublic = { clubId: 'oradv', name: '原始拉力', contactName: '', contactMethod: 'other', contactValue: '', contactInstructions: '', revision: 0, configured: false };
 export function founder(member: MemberSummary | null): boolean { return member?.memberKind === 'founder'; }
-export function memberKindText(member: MemberSummary | null): string { return !member ? '游客' : founder(member) ? '创始成员' : '普通成员'; }
+export function memberKindText(member: MemberSummary | null): string { return !member ? '游客' : founder(member) ? '创始合伙人' : '俱乐部成员'; }
 export function needsOfflineArrangement(registration: Registration, member: MemberSummary | null): boolean {
   return registration.activityState !== 'cancelled' && registration.state === 'pending_confirmation' && registration.seatState === 'held' && registration.confirmationPath !== 'founder_direct';
 }

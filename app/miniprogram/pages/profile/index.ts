@@ -2,6 +2,7 @@ import { call, currentMember, errorMessage, isMock, mockRole, switchMockRole, re
 import { mockRoleLabels, mockRoles, dateText } from '../../services/presentation';
 import { emptyContact, contactPerson, memberKindText } from '../../services/member';
 import type { MemberSummary } from '../../../../shared/types';
+import { businessAdminTitle, canManagePublicContent, canOperateActivities } from '../../../../shared/permissions';
 import { AvatarError, prepareAvatar } from '../../services/profile-avatar';
 import { memberNumberText } from '../../services/member-number';
 import type { MemberDossier } from '../../../../shared/dossier-types';
@@ -19,11 +20,12 @@ function freshIdentity(page: object, role: string, version: number, lifecycle: n
   return promise;
 }
 interface ProfileReadSnapshot { member: MemberSummary; profileVersion: number; loadVersion: number; role: string; lifecycle: number; environment: string }
+const accessFor = (member: MemberSummary | null) => ({ staff: canOperateActivities(member), isOwner: !!member?.roles.includes('owner'), canManageContent: canManagePublicContent(member), adminTitle: businessAdminTitle(member) });
 Page({
   data: {
     isMock, member: null as MemberSummary | null, contact: emptyContact, kindLabel: '游客', memberNumber: '', kindExpiresText: '',
     nickname: '', nicknameStatus: 'unchanged', nicknameError: '', consent: false, kindReason: '', roles: mockRoleLabels, roleLabel: '',
-    staff: false, isOwner: false, showPrivacy: false, showEdit: false, loading: false, saving: false, error: '', notice: '',
+    staff: false, isOwner: false, canManageContent: false, adminTitle: '', showPrivacy: false, showEdit: false, loading: false, saving: false, error: '', notice: '',
     avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false,
     loadVersion: 0, profileVersion: 0, lifecycleVersion: 0, loadedScope: '', avatarVersion: 0, avatarReadVersion: 0, loadedRole: '',
     identityVerified: false, dossierReadVersion: 0, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。',
@@ -49,7 +51,7 @@ Page({
   },
   clearIdentity() {
     this.setData({ member: null, memberNumber: '', nickname: '', nicknameStatus: 'unchanged', nicknameError: '', avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false, saving: false, kindReason: '', consent: false, kindExpiresText: '', showEdit: false,
-      staff: false, isOwner: false, identityVerified: false, dossierReadVersion: this.data.dossierReadVersion + 1, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。', dossierCount: '0 / 11', dossierParts: [],
+      staff: false, isOwner: false, canManageContent: false, adminTitle: '', identityVerified: false, dossierReadVersion: this.data.dossierReadVersion + 1, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。', dossierCount: '0 / 11', dossierParts: [],
       profileVersion: this.data.profileVersion + 1, avatarVersion: this.data.avatarVersion + 1, avatarReadVersion: this.data.avatarReadVersion + 1 });
   },
   async verifyIdentity() {
@@ -60,7 +62,7 @@ Page({
       const member = await freshIdentity(this, role, version, lifecycle, memberId);
       if (version !== this.data.profileVersion || lifecycle !== this.data.lifecycleVersion || scope !== profileEnvironment()) return false;
       if (isMock && mockRole() !== role || (member?.id || null) !== memberId) { this.clearIdentity(); await this.load(); return false; }
-      this.setData({ identityVerified: true, staff: !!member?.roles.length, isOwner: !!member?.roles.includes('owner') });
+      this.setData({ identityVerified: true, ...accessFor(member) });
       return true;
     } catch (error) {
       if (version === this.data.profileVersion && lifecycle === this.data.lifecycleVersion && scope === profileEnvironment() && (!isMock || mockRole() === role)) { this.clearIdentity(); this.setData({ error: errorMessage(error) }); }
@@ -89,7 +91,7 @@ Page({
       this.setData({ member, contact: result.contact, error: result.contactError, kindLabel: memberKindText(member), memberNumber: member ? memberNumberText(member.memberNumber) : '',
         kindExpiresText: member?.memberKindExpiresAt ? dateText(member.memberKindExpiresAt) : '',
         ...(!this.data.showEdit || changed ? { nickname: member?.nickname || '', nicknameStatus: 'unchanged', nicknameError: '' } : {}),
-        staff: !!member?.roles?.length, isOwner: !!member?.roles?.includes('owner'), identityVerified: true,
+        ...accessFor(member), identityVerified: true,
         avatarUrl: result.avatarUrl, avatarError: result.avatarError, dossierError: '', loading: false,
         dossierStatus: result.dossier?.status || '尚未提交骑手资料', dossierNote: result.dossier?.note || '分次准备，保存后可继续填写。',
         dossierCount: result.dossier ? `${result.dossier.ready} / ${result.dossier.total}` : '0 / 11', dossierParts: result.dossier?.parts || [] });
@@ -203,7 +205,7 @@ Page({
           : await call<MemberSummary>('profile.update', { nickname }, original.revision)
         : await call<MemberSummary>('identity.ensure', { consentVersions: { privacy: 1, terms: 1 } });
       if (!this.identityMatches(version, original?.id || null, resultRole)) return;
-      this.setData({ member, nickname: original ? member.nickname : '', nicknameStatus: 'unchanged', nicknameError: '', kindLabel: memberKindText(member), memberNumber: memberNumberText(member.memberNumber), staff: !!member.roles.length, isOwner: member.roles.includes('owner'), showEdit: !original,
+      this.setData({ member, nickname: original ? member.nickname : '', nicknameStatus: 'unchanged', nicknameError: '', kindLabel: memberKindText(member), memberNumber: memberNumberText(member.memberNumber), ...accessFor(member), showEdit: !original,
         avatarBase64: '', avatarDraftUrl: '', draftPreviewFailed: false, avatarUrl: '', loadedRole: resultRole });
       toast(original ? '个人资料已保存' : isMock ? '本地身份已建立' : '已用微信登录');
       const snapshot: ProfileReadSnapshot = { member, profileVersion: version, loadVersion: this.data.loadVersion, role: resultRole, lifecycle: this.data.lifecycleVersion, environment: profileEnvironment() };
@@ -232,13 +234,13 @@ Page({
   basicSkills() { wx.navigateTo({ url: '/pages/skills/index?level=basic' }); },
   advancedSkills() { wx.navigateTo({ url: '/pages/skills/index?level=advanced' }); },
   practice() { this.activities(); },
-  redemption() { wx.navigateTo({ url: '/pages/club-content/index?section=redemption' }); },
+  redemption() { wx.navigateTo({ url: '/pages/redemption/index' }); },
   handbook() { wx.navigateTo({ url: '/pages/club-content/index?section=handbook' }); },
   core() { wx.navigateTo({ url: '/pages/club-content/index?section=core' }); },
   rules() { wx.navigateTo({ url: '/pages/club-content/index?section=points' }); },
   contacts() { wx.navigateTo({ url: '/pages/club-content/index?section=contacts' }); },
   business() { wx.navigateTo({ url: '/pages/club-content/index?section=business' }); },
-  clubManagement() { if (this.data.isOwner) wx.navigateTo({ url: '/pages/club-content/index?mode=manage' }); },
+  clubManagement() { if (this.data.canManageContent) wx.navigateTo({ url: '/pages/club-content/index?mode=manage' }); },
   async requestKind() {
     if (this.data.saving || !await this.verifyIdentity()) return;
     if (!this.data.member || this.data.saving || this.data.member.memberKind === 'founder' || this.data.member.kindRequestStatus === 'pending') return;
@@ -305,7 +307,7 @@ Page({
       await call('identity.delete', { reason: '车友主动提交注销申请' }, member.revision);
       if (!this.identityMatches(version, member.id, role)) return;
       this.clearIdentity();
-      this.setData({ kindLabel: '游客', memberNumber: '', staff: false, isOwner: false, consent: false, notice: '注销申请已提交。已停止受限访问与公开展示，必要记录等待组织方审核处理。' });
+      this.setData({ kindLabel: '游客', memberNumber: '', staff: false, isOwner: false, canManageContent: false, adminTitle: '', consent: false, notice: '注销申请已提交。已停止受限访问与公开展示，必要记录等待组织方审核处理。' });
     } catch (error) { if (this.identityMatches(version, member.id, role)) this.setData({ error: errorMessage(error) }); }
     finally { if (this.identityMatches(version, member.id, role)) this.setData({ saving: false }); }
   },

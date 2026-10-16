@@ -2,6 +2,8 @@ import { Context, encodeCursor, parseCursor } from './context';
 import { requireThat, text } from './errors';
 import { key } from './models';
 import { sha256 } from './hash';
+import { PUBLIC_CONTENT_ROLES } from './permissions';
+import { starterClubContent } from './club-content-starters';
 import type { ClubContentDraft, ClubContentDocument, ClubContentSection, ClubContentView, ClubInquiry } from './club-content-types';
 
 export const CLUB_CONTENT_ACTIONS = ['club.content.get', 'staff.club.content.get', 'staff.club.content.save', 'club.inquiry.submit', 'club.inquiry.mine', 'club.inquiry.withdraw', 'staff.club.inquiry.list', 'staff.club.inquiry.review'] as const;
@@ -64,9 +66,10 @@ export async function getClubContent(ctx: Context, staff = false): Promise<ClubC
   fields(ctx.request.payload, ['section']);
   const selected = section(ctx.request.payload.section);
   return ctx.store.transaction(async tx => {
-    if (staff) await ctx.staff(tx, ['owner']);
+    if (staff) await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const row = await tx.get<ClubContentDocument>('club_content', key('club-content', ctx.clubId, selected));
     requireThat(!row || row.clubId === ctx.clubId, 'FORBIDDEN', '栏目不可访问');
+    if (staff && !row) return { ...starterClubContent(selected), section: selected, configured: false, revision: 0, status: 'draft', updatedAt: '' };
     return view(row, selected, staff);
   });
 }
@@ -76,7 +79,7 @@ export async function saveClubContent(ctx: Context): Promise<ClubContentView> {
   requireThat(['draft', 'published'].includes(String(p.status)), 'INVALID_INPUT', '请选择草稿或公开发布');
   if (p.status === 'published') requireThat(p.rightsAcknowledged === true, 'CONSENT_REQUIRED', '请确认信息已核实，并已取得公开所需授权');
   return ctx.store.transaction(async tx => {
-    const actor = await ctx.staff(tx, ['owner']);
+    const actor = await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const id = key('club-content', ctx.clubId, selected), prior = await tx.get<ClubContentDocument>('club_content', id);
     requireThat(!prior || prior.clubId === ctx.clubId, 'FORBIDDEN', '栏目不可访问');
     ctx.revision(prior ?? { revision: 0 });

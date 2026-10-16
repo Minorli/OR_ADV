@@ -7,7 +7,7 @@
   <view wx:if="{{notice}}" class="notice">{{notice}}</view>
   <view wx:if="{{!authorized && !loading}}" class="empty">当前身份没有员工权限。<text>{{'\n'}}</text>请联系主理人确认授权范围。<button class="secondary full mt" bindtap="profile">返回个人与隐私</button></view>
   <block wx:if="{{authorized}}">
-    <view class="staff-strip">{{member.nickname}} · {{canManage ? '活动运营权限' : '现场核验权限'}}{{isOwner ? ' · 主理人' : ''}}</view>
+    <view class="staff-strip">{{member.nickname}} · {{canManage ? '活动运营权限' : '现场核验权限'}}{{adminTitle ? ' · ' + adminTitle : ''}}</view>
     <view wx:if="{{canManage}}" class="ops-create-bar"><view><view class="card-title">准备下一场同行</view><view class="small muted mt">保存草稿 → 预览确认 → 发布招募</view></view><button class="primary" bindtap="newActivity" disabled="{{!!busy}}">新建活动</button></view>
     <view class="filter-row"><button class="pill {{pane === 'overview' ? 'active' : ''}}" data-pane="overview" bindtap="pane">待办</button><button class="pill {{pane === 'activities' ? 'active' : ''}}" data-pane="activities" bindtap="pane">活动</button><button class="pill {{pane === 'roster' ? 'active' : ''}}" data-pane="roster" bindtap="pane">现场名单</button><button class="pill {{pane === 'briefing' ? 'active' : ''}}" data-pane="briefing" bindtap="pane">行前说明</button><button wx:if="{{canManage}}" class="pill {{pane === 'settlement' ? 'active' : ''}}" data-pane="settlement" bindtap="pane">完成结算</button><button wx:if="{{isOwner}}" class="pill {{pane === 'owner' ? 'active' : ''}}" data-pane="owner" bindtap="pane">更正</button></view>
     <view wx:if="{{pane === 'overview'}}">
@@ -17,7 +17,7 @@
         <view class="small muted mt">今日出发 {{todayDepartureCount}} 人 · 今日结束 {{todayReturnCount}} 人</view>
         <view class="actions"><button class="primary grow" data-pane="roster" bindtap="pane">打开现场名单</button><button class="secondary" data-pane="briefing" bindtap="pane">查看行前说明</button></view>
       </view>
-      <view class="notice">创始成员符合本场条件时可自动确认；普通成员由运营核对线下安排后确认。所有人都要完成相同的资格与现场安全核验。</view>
+      <view class="notice">创始合伙人符合本场条件时可自动确认；普通成员由运营核对线下安排后确认。所有人都要完成相同的资格与现场安全核验。</view>
     </view>
     <block wx:if="{{pane === 'activities' || pane === 'overview'}}">
       <view class="section-head"><text class="section-title">活动列表</text><text class="section-index">{{items.length}} 场</text></view>
@@ -34,13 +34,14 @@
         <view class="field-label">报名截止（北京时间）</view><view class="form-grid mb"><picker mode="date" value="{{form.deadlineDate}}" data-field="deadlineDate" bindchange="field"><view class="picker">{{form.deadlineDate}} ▾</view></picker><picker mode="time" value="{{form.deadlineTime}}" data-field="deadlineTime" bindchange="field"><view class="picker">{{form.deadlineTime}} ▾</view></picker></view>
         <view class="form-grid"><view class="field"><text class="field-label">活动名额（1–{{maxCapacity}}）</text><input type="number" value="{{form.capacity}}" data-field="capacity" bindinput="field"/></view><view class="field"><text class="field-label">成长门槛（新手可为 0）</text><input type="number" value="{{form.minGrowthPoints}}" data-field="minGrowthPoints" bindinput="field"/></view></view>
         <view class="form-grid"><view class="field"><text class="field-label">完成奖励 · 成长分</text><input type="number" value="{{form.growth}}" data-field="growth" bindinput="field"/></view><view class="field"><text class="field-label">完成奖励 · 年度分</text><input type="number" value="{{form.annual}}" data-field="annual" bindinput="field"/></view></view>
+        <view class="field"><text class="field-label">完成奖励 · 兑换积分</text><input type="number" value="{{form.redeemable}}" data-field="redeemable" bindinput="field" placeholder="留空使用当前积分政策，0 表示不奖励"/><view class="small muted mt">先在积分兑换管理中核定政策。保存时显示本场实际奖励，发布后固定。</view></view>
         <view class="field"><text class="field-label">必要资格（选填，逗号分隔）</text><input value="{{form.requiredQualifications}}" data-field="requiredQualifications" bindinput="field" maxlength="200" placeholder="例如：基础控车，沙地技能"/></view>
         <view class="switch-row field"><text class="field-label">需要人工资格审核</text><switch color="#ff6b00" checked="{{form.requiresReview}}" bindchange="reviewSwitch"/></view>
         <view class="field"><text class="field-label">必要装备说明</text><textarea value="{{form.equipment}}" maxlength="1000" data-field="equipment" bindinput="field" placeholder="头盔、防护装备、车辆状态要求等"/></view>
         <view class="field"><text class="field-label">风险与安全说明</text><textarea value="{{form.safetyNotice}}" maxlength="2000" data-field="safetyNotice" bindinput="field" placeholder="说明真实风险、现场调整与退出安排"/></view>
         <view class="notice">保存后可先预览，再发布招募。发布后，时间、区域、名额、资格、装备与积分规则固定。</view>
         </block>
-        <block wx:else><view class="ops-frozen-summary"><text class="tag">{{selected.stateText}} · 规则 v{{selected.ruleVersion}}</text><view class="small mt">{{selected.dateText}} · {{selected.location}}</view><view class="small muted mt">名额 {{selected.capacity}} 位 · 成长 {{selected.pointsRule.growth}} 分 · 年度 {{selected.pointsRule.annual}} 分</view></view><view class="notice">本次仅修订标题和介绍，其他活动条件保持原样。集合与联络安排请在「行前说明」中更新，并联系参加者。</view><view class="field"><text class="field-label">修改原因</text><textarea value="{{form.reason}}" maxlength="500" data-field="reason" bindinput="field" placeholder="说明这次修订的内容和依据" disabled="{{!!busy}}"/></view></block>
+        <block wx:else><view class="ops-frozen-summary"><text class="tag">{{selected.stateText}} · 规则 v{{selected.ruleVersion}}</text><view class="small mt">{{selected.dateText}} · {{selected.location}}</view><view class="small muted mt">名额 {{selected.capacity}} 位 · 成长 {{selected.pointsRule.growth}} 分 · 年度 {{selected.pointsRule.annual}} 分 · 兑换 {{selected.pointsRule.redeemable || 0}} 分</view></view><view class="notice">本次仅修订标题和介绍，其他活动条件保持原样。集合与联络安排请在「行前说明」中更新，并联系参加者。</view><view class="field"><text class="field-label">修改原因</text><textarea value="{{form.reason}}" maxlength="500" data-field="reason" bindinput="field" placeholder="说明这次修订的内容和依据" disabled="{{!!busy}}"/></view></block>
         <view class="actions"><button class="primary grow" loading="{{busy === 'save'}}" disabled="{{!!busy}}" bindtap="save">{{editorKind === 'content' ? '保存文字修订' : '保存草稿'}}</button><button class="secondary" disabled="{{!!busy}}" bindtap="closeEditor">收起</button></view>
       </view>
     </block>
@@ -82,8 +83,8 @@
         </block>
         <block wx:if="{{pane === 'settlement' && canManage}}">
           <view class="notice">先完成结束清点，再结束活动，最后预览结算。只有出发与结束核验完整的正常参加者获得完成奖励。退出、未到与未核验人员不直接发分。</view>
-          <view class="stats"><view class="stat"><view class="stat-number">+{{selected.pointsRule.growth}}</view><view class="stat-label">每人 · 成长积分</view></view><view class="stat"><view class="stat-number">+{{selected.pointsRule.annual}}</view><view class="stat-label">每人 · 年度积分</view></view></view>
-          <button class="secondary full" loading="{{busy === 'preview'}}" disabled="{{!!busy || (selected.state !== 'ended' && selected.state !== 'settled')}}" bindtap="preview">读取最新结算预览</button>
+          <view class="stats"><view class="stat"><view class="stat-number">+{{selected.pointsRule.growth}}</view><view class="stat-label">每人 · 成长积分</view></view><view class="stat"><view class="stat-number">+{{selected.pointsRule.annual}}</view><view class="stat-label">每人 · 年度积分</view></view></view><view class="small muted mt">每人另记兑换积分 {{selected.pointsRule.redeemable || 0}} 分，使用本场发布时固定的规则。</view>
+          <button class="secondary full" loading="{{busy === 'preview'}}" disabled="{{!!busy || (selected.state !== 'ended' && selected.state !== 'settled')}}" bindtap="preview">预览结算</button>
           <view wx:if="{{preview}}" class="card mt"><view class="card-title">正常完成待结算 {{preview.eligibleCount}} 人</view><view class="small muted mt">按规则 v{{preview.ruleVersion}} 办理；实际完成日期确定积分年度。尚未处理完 {{preview.unresolvedCount}} 人，请先核对名单。</view><view wx:for="{{previewRows}}" wx:key="id" class="list-link"><text>{{item.nickname || '本场参加者'}}</text><text class="tag">{{item.stateText}}</text></view><button class="primary full mt" loading="{{busy === 'settlement'}}" disabled="{{!!busy}}" bindtap="settle">核对并执行结算</button></view>
           <view wx:if="{{settlement}}" class="card mt"><view class="card-title">结算返回结果</view><view class="small mt">成功 {{settlement.successCount}} 人 · 失败 {{settlement.failureCount}} 人 · {{settlement.status === 'completed' ? '本场结算完成' : '本场仍有未完成事项'}}</view><view wx:for="{{settlement.failures}}" wx:key="registrationId" class="notice error">{{item.message || '本条结算失败，请核查后重试'}}</view><view class="small muted mt">存在失败时，核查原因并刷新预览后重试。已成功记录的积分不会重复发放。</view></view>
         </block>

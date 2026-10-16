@@ -4,31 +4,46 @@ import { key, yearRevisionIdFor } from './models';
 import type { MemberStats, Membership, StaffRole, YearRevision } from './models';
 import type { Role } from './types';
 import { BETA_MAX_SNAPSHOT_MEMBERS } from './limits';
+import { memberSequenceId, validateMemberSequence } from './member-number';
+import type { MemberNumberSequence } from './member-number';
+import { STAFF_ROLES } from './permissions';
 
 export async function assignRole(ctx: Context) {
   const p = ctx.request.payload;
   const role = text(p.role, '角色', 20) as Role;
-  requireThat(['owner','operator','leader','checkin'].includes(role), 'INVALID_INPUT', '角色不正确');
+  requireThat(STAFF_ROLES.includes(role), 'INVALID_INPUT', '角色不正确');
   return ctx.store.transaction(async (tx) => {
     const actor = await ctx.staff(tx, ['owner']);
     const member = await tx.get<Membership>('memberships', text(p.memberId, 'memberId', 100));
     requireThat(member?.clubId === ctx.clubId, 'FORBIDDEN', '成员不属于本俱乐部');
     const scope = p.activityIds ?? null;
     requireThat(scope === null || (Array.isArray(scope) && scope.length <= 30 && scope.every((value) => typeof value === 'string' && value.length <= 100)), 'INVALID_INPUT', '活动授权范围不正确');
-    if (['owner','operator'].includes(role)) requireThat(scope === null, 'INVALID_INPUT', '主理人与运营为俱乐部全局角色，活动限定权限请用领队或核验员');
+    if (['owner','operator','content_admin'].includes(role)) requireThat(scope === null, 'INVALID_INPUT', '管理员与运营为俱乐部全局角色，活动限定权限请用领队或核验员');
     if (['leader','checkin'].includes(role)) requireThat(Array.isArray(scope) && scope.length > 0, 'INVALID_INPUT', '现场员工必须指定活动');
     if (Array.isArray(scope)) for (const activityId of scope) await ctx.activity(tx, activityId);
     const expiresAt = p.expiresAt === null || p.expiresAt === undefined ? null : text(p.expiresAt, '授权期限', 40);
     requireThat(!expiresAt || (Number.isFinite(Date.parse(expiresAt)) && new Date(expiresAt).toISOString() > ctx.now), 'INVALID_INPUT', '授权期限须在未来');
     requireThat(p.enabled === undefined || typeof p.enabled === 'boolean', 'INVALID_INPUT', '启用状态不正确');
+    requireThat(p.designation === undefined || p.designation === null || p.designation === 'manager' && role === 'owner', 'INVALID_INPUT', '车队经理称谓仅用于最高业务管理员');
+    let primaryOwnerMemberId: string | null = null;
+    if (role === 'owner') {
+      const sequence = await tx.get<MemberNumberSequence>('clubs', memberSequenceId(ctx.clubId));
+      if (sequence) validateMemberSequence(sequence, ctx.clubId);
+      primaryOwnerMemberId = sequence?.primaryOwnerMemberId ?? null;
+      requireThat(member.id !== sequence?.primaryOwnerMemberId || p.enabled !== false && expiresAt === null,
+        'STATE_CONFLICT', '主理人权限不可撤销或设置到期，请通过可信管理流程处理');
+      requireThat(member.id !== primaryOwnerMemberId || p.designation !== 'manager', 'STATE_CONFLICT', '主理人称谓由可信账号绑定确定');
+    }
     requireThat(!(role === 'owner' && actor.user.id === member.userId && (p.enabled === false || expiresAt !== null)), 'STATE_CONFLICT', '不能撤销自己的主理人权限或设置自己的授权到期');
     const id = key('role', ctx.clubId, member.userId, role);
     const prior = await tx.get<StaffRole>('staff_roles', id);
     if (prior) ctx.revision(prior);
+    const designation = p.designation === undefined ? prior?.designation : p.designation;
     const assignment: StaffRole = { id, clubId: ctx.clubId, userId: member.userId, role, activityIds: scope as string[] | null,
-      enabled: p.enabled !== false, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, grantedBy: actor.user.id, revision: (prior?.revision ?? 0) + 1 };
+      enabled: p.enabled !== false, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, grantedBy: actor.user.id, revision: (prior?.revision ?? 0) + 1,
+      ...(role === 'owner' && designation === 'manager' && member.id !== primaryOwnerMemberId ? { designation: 'manager' as const } : {}) };
     await tx.set('staff_roles', id, assignment);
-    await ctx.audit(tx, actor, 'staff_role', id, { memberId: member.id, role, activityIds: scope, enabled: assignment.enabled, expiresAt: assignment.expiresAt, revision: assignment.revision }, p.reason ? text(p.reason, '授权说明', 500) : '');
+    await ctx.audit(tx, actor, 'staff_role', id, { memberId: member.id, role, activityIds: scope, enabled: assignment.enabled, expiresAt: assignment.expiresAt, designation: assignment.designation ?? null, revision: assignment.revision }, p.reason ? text(p.reason, '授权说明', 500) : '');
     return { memberId: member.id, ...assignment, userId: undefined };
   });
 }

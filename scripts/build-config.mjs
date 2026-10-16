@@ -16,7 +16,7 @@ export function selectBuild(args, config) {
   }
   if (mode === 'mock' && target !== 'test') throw new Error('Mock builds cannot target production');
   const appId = config.appId || '';
-  const version = config.version || '0.3.0-test.4';
+  const version = config.version || '0.4.0-test.1';
   if (!/^[\w.-]{1,40}$/.test(version)) throw new Error('Invalid build version');
   const envId = mode === 'cloud' ? config.environments?.[target]?.envId : '';
   if (mode === 'cloud') {

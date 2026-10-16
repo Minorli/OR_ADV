@@ -4,6 +4,7 @@ import { contactPerson, emptyContact } from '../../services/member';
 import type { ClubContact } from '../../services/member';
 import type { MemberSummary } from '../../../../shared/types';
 import type { ClubContentDraft, ClubContentSection, ClubContentView, ClubInquiry, ClubContactItem } from '../../../../shared/club-content-types';
+import { canManagePublicContent } from '../../../../shared/permissions';
 
 const sections: ClubContentSection[] = ['handbook', 'points', 'core', 'contacts', 'business', 'redemption', 'partners'];
 const sectionLabels = ['车队手册', '积分说明', '核心成员与职责', '联系我们', '商务合作', '积分兑换', '合作伙伴'];
@@ -17,12 +18,12 @@ const formScope = (id: string, kind: string) => ({ mode: runtime.mode, appId: ru
 const formKey = (id: string, kind: string) => `oradv-club-inquiry-draft-v2-${sha256(JSON.stringify(formScope(id, kind)))}`;
 const nonce = () => `inquiry-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 interface ContactRow extends Omit<ClubContactItem, 'method'> { method: string; action: string }
-interface ContentReadSnapshot { version: number; viewerId: string; role: string; environment: string; isOwner: boolean }
+interface ContentReadSnapshot { version: number; viewerId: string; role: string; environment: string; isOwner: boolean; canManageContent: boolean }
 Page({
   data: {
     isMock, section: 'handbook' as ClubContentSection, sectionLabels, sectionIndex: 0, methodLabels: ['电话', '微信', '地址'],
     mode: 'view', content: null as ClubContentView | null, draft: blank('handbook'), primary: emptyContact, contactRows: [] as ContactRow[],
-    member: null as MemberSummary | null, isOwner: false, viewerId: '', loadedRole: '', loadedEnvironment: '', version: 0, identityReady: false, editorDirty: false, rights: false,
+    member: null as MemberSummary | null, isOwner: false, canManageContent: false, viewerId: '', loadedRole: '', loadedEnvironment: '', version: 0, identityReady: false, editorDirty: false, rights: false,
     inquiries: [] as ClubInquiry[], shownInquiries: [] as ClubInquiry[], nextCursor: null as string | null, replies: {} as Record<string, string>,
     inquiryContact: '', inquiryMessage: '', selectedOffer: '', inquiryConsent: false, submissionId: '', formLocked: false,
     loading: false, busy: false, inquiryLoading: false, error: '', notice: '',
@@ -38,15 +39,15 @@ Page({
   },
   onUnload() { this.setData({ version: this.data.version + 1, member: null, viewerId: '', inquiries: [], shownInquiries: [], inquiryContact: '', inquiryMessage: '', replies: {} }); },
   matches(version: number, viewerId: string, role: string) { return this.data.version === version && this.data.viewerId === viewerId && this.data.loadedEnvironment === environmentScope() && (!isMock || mockRole() === role); },
-  readSnapshot(): ContentReadSnapshot { return { version: this.data.version, viewerId: this.data.viewerId, role: this.data.loadedRole, environment: this.data.loadedEnvironment, isOwner: this.data.isOwner }; },
+  readSnapshot(): ContentReadSnapshot { return { version: this.data.version, viewerId: this.data.viewerId, role: this.data.loadedRole, environment: this.data.loadedEnvironment, isOwner: this.data.isOwner, canManageContent: this.data.canManageContent }; },
   readMatches(snapshot: ContentReadSnapshot) {
     if (snapshot.version === this.data.version && this.data.loadedEnvironment !== environmentScope()) {
       this.setData({ version: this.data.version + 1 }); this.clearPrivate(); this.setData({ error: '页面已更新，请重新打开栏目' }); return false;
     }
-    return this.matches(snapshot.version, snapshot.viewerId, snapshot.role) && snapshot.environment === this.data.loadedEnvironment && snapshot.isOwner === this.data.isOwner;
+    return this.matches(snapshot.version, snapshot.viewerId, snapshot.role) && snapshot.environment === this.data.loadedEnvironment && snapshot.isOwner === this.data.isOwner && snapshot.canManageContent === this.data.canManageContent;
   },
   clearPrivate() {
-    this.setData({ member: null, isOwner: false, identityReady: false, viewerId: '', inquiries: [], shownInquiries: [], nextCursor: null, replies: {}, busy: false, inquiryLoading: false, loading: false,
+    this.setData({ member: null, isOwner: false, canManageContent: false, identityReady: false, viewerId: '', inquiries: [], shownInquiries: [], nextCursor: null, replies: {}, busy: false, inquiryLoading: false, loading: false,
       inquiryContact: '', inquiryMessage: '', selectedOffer: '', inquiryConsent: false, submissionId: '', formLocked: false,
       draft: blank(this.data.section), editorDirty: false, rights: false, ...(this.data.mode === 'manage' ? { content: null } : {}) });
   },
@@ -60,10 +61,10 @@ Page({
       const member = await currentMember();
       if (version !== this.data.version) return false;
       if (isMock && mockRole() !== role) { this.setData({ version: version + 1 }); this.clearPrivate(); await this.load(); return false; }
-      if ((member?.id || '') !== this.data.viewerId || this.data.loadedRole !== role || this.data.mode === 'manage' && !member?.roles.includes('owner')) {
+      if ((member?.id || '') !== this.data.viewerId || this.data.loadedRole !== role || this.data.mode === 'manage' && !canManagePublicContent(member)) {
         this.setData({ version: version + 1 }); this.clearPrivate(); await this.load(); return false;
       }
-      this.setData({ identityReady: true, member, isOwner: !!member?.roles.includes('owner') }); return true;
+      this.setData({ identityReady: true, member, isOwner: !!member?.roles.includes('owner'), canManageContent: canManagePublicContent(member), ...(this.data.isOwner && !member?.roles.includes('owner') ? { inquiries: [], shownInquiries: [], replies: {}, nextCursor: null } : {}) }); return true;
     } catch (error) {
       if (version === this.data.version && (!isMock || mockRole() === role)) { this.setData({ version: version + 1 }); this.clearPrivate(); this.setData({ error: errorMessage(error) }); }
       return false;
@@ -78,12 +79,12 @@ Page({
       if (version !== this.data.version) return;
       if (isMock && mockRole() !== role || this.data.loadedEnvironment !== environmentScope()) { this.setData({ version: version + 1 }); this.clearPrivate(); await this.load(); return; }
       if (this.data.viewerId !== (member?.id || '')) this.clearPrivate();
-      this.setData({ member, viewerId: member?.id || '', identityReady: true, isOwner: !!member?.roles.includes('owner') });
-      if (this.data.mode === 'manage' && !member?.roles.includes('owner')) { this.clearPrivate(); throw new ApiError('FORBIDDEN', '仅主理人可以编辑公开栏目和处理咨询'); }
+      this.setData({ member, viewerId: member?.id || '', identityReady: true, isOwner: !!member?.roles.includes('owner'), canManageContent: canManagePublicContent(member), ...(this.data.isOwner && !member?.roles.includes('owner') ? { inquiries: [], shownInquiries: [], replies: {}, nextCursor: null } : {}) });
+      if (this.data.mode === 'manage' && !canManagePublicContent(member)) { this.clearPrivate(); throw new ApiError('FORBIDDEN', '没有公开内容管理权限'); }
       const snapshot = this.readSnapshot();
       // Initial reads share only this generation's freshly verified identity.
       // The public queue retry still performs its own fresh verification.
-      const inquiries = member && (this.data.mode === 'manage' || inquiryKind(this.data.section)) ? this.readInquiries(snapshot) : Promise.resolve();
+      const inquiries = member && (this.data.mode === 'manage' ? this.data.isOwner : inquiryKind(this.data.section)) ? this.readInquiries(snapshot) : Promise.resolve();
       const [content, primary] = await Promise.all([
         call<ClubContentView>(this.data.mode === 'manage' ? 'staff.club.content.get' : 'club.content.get', { section: this.data.section }),
         call<ClubContact>('club.public'),
@@ -113,7 +114,7 @@ Page({
   },
   profile() { wx.switchTab({ url: '/pages/profile/index' }); },
   points() { wx.navigateTo({ url: '/pages/points/index' }); },
-  manage() { if (this.data.isOwner) wx.navigateTo({ url: `/pages/club-content/index?mode=manage&section=${this.data.section}` }); },
+  manage() { if (this.data.canManageContent) wx.navigateTo({ url: `/pages/club-content/index?mode=manage&section=${this.data.section}` }); },
   publicView() { wx.navigateTo({ url: `/pages/club-content/index?section=${this.data.section}` }); },
   primarySettings() { if (this.data.isOwner) wx.navigateTo({ url: '/pages/staff-members/index' }); },
   retry() { void this.load(); },
@@ -164,7 +165,7 @@ Page({
     const { index, field } = event.currentTarget.dataset;
     if (this.canEdit() && ['name', 'description'].includes(field)) this.editDraft({ ...this.data.draft, offers: this.data.draft.offers.map((row, i) => i === Number(index) ? { ...row, [field]: event.detail.value } : row) });
   },
-  canEdit() { return this.data.mode === 'manage' && this.data.isOwner && this.data.identityReady && this.data.loadedEnvironment === environmentScope() && !this.data.busy && (!isMock || this.data.loadedRole === mockRole()); },
+  canEdit() { return this.data.mode === 'manage' && this.data.canManageContent && this.data.identityReady && this.data.loadedEnvironment === environmentScope() && !this.data.busy && (!isMock || this.data.loadedRole === mockRole()); },
   async removeItem(event: WechatMiniprogram.CustomEvent) {
     const { group, index, responsibility } = event.currentTarget.dataset;
     if (!this.canEdit() || !['blocks', 'people', 'contacts', 'offers', 'responsibility'].includes(group)) return;
@@ -178,7 +179,7 @@ Page({
   saveDraft() { return this.saveContent('draft'); },
   publish() { return this.saveContent('published'); },
   async saveContent(status: 'draft' | 'published') {
-    if (this.data.mode !== 'manage' || !this.data.isOwner || this.data.busy || !await this.verifyCurrent() || !this.canEdit()) return;
+    if (this.data.mode !== 'manage' || !this.data.canManageContent || this.data.busy || !await this.verifyCurrent() || !this.canEdit()) return;
     if (status === 'published' && !this.data.rights) { this.setData({ error: '请确认信息已核实并取得公开所需授权' }); return; }
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
     if (status === 'draft' && this.data.content?.status === 'published'
@@ -248,11 +249,11 @@ Page({
   },
   showInquiries() { this.setData({ shownInquiries: this.data.mode === 'manage' ? this.data.inquiries : this.data.inquiries.filter(item => item.kind === this.data.section) }); },
   async loadInquiries(append = false) {
-    if (!this.data.member || this.data.inquiryLoading || this.data.mode !== 'manage' && !inquiryKind(this.data.section) || !await this.verifyCurrent()) return;
+    if (!this.data.member || this.data.inquiryLoading || (this.data.mode === 'manage' ? !this.data.isOwner : !inquiryKind(this.data.section)) || !await this.verifyCurrent()) return;
     await this.readInquiries(this.readSnapshot(), append);
   },
   async readInquiries(snapshot: ContentReadSnapshot, append = false) {
-    if (!snapshot.viewerId || !this.readMatches(snapshot) || this.data.inquiryLoading) return;
+    if (!snapshot.viewerId || !this.readMatches(snapshot) || this.data.inquiryLoading || this.data.mode === 'manage' && !snapshot.isOwner) return;
     this.setData({ inquiryLoading: true });
     try {
       const result = await call<{ items: ClubInquiry[]; nextCursor: string | null }>(this.data.mode === 'manage' ? 'staff.club.inquiry.list' : 'club.inquiry.mine', append && this.data.nextCursor ? { cursor: this.data.nextCursor } : {});

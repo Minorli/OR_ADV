@@ -1,0 +1,14 @@
+{
+  "version": 4,
+  "clubId": "oradv",
+  "basePlan": "database-plan.v3.json",
+  "mode": "additive_only",
+  "clientRulesForEveryCollection": { "read": false, "write": false },
+  "collections": ["points_accounts", "points_wallet_ledger", "points_policy_versions", "redemption_catalog", "redemption_requests"],
+  "indexes": [
+    { "collection": "redemption_catalog", "name": "club_status_sort_id", "fields": [["clubId", "asc"], ["status", "asc"], ["sortOrder", "asc"], ["id", "asc"]], "unique": false },
+    { "collection": "redemption_requests", "name": "club_member_created_id", "fields": [["clubId", "asc"], ["memberId", "asc"], ["createdAt", "desc"], ["id", "asc"]], "unique": false },
+    { "collection": "redemption_requests", "name": "club_state_created_id", "fields": [["clubId", "asc"], ["state", "asc"], ["createdAt", "asc"], ["id", "asc"]], "unique": false },
+    { "collection": "points_wallet_ledger", "name": "club_member_recorded_id", "fields": [["clubId", "asc"], ["memberId", "asc"], ["recordedAt", "desc"], ["id", "asc"]], "unique": false }
+  ]
+}

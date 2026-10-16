@@ -3,11 +3,12 @@ import { activityCard, registrationCard } from '../../services/presentation';
 import { BETA_MAX_CAPACITY } from '../../../../shared/limits';
 import { rosterPresentation, type StaffRegistration } from './roster';
 import type { Activity, MemberSummary, PageResult, Registration } from '../../../../shared/types';
+import { businessAdminTitle, canOperateActivities } from '../../../../shared/permissions';
 interface ActivityForm {
   id: string; revision: number; reason: string; title: string; description: string; location: string; difficulty: string;
   startDate: string; startTime: string; endDate: string; endTime: string;
   deadlineDate: string; deadlineTime: string; capacity: string; minGrowthPoints: string;
-  growth: string; annual: string; requiredQualifications: string; requiresReview: boolean;
+  growth: string; annual: string; redeemable: string; requiredQualifications: string; requiresReview: boolean;
   safetyNotice: string; equipment: string;
 }
 interface SettlementPreview { activityId: string; ruleVersion: number; eligibleCount: number; unresolvedCount: number; items: Registration[] }
@@ -22,11 +23,11 @@ function chinaTime(value: string) { return new Date(Date.parse(value) + 8 * 3600
 function emptyForm(): ActivityForm {
   const start = new Date(Date.now() + 7 * 86400000).toISOString();
   const deadline = new Date(Date.now() + 6 * 86400000).toISOString();
-  return { id: '', revision: 0, reason: '', title: '', description: '', location: '', difficulty: '入门', startDate: chinaDate(start), startTime: '09:00', endDate: chinaDate(start), endTime: '16:00', deadlineDate: chinaDate(deadline), deadlineTime: '18:00', capacity: '12', minGrowthPoints: '0', growth: '100', annual: '100', requiredQualifications: '', requiresReview: false, safetyNotice: '', equipment: '' };
+  return { id: '', revision: 0, reason: '', title: '', description: '', location: '', difficulty: '入门', startDate: chinaDate(start), startTime: '09:00', endDate: chinaDate(start), endTime: '16:00', deadlineDate: chinaDate(deadline), deadlineTime: '18:00', capacity: '12', minGrowthPoints: '0', growth: '100', annual: '100', redeemable: '', requiredQualifications: '', requiresReview: false, safetyNotice: '', equipment: '' };
 }
 Page({
   data: {
-    isMock, maxCapacity: BETA_MAX_CAPACITY, member: null as MemberSummary | null, authorized: false, canManage: false, isOwner: false,
+    isMock, maxCapacity: BETA_MAX_CAPACITY, member: null as MemberSummary | null, authorized: false, canManage: false, isOwner: false, adminTitle: '',
     items: [] as ReturnType<typeof activityCard>[], selected: null as ReturnType<typeof activityCard> | null,
     registrations: [] as ReturnType<typeof registrationCard>[], preview: null as SettlementPreview | null, previewRows: [] as ReturnType<typeof registrationCard>[],
     settlement: null as SettlementResult | null, form: emptyForm(), editor: false, editorKind: 'draft', formDirty: false, formMemberId: '', formEnvironment: '',
@@ -48,7 +49,7 @@ Page({
     return this.data.requestVersion === fence.version && (this.data.member?.id || '') === fence.memberId && this.data.loadedRole === fence.role && this.data.loadedEnvironment === fence.environment;
   },
   resetPrivate() {
-    this.setData({ member: null, authorized: false, canManage: false, isOwner: false, items: [], selected: null, registrations: [], displayedRegistrations: [], preview: null, previewRows: [], settlement: null,
+    this.setData({ member: null, authorized: false, canManage: false, isOwner: false, adminTitle: '', items: [], selected: null, registrations: [], displayedRegistrations: [], preview: null, previewRows: [], settlement: null,
       form: emptyForm(), editor: false, editorKind: 'draft', formDirty: false, formMemberId: '', formEnvironment: '', operationReason: '', ledgerId: '', reversalReason: '', reversalTarget: '', pane: 'overview', rosterQuery: '', rosterFilter: 'all',
       briefing: emptyBriefing(), briefingChecklist: '', briefingDate: '', briefingTime: '', briefingContactIndex: 0, briefingLoading: false, briefingDirty: false, rosterLoading: false, busy: '', notice: '',
       pendingCount: 0, confirmedCount: 0, departedCount: 0, returnedCount: 0, unreturnedCount: 0, todayDepartureCount: 0, todayReturnCount: 0 });
@@ -59,11 +60,11 @@ Page({
     if (!fence.memberId || !this.matches(fence)) { this.clearPrivate(); await this.load(); return false; }
     try {
       const member = await currentMember();
-      if (!this.matches(fence) || !member || member.id !== fence.memberId || !member.roles.length || manage && !canManageActivity(member)) {
+      if (!this.matches(fence) || !member || member.id !== fence.memberId || !canOperateActivities(member) || manage && !canManageActivity(member)) {
         if (fence.version === this.data.requestVersion) { this.clearPrivate(); await this.load(); this.setData({ error: '当前身份或权限已变化，请重新核对活动后操作' }); }
         return false;
       }
-      this.setData({ member, canManage: canManageActivity(member), isOwner: member.roles.includes('owner'), ...(!member.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '' } : {}) });
+      this.setData({ member, canManage: canManageActivity(member), isOwner: member.roles.includes('owner'), adminTitle: businessAdminTitle(member), ...(!member.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '' } : {}) });
       return true;
     } catch (error) { if (fence.version === this.data.requestVersion) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } return false; }
   },
@@ -76,10 +77,10 @@ Page({
       const member = await currentMember();
       if (this.data.requestVersion !== requestVersion) return;
       if (isMock && mockRole() !== role || environmentScope() !== environment) { this.clearPrivate(); await this.load(); return; }
-      const authorized = !!member?.roles?.length;
+      const authorized = canOperateActivities(member);
       const canManage = canManageActivity(member);
       if (this.data.member?.id !== member?.id || !canManage && this.data.editor) this.resetPrivate();
-      this.setData({ member, authorized, canManage, isOwner: !!member?.roles?.includes('owner'), ...(!member?.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '' } : {}) });
+      this.setData({ member, authorized, canManage, isOwner: !!member?.roles?.includes('owner'), adminTitle: businessAdminTitle(member), ...(!member?.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '' } : {}) });
       if (!authorized) { this.resetPrivate(); this.setData({ member }); return; }
       const fence = this.fence(), activities: Activity[] = [];
       let cursor: string | null = null;
@@ -157,7 +158,7 @@ Page({
   },
   openEditor(activity: ReturnType<typeof activityCard>) {
     this.setData({ editor: true, editorKind: activity.state === 'draft' ? 'draft' : 'content', formDirty: false, formMemberId: this.data.member!.id, formEnvironment: environmentScope(), pane: 'activities', error: '',
-      form: { id: activity.id, revision: activity.revision, reason: '', title: activity.title, description: activity.description, location: activity.location, difficulty: activity.difficulty, startDate: chinaDate(activity.startAt), startTime: chinaTime(activity.startAt), endDate: chinaDate(activity.endAt), endTime: chinaTime(activity.endAt), deadlineDate: chinaDate(activity.applicationClosesAt), deadlineTime: chinaTime(activity.applicationClosesAt), capacity: String(activity.capacity), minGrowthPoints: String(activity.minGrowthPoints), growth: String(activity.pointsRule.growth), annual: String(activity.pointsRule.annual), requiredQualifications: activity.requiredQualifications.join('，'), requiresReview: activity.requiresReview, safetyNotice: activity.safetyNotice, equipment: activity.equipment },
+      form: { id: activity.id, revision: activity.revision, reason: '', title: activity.title, description: activity.description, location: activity.location, difficulty: activity.difficulty, startDate: chinaDate(activity.startAt), startTime: chinaTime(activity.startAt), endDate: chinaDate(activity.endAt), endTime: chinaTime(activity.endAt), deadlineDate: chinaDate(activity.applicationClosesAt), deadlineTime: chinaTime(activity.applicationClosesAt), capacity: String(activity.capacity), minGrowthPoints: String(activity.minGrowthPoints), growth: String(activity.pointsRule.growth), annual: String(activity.pointsRule.annual), redeemable: String(activity.pointsRule.redeemable ?? 0), requiredQualifications: activity.requiredQualifications.join('，'), requiresReview: activity.requiresReview, safetyNotice: activity.safetyNotice, equipment: activity.equipment },
     }, () => wx.pageScrollTo({ selector: '#activity-editor', duration: 180 }));
   },
   async closeEditor() { const fence = this.fence(); if (this.data.formDirty && !await confirm('收起编辑', '本页修改尚未保存，是否放弃？') || !this.matches(fence)) return; this.setData({ editor: false, formDirty: false }); },
@@ -209,15 +210,15 @@ Page({
     if (this.data.busy || !await this.verifyIdentity(true) || !this.formMatches()) return;
     const form = this.data.form, fence = this.fence(), contentOnly = this.data.editorKind === 'content';
     if (!(contentOnly ? [form.title, form.description, form.reason] : [form.title, form.description, form.location, form.safetyNotice, form.equipment]).every(value => value.trim())) { toast(contentOnly ? '请填写标题、介绍和修改原因' : '请填写标题、内容、地点、装备和风险说明'); return; }
-    const capacity = Number(form.capacity), minGrowthPoints = Number(form.minGrowthPoints), growth = Number(form.growth), annual = Number(form.annual);
-    if (!contentOnly && (![capacity, minGrowthPoints, growth, annual].every(value => Number.isSafeInteger(value) && value >= 0) || capacity < 1 || capacity > BETA_MAX_CAPACITY)) { toast(`请输入有效整数，名额为 1–${BETA_MAX_CAPACITY}`); return; }
+    const capacity = Number(form.capacity), minGrowthPoints = Number(form.minGrowthPoints), growth = Number(form.growth), annual = Number(form.annual), redeemable = form.redeemable.trim() === '' ? undefined : Number(form.redeemable);
+    if (!contentOnly && (![capacity, minGrowthPoints, growth, annual, ...(redeemable === undefined ? [] : [redeemable])].every(value => Number.isSafeInteger(value) && value >= 0) || capacity < 1 || capacity > BETA_MAX_CAPACITY)) { toast(`请输入有效整数，名额为 1–${BETA_MAX_CAPACITY}`); return; }
     const start = new Date(`${form.startDate}T${form.startTime}:00+08:00`), end = new Date(`${form.endDate}T${form.endTime}:00+08:00`), deadline = new Date(`${form.deadlineDate}T${form.deadlineTime}:00+08:00`);
     if (!contentOnly && (![start, end, deadline].every(value => Number.isFinite(value.getTime())) || end <= start || deadline > start)) { toast('请检查开始、结束与报名截止时间'); return; }
     this.setData({ busy: 'save', error: '' });
     try {
       const activity = contentOnly
         ? await call<Activity>('staff.activity.content.save', { activityId: form.id, title: form.title.trim(), description: form.description.trim(), reason: form.reason.trim() }, form.revision)
-        : await call<Activity>('staff.activity.save', { ...(form.id ? { id: form.id } : {}), title: form.title.trim(), description: form.description.trim(), location: form.location.trim(), difficulty: form.difficulty.trim(), startAt: start.toISOString(), endAt: end.toISOString(), applicationClosesAt: deadline.toISOString(), capacity, minGrowthPoints, pointsRule: { growth, annual }, requiredQualifications: form.requiredQualifications.split(/[,，]/).map(value => value.trim()).filter(Boolean), requiresReview: form.requiresReview, equipment: form.equipment.trim(), safetyNotice: form.safetyNotice.trim() }, form.id ? form.revision : undefined);
+        : await call<Activity>('staff.activity.save', { ...(form.id ? { id: form.id } : {}), title: form.title.trim(), description: form.description.trim(), location: form.location.trim(), difficulty: form.difficulty.trim(), startAt: start.toISOString(), endAt: end.toISOString(), applicationClosesAt: deadline.toISOString(), capacity, minGrowthPoints, pointsRule: { growth, annual, ...(redeemable === undefined ? {} : { redeemable }) }, requiredQualifications: form.requiredQualifications.split(/[,，]/).map(value => value.trim()).filter(Boolean), requiresReview: form.requiresReview, equipment: form.equipment.trim(), safetyNotice: form.safetyNotice.trim() }, form.id ? form.revision : undefined);
       if (!this.matches(fence)) return;
       this.setData({ selected: activityCard(activity), editor: false, formDirty: false, busy: '', pane: 'roster', notice: contentOnly ? '活动文字已更新，修改原因已记录。' : '草稿已保存。可先预览，再发布招募。' }); await this.load();
     } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
@@ -229,7 +230,7 @@ Page({
     if (!activity || this.data.busy || !['publish', 'close', 'start', 'end', 'cancel'].includes(action)) return;
     const fence = this.fence();
     const labels: Record<string, string> = { publish: '发布招募', close: '关闭报名', start: '开始活动', end: '结束活动', cancel: '取消活动' };
-    const messages: Record<string, string> = { publish: `发布「${activity.title}」？发布后冻结本场规则 v${activity.ruleVersion}，成长奖励 ${activity.pointsRule.growth} 分、年度奖励 ${activity.pointsRule.annual} 分。`, close: '关闭后停止新的报名与自动候补提升，已确认人员继续保留。', start: `计划开始时间为 ${activity.dateText}（北京时间）。确认现在开始？本次操作记录实际开始时间，并开放现场出发核验。请先核对天气、场地、人员与安全条件。`, end: '以当前时刻作为实际完成时间，积分年度按北京时间归属。请先核对实际结束情况，再逐人完成结束核验。', cancel: '取消后停止报名和现场核验，保留申请与操作记录。请另行通知相关车友。' };
+    const messages: Record<string, string> = { publish: `发布「${activity.title}」？发布后冻结本场规则 v${activity.ruleVersion}，成长奖励 ${activity.pointsRule.growth} 分、年度奖励 ${activity.pointsRule.annual} 分、兑换奖励 ${activity.pointsRule.redeemable ?? 0} 分。`, close: '关闭后停止新的报名与自动候补提升，已确认人员继续保留。', start: `计划开始时间为 ${activity.dateText}（北京时间）。确认现在开始？本次操作记录实际开始时间，并开放现场出发核验。请先核对天气、场地、人员与安全条件。`, end: '以当前时刻作为实际完成时间，积分年度按北京时间归属。请先核对实际结束情况，再逐人完成结束核验。', cancel: '取消后停止报名和现场核验，保留申请与操作记录。请另行通知相关车友。' };
     if (action === 'cancel' && !this.data.operationReason.trim()) { toast('请先填写取消原因'); return; }
     if (!await confirm(labels[action], messages[action])) return;
     if (!await this.verifyIdentity(true) || !this.matches(fence) || this.data.selected?.id !== activity.id || this.data.selected.revision !== activity.revision) return;
@@ -291,7 +292,7 @@ Page({
     if (this.data.busy || !await this.verifyIdentity(true)) return;
     const fence = this.fence();
     const activity = this.data.selected, preview = this.data.preview;
-    if (!activity || !preview || this.data.busy || !await confirm('确认按冻结规则结算', `本场正常完成可结算 ${preview.eligibleCount} 人。规则 v${preview.ruleVersion}，成长奖励 ${activity.pointsRule.growth} 分、年度奖励 ${activity.pointsRule.annual} 分。只为完整核验的参加者记分，重试不会重复发放。`)) return;
+    if (!activity || !preview || this.data.busy || !await confirm('确认按冻结规则结算', `本场正常完成可结算 ${preview.eligibleCount} 人。规则 v${preview.ruleVersion}，成长奖励 ${activity.pointsRule.growth} 分、年度奖励 ${activity.pointsRule.annual} 分、兑换奖励 ${activity.pointsRule.redeemable ?? 0} 分。只为完整核验的参加者记分，重试不会重复发放。`)) return;
     if (!await this.verifyIdentity(true) || !this.matches(fence) || this.data.selected?.id !== activity.id || this.data.preview !== preview) return;
     this.setData({ busy: 'settlement', error: '' });
     try {

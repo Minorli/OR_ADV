@@ -15,7 +15,8 @@
     "pages/learning/index",
     "pages/skills/index",
     "pages/club-content/index",
-    "pages/history-detail/index"
+    "pages/history-detail/index",
+    "pages/redemption/index"
   ],
   "window": {
     "navigationBarTitleText": "OriginalRally原始拉力",

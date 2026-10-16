@@ -15,7 +15,7 @@ export function rosterPresentation<T extends StaffRegistration>(items: T[], toda
     const returnedToday = item.lastReturnDay === today || (departedToday && ['pending_settlement', 'completed', 'safe_exit'].includes(item.state));
     return { ...item, unreturned, departedToday, returnedToday,
       memberCode: memberNumberText(item.memberNumber),
-      memberKindText: item.memberKind === 'founder' ? '创始成员' : item.memberKind === 'regular' ? '普通成员' : '身份待核对',
+      memberKindText: item.memberKind === 'founder' ? '创始合伙人' : item.memberKind === 'regular' ? '普通成员' : '身份待核对',
       confirmationText: item.state === 'waitlisted' ? '候补中，尚未占位' : item.confirmationPath === 'founder_direct' ? '创始身份自动确认' : item.state === 'pending_confirmation' ? '待线下安排 · 人工确认' : item.confirmationPath === 'staff_manual' ? '运营人工确认路径' : '按本场确认记录',
       checkinText: unreturned ? item.lastDepartureDay === today ? '今日已出发，待回场核验' : '出发记录待复核'
         : item.state === 'safe_exit' ? '已记录安全退出' : item.state === 'no_show' ? '已登记未到'

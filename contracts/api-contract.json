@@ -1,6 +1,6 @@
 {
   "transport": "wx.cloud.callFunction RPC",
-  "status": "v0.3_candidate_implemented_locally_cloud_acceptance_pending",
+  "status": "v0.4_candidate_in_implementation_real_acceptance_pending",
   "requestEnvelope": [
     "action",
     "requestId",
@@ -146,6 +146,7 @@
         "cursor"
       ],
       "output": [
+        "memberId",
         "growthPoints",
         "annualPoints",
         "completedCount",
@@ -298,12 +299,14 @@
     },
     {
       "action": "staff.roles.assign",
-      "authorization": "owner",
+      "authorization": "owner_including_verified_manager_with_primary_protection",
       "input": [
         "memberId",
         "role",
         "activityIds",
-        "expiresAt"
+        "expiresAt",
+        "role_including_content_admin",
+        "designation_optional_manager_or_null"
       ],
       "output": [
         "roleSummary"
@@ -342,7 +345,8 @@
       "authorization": "signed_wechat_optional",
       "input": [],
       "output": [
-        "memberSummary|null"
+        "memberSummary|null",
+        "member.adminDesignation_optional"
       ],
       "businessIdempotency": false
     },
@@ -496,7 +500,8 @@
         "memberId"
       ],
       "output": [
-        "items"
+        "items",
+        "isPrimaryOwner"
       ],
       "businessIdempotency": false
     },
@@ -651,7 +656,8 @@
       "action": "media.get",
       "authorization": "member_self_or_owner_for_bound_dossier_or_skill",
       "input": [
-        "assetId"
+        "assetId",
+        "bindingId_optional"
       ],
       "output": [
         "asset",
@@ -1143,7 +1149,8 @@
         "memberSummary_or_null",
         "clubPublic",
         "dossierProgress_without_contacts_or_assetIDs",
-        "private_avatarUrl_or_section_error"
+        "private_avatarUrl_or_section_error",
+        "member.adminDesignation_optional"
       ],
       "businessIdempotency": false
     },
@@ -1162,6 +1169,268 @@
       ],
       "businessIdempotency": false,
       "constraint": "Non-draft activity wording corrections only; preserves operational fields and frozen ruleVersion; appends bounded before/after audit."
+    },
+    {
+      "action": "points.wallet",
+      "authorization": "member_self",
+      "input": [
+        "cursor_optional"
+      ],
+      "output": [
+        "member",
+        "balance",
+        "held",
+        "available",
+        "restricted",
+        "policy",
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "points.policy",
+      "authorization": "public",
+      "input": [],
+      "output": [
+        "configured",
+        "enabled",
+        "version",
+        "defaultRewardMode",
+        "ruleText"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.points.policy.get",
+      "authorization": "owner",
+      "input": [],
+      "output": [
+        "walletPolicy_including_revision"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.points.policy.save",
+      "authorization": "owner",
+      "input": [
+        "enabled",
+        "defaultRewardMode",
+        "ruleText",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "policy",
+        "revision"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "redemption.catalog",
+      "authorization": "public",
+      "input": [
+        "cursor_optional",
+        "itemId_optional"
+      ],
+      "output": [
+        "policy",
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "redemption.request",
+      "authorization": "member_self",
+      "input": [
+        "submissionId",
+        "itemId",
+        "offerVersion",
+        "policyVersion",
+        "quantity_1"
+      ],
+      "output": [
+        "redemption"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "redemption.mine",
+      "authorization": "member_self",
+      "input": [
+        "cursor_optional"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "redemption.get",
+      "authorization": "member_self",
+      "input": [
+        "redemptionId_or_submissionId"
+      ],
+      "output": [
+        "redemption_or_null"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "redemption.cancel",
+      "authorization": "member_self",
+      "input": [
+        "redemptionId",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "redemption"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.redemption.catalog.get",
+      "authorization": "owner",
+      "input": [
+        "cursor_optional",
+        "itemId_optional"
+      ],
+      "output": [
+        "member",
+        "policy",
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.redemption.catalog.save",
+      "authorization": "owner",
+      "input": [
+        "submissionId_for_new",
+        "itemId_for_existing",
+        "kind",
+        "name",
+        "description",
+        "fulfillmentInstructions",
+        "pointsCost",
+        "totalStock",
+        "sortOrder",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "item"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.redemption.catalog.publish",
+      "authorization": "owner",
+      "input": [
+        "itemId",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "item"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.redemption.catalog.archive",
+      "authorization": "owner",
+      "input": [
+        "itemId",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "item"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.redemption.list",
+      "authorization": "owner",
+      "input": [
+        "state_optional",
+        "cursor_optional"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.redemption.approve",
+      "authorization": "owner",
+      "input": [
+        "redemptionId",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "redemption"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.redemption.reject",
+      "authorization": "owner",
+      "input": [
+        "redemptionId",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "redemption"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.redemption.fulfill",
+      "authorization": "owner",
+      "input": [
+        "redemptionId",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "redemption"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.redemption.refund",
+      "authorization": "owner",
+      "input": [
+        "redemptionId",
+        "reason",
+        "restock",
+        "expectedRevision"
+      ],
+      "output": [
+        "redemption"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.redemption.get",
+      "authorization": "owner",
+      "input": [
+        "redemptionId"
+      ],
+      "output": [
+        "member",
+        "request",
+        "account"
+      ],
+      "businessIdempotency": false
     }
   ],
   "errors": [

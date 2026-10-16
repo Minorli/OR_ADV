@@ -1,6 +1,7 @@
 import { ApiError, call, currentMember, errorMessage, isMock, mockRole, toast } from '../../services/api';
 import type { LearningBank, PracticeView, SafetyQuestion } from '../../../../shared/learning-types';
 import type { MemberSummary } from '../../../../shared/types';
+import { canManagePublicContent } from '../../../../shared/permissions';
 
 interface QuestionDraft { id: string; prompt: string; option0: string; option1: string; option2: string; option3: string; rightIndex: number; explanation: string }
 const emptyQuestion = (): QuestionDraft => ({ id: '', prompt: '', option0: '', option1: '', option2: '', option3: '', rightIndex: 0, explanation: '' });
@@ -11,7 +12,7 @@ Page({
     displayQuestion: null as PracticeView['question'], feedback: null as (NonNullable<PracticeView['feedback']> & { rightText: string }) | null,
     selectedIndex: -1, optionLabels: ['A', 'B', 'C', 'D'], questionNumber: 1, progress: 0,
     loading: false, busy: false, error: '', notice: '', loadVersion: 0, loadedRole: '',
-    isOwner: false, editor: false, bank: null as LearningBank | null, questionLabels: [] as string[],
+    isOwner: false, canManageContent: false, editor: false, bank: null as LearningBank | null, questionLabels: [] as string[],
     draft: emptyQuestion(), reason: '', instructorConfirmed: false,
   },
   onShow() { return this.resume(); },
@@ -19,7 +20,7 @@ Page({
   clearPrivate() {
     this.setData({ loadVersion: this.data.loadVersion + 1, loadedRole: '', member: null, practice: null, displayQuestion: null, feedback: null,
       selectedIndex: -1, questionNumber: 1, progress: 0, bank: null, questionLabels: [], draft: emptyQuestion(), reason: '',
-      instructorConfirmed: false, isOwner: false, editor: false, busy: false, loading: false, error: '', notice: '' });
+      instructorConfirmed: false, isOwner: false, canManageContent: false, editor: false, busy: false, loading: false, error: '', notice: '' });
   },
   viewerFence(): ViewerFence { return { version: this.data.loadVersion, memberId: this.data.member?.id || '', role: this.data.loadedRole }; },
   matches(fence: ViewerFence) {
@@ -29,9 +30,9 @@ Page({
   async assertViewer(fence: ViewerFence, owner = false) {
     if (this.matches(fence)) {
       const member = await currentMember();
-      const owns = !!member?.roles.includes('owner');
-      if (this.matches(fence) && member?.id === fence.memberId && owns === this.data.isOwner) {
-        if (owner && !owns) throw new ApiError('FORBIDDEN', '仅主理人可以维护题库');
+      const owns = !!member?.roles.includes('owner'), manages = canManagePublicContent(member);
+      if (this.matches(fence) && member?.id === fence.memberId && owns === this.data.isOwner && manages === this.data.canManageContent) {
+        if (owner && !manages) throw new ApiError('FORBIDDEN', '没有题库管理权限');
         return;
       }
     }
@@ -55,7 +56,7 @@ Page({
     } catch (error) { if (this.matches(fence)) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } }
   },
   localViewer(owner = false) {
-    if (this.matches(this.viewerFence()) && (!owner || this.data.isOwner)) return true;
+    if (this.matches(this.viewerFence()) && (!owner || this.data.canManageContent)) return true;
     this.clearPrivate(); void this.load(); return false;
   },
   async load() {
@@ -66,9 +67,9 @@ Page({
     try {
       const [catalog, member] = await Promise.all([call<Catalog>('learning.catalog'), currentMember()]);
       if (version !== this.data.loadVersion || isMock && mockRole() !== role) return;
-      if (previousMemberId && (member?.id !== previousMemberId || !!member.roles.includes('owner') !== this.data.isOwner)) { this.clearPrivate(); await this.load(); return; }
-      this.setData({ catalog, member, loadedRole: role, isOwner: !!member?.roles.includes('owner'), editor: this.data.editor && !!member?.roles.includes('owner'),
-        ...(!member?.roles.includes('owner') ? { bank: null, questionLabels: [], draft: emptyQuestion(), reason: '', instructorConfirmed: false } : {}) });
+      if (previousMemberId && (member?.id !== previousMemberId || !!member.roles.includes('owner') !== this.data.isOwner || canManagePublicContent(member) !== this.data.canManageContent)) { this.clearPrivate(); await this.load(); return; }
+      this.setData({ catalog, member, loadedRole: role, isOwner: !!member?.roles.includes('owner'), canManageContent: canManagePublicContent(member), editor: this.data.editor && canManagePublicContent(member),
+        ...(!canManagePublicContent(member) ? { bank: null, questionLabels: [], draft: emptyQuestion(), reason: '', instructorConfirmed: false } : {}) });
       if (member) {
         const fence = this.viewerFence();
         // Reuse this load's fresh identity only for its personal read. Practice
@@ -127,7 +128,7 @@ Page({
     const fence = this.viewerFence();
     try {
       const bank: LearningBank = await this.verifiedCall(fence, 'staff.learning.catalog.get', {}, undefined, true);
-      if (!this.matches(fence) || !this.data.isOwner) return;
+      if (!this.matches(fence) || !this.data.canManageContent) return;
       this.setData({ bank, questionLabels: bank.questions.map((question, index) => `${index + 1}. ${question.prompt}`) });
     } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
   },
