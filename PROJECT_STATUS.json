@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.2.0-test.5",
+  "version": "0.2.0-test.6",
   "asOf": "2026-10-16",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -19,18 +19,18 @@
     "verifiedInConsole": false
   },
   "appIdConfiguredLocally": true,
-  "testEnvironment": "not_created_as_reconfirmed_by_user_2026-10-16",
+  "testEnvironment": "user_created_free_environment_metadata_verified_via_WeChat_2026-10-16",
   "nativeAppImplemented": true,
   "backendImplemented": true,
   "backendDeployed": false,
   "realWeChatTested": false,
-  "cloudProvisioned": false,
+  "cloudProvisioned": true,
   "published": false,
   "wechatPreviewGenerated": true,
   "milestones": {
     "M0": "implemented_locally",
     "M1": "implemented_locally",
-    "M2": "adapter_implemented_real_cloud_pending",
+    "M2": "database_structure_verified_storage_blocked_by_free_tier_function_and_real_identity_pending",
     "M3": "domain_and_native_workflow_implemented_real_cloud_pending",
     "M4": "domain_implemented_real_cloud_pending_some_staff_ui_pending",
     "M5": "pending",
@@ -44,7 +44,6 @@
   },
   "unknowns": [
     "cloudAccountOwnership",
-    "testEnvId",
     "productionEnvId",
     "reviewType",
     "filing",
@@ -57,7 +56,7 @@
   "referencesAreMock": true,
   "wechatVerification": "not_reverified",
   "remainingWork": [
-    "test EnvId and cloud authorization",
+    "administrator upgrades existing environment to allow deny-client storage rules; then verify and deploy",
     "apply/verify database plan v2 and deploy the test function",
     "trusted owner initialization and actual contact approval",
     "real WeChat identity, concurrent database transactions and client rules evidence",
@@ -69,15 +68,15 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.2.0-test.5",
+    "sourceVersion": "0.2.0-test.6",
     "typecheck": "passed",
     "domainTests": 70,
-    "cloudTests": 14,
+    "cloudTests": 31,
     "buildAndTemplateTests": 10,
-    "typescriptTests": 94,
+    "typescriptTests": 111,
     "nativePageTests": 10,
     "pythonToolTests": 14,
-    "totalTests": 118,
+    "totalTests": 135,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
@@ -197,5 +196,30 @@
     "internalHashedIdsPreserved": true,
     "localV3Upgrade": "preserves_avatar_records_revisions_and_unknown_fields_before_use",
     "realLegacyBackfillExecuted": false
+  },
+  "cloudEnvironmentVerification": {
+    "scope": "bound_environment_and_public_sdk_database_definition_readbacks",
+    "envIdConfiguredLocally": true,
+    "region": "ap-shanghai",
+    "environmentStatus": "NORMAL",
+    "databaseStatus": "RUNNING",
+    "packageLabel": "personal_not_proof_of_payment_or_trial_limits",
+    "databaseRulesApplied": true,
+    "storageRulesApplied": false,
+    "functionDeploymentVerified": false,
+    "cloudCliAuthorization": "administrator_device_authorization_verified",
+    "wechatManagementQueries": "rejected_invalid_cloud_api_action",
+    "billingOperationsPerformed": false,
+    "billingResponsibleParty": "mini_program_administrator",
+    "developerHandlesPayments": false,
+    "readonlyInspectionTests": 7,
+    "collectionsVerified": 18,
+    "indexDefinitionsVerified": 24,
+    "businessRecords": 0,
+    "deployedFunctions": 0,
+    "storageAcl": "PRIVATE",
+    "storageRuleBlocker": "OperationDenied.FreePackageDenied",
+    "paidUpgradeByAdministrator": "pending",
+    "initializationTests": 10
   }
 }

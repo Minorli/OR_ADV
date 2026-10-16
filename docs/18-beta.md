@@ -96,7 +96,7 @@ node scripts/wechat-ci.cjs preview --env test --config config/local.json
 
 头像保存前会压缩和检查，传输为最多64KiB的JPEG/PNG。正式环境由鉴权云函数保存到私有云存储；本机演示只写本机自有文件。演示角色切换不等于真实微信登录，重置会清理本轮演示头像。关闭重开应恢复本人保存的资料，图片加载失败可单独重试。
 
-要接入真实账号，目前还缺测试云EnvId。开通后按 [部署说明](10-cloud.md#微信登录与个人头像接入) 应用数据库和存储规则、部署函数、构建云版，再用两个独立微信账号验证数据隔离。无需为本项目登录提供AppSecret，也不要把密钥发到聊天。
+测试EnvId和管理员CLI授权已就绪，数据库结构已初始化；存储规则因免费套餐限制待管理员处理。解除该限制后按 [部署说明](10-cloud.md#微信登录与个人头像接入) 应用数据库和存储规则、部署函数、构建云版，再用两个独立微信账号验证数据隔离。无需为本项目登录提供AppSecret，也不要把密钥发到聊天。
 
 能力依据：[CloudBase原生微信调用](https://docs.cloudbase.net/recipes/add-cloud-function-wechat-miniprogram)、[微信官方头像昵称组件说明](https://github.com/wechat-miniprogram/mp-user-avatar/blob/master/README.md)。此处直接使用原生按钮和输入框，不安装已归档的组件包；最低基础库、昵称审核回调与手机行为需要实际开发者工具和iOS／Android核验。
 
