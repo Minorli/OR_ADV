@@ -8,6 +8,7 @@ export interface User {
 }
 export interface Membership {
   id: string; clubId: string; userId: string; nickname: string;
+  memberNumber?: number;
   avatarFileId?: string;
   publicId: string; rankingOptIn: boolean; rankingConsentVersion: number;
   revision: number; createdAt: string; updatedAt: string;

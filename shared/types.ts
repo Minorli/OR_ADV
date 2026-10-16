@@ -17,6 +17,7 @@ export interface Activity {
 }
 export interface Registration {
   id: string; clubId: string; activityId: string; memberId: string;
+  memberNumber?: number;
   state: RegistrationState; seatState: 'none' | 'held' | 'released';
   reviewDecision: 'pending' | 'not_required' | 'approved' | 'rejected';
   queueSeq: number; attempt: number; revision: number; acceptedRuleVersion: number;
@@ -38,6 +39,7 @@ export interface Registration {
 }
 export interface MemberSummary {
   id: string; clubId: string; nickname: string; rankingOptIn: boolean;
+  memberNumber?: number;
   hasAvatar?: boolean;
   rankingConsentVersion: number; growthPoints: number; annualPoints: number;
   completedCount: number; revision: number; roles: Role[];
@@ -61,6 +63,7 @@ export interface RecommendationEntry {
 export interface StaffRoleSummary { role: Role; revision: number; activityIds: string[] | null; enabled: boolean; expiresAt: string | null }
 export interface StaffMemberSummary {
   id: string; memberId: string; nickname: string; memberKind: MemberKind;
+  memberNumber?: number;
   memberKindVersion: number; memberKindExpiresAt: string | null; revision: number;
   recommendationOptIn: boolean; recommendationPriority: number;
   kindRequestStatus: 'pending' | 'resolved' | null; kindRequestedAt: string | null;

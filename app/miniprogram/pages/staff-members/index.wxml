@@ -8,7 +8,7 @@
   <block wx:if="{{authorized}}">
     <view class="filter-row"><button class="pill {{pane === 'members' ? 'active' : ''}}" data-pane="members" bindtap="pane">会员管理</button><button class="pill {{pane === 'settings' ? 'active' : ''}}" data-pane="settings" bindtap="pane">公开联络设置</button></view>
     <block wx:if="{{pane === 'members'}}">
-      <view class="search-row"><input value="{{query}}" maxlength="30" bindinput="query" bindconfirm="search" placeholder="搜索昵称或成员编号后 8 位"/><button class="secondary" bindtap="search">查找</button></view>
+      <view class="search-row"><input value="{{query}}" maxlength="30" bindinput="query" bindconfirm="search" placeholder="搜索昵称或完整成员编号"/><button class="secondary" bindtap="search">查找</button></view>
       <view class="small muted mt">查看成员资料。成员身份不授予员工权限，普通成员与创始成员使用同一套安全核验标准。</view>
       <view wx:if="{{!loadingMore && !items.length}}" class="empty">没有找到匹配会员。</view>
       <view wx:for="{{items}}" wx:key="id" class="card mt" data-id="{{item.id}}" bindtap="select"><view class="row"><text class="card-title">{{item.nickname}}</text><text class="tag {{item.memberKind === 'founder' ? 'tag-dark' : ''}}">{{item.memberKind === 'founder' ? '创始成员' : '普通成员'}}</text></view><view class="member-code tiny muted mt">成员编号 · {{item.memberCode}}</view><view class="row small mt"><text class="muted">{{item.kindRequestStatus === 'pending' ? '身份核实待处理' : '查看身份、授权与技能'}}</text><text>管理 →</text></view></view>

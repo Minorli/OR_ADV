@@ -97,10 +97,14 @@ test('member pages distinguish founder participation, manual confirmation, priva
 
   api.switchMockRole('member');
   const profile = capture('profile/index'); await profile.load();
-  assert.equal(profile.data.memberNumber, memberId.slice(-8));
+  assert.equal(profile.data.memberNumber, String(profile.data.member.memberNumber));
   await profile.copyMemberNumber();
-  assert.equal(clipboard, memberId.slice(-8), 'own member identifier can be shared through an existing trusted channel');
+  assert.equal(clipboard, String(profile.data.member.memberNumber), 'own member identifier can be shared through an existing trusted channel');
   assert.equal(profile.data.member.memberKind, 'regular', 'copying an identifier grants no member privilege');
+  api.switchMockRole('owner'); await profile.load();
+  assert.equal(profile.data.memberNumber, '0', 'primary owner number zero is visible');
+  await profile.copyMemberNumber(); assert.equal(clipboard, '0', 'zero can be copied');
+  api.switchMockRole('member'); await profile.load();
   profile.setData({ kindReason: '申请核对既有称呼' }); await profile.requestKind();
   assert.equal(profile.data.member.memberKind, 'regular', 'request does not grant founder identity');
   assert.equal(profile.data.member.kindRequestStatus, 'pending');

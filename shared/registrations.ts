@@ -6,6 +6,7 @@ import type { Transaction } from './store';
 import { WAITLIST_RECHECK_BATCH } from './limits';
 import { effectiveMemberKind } from './member-identity';
 import { publicClub } from './club';
+import { readMemberNumber } from './member-number';
 
 export async function checkEligibility(ctx: Context, tx: Transaction, activity: Activity, memberId: string) {
   const growth = await tx.get<MemberStats>('member_stats', statsIdFor(ctx.clubId, memberId, null));
@@ -188,6 +189,7 @@ export async function listRegistrations(ctx: Context, staff = false) {
       const member = staff ? await tx.get<Membership>('memberships', row.memberId) : actor.member;
       const legacyReturn = !row.lastReturnDay && row.lastDepartureDay ? await tx.get<Checkin>('checkins', key('checkin', ctx.clubId, row.activityId, row.memberId, 'return', row.lastDepartureDay)) : null;
       items.push({ ...row, activityTitle: activity?.title ?? '活动', nickname: member?.nickname ?? '车友',
+        ...(staff && member ? { memberNumber: readMemberNumber(member.memberNumber) } : {}),
         memberKind: member ? effectiveMemberKind(member, ctx.now) : 'regular',
         confirmationPath: row.confirmationPath ?? 'staff_manual', activityStartAt: activity?.startAt,
         activityEndAt: activity?.endAt, activityLocation: activity?.location, activityState: activity?.state,

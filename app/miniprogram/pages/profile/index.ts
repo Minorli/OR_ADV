@@ -4,6 +4,7 @@ import { emptyContact, contactPerson, memberKindText } from '../../services/memb
 import type { ClubContact } from '../../services/member';
 import type { MemberSummary } from '../../../../shared/types';
 import { AvatarError, prepareAvatar } from '../../services/profile-avatar';
+import { memberNumberText } from '../../services/member-number';
 Page({
   data: {
     isMock, member: null as MemberSummary | null, contact: emptyContact, kindLabel: '游客', memberNumber: '', kindExpiresText: '',
@@ -21,7 +22,7 @@ Page({
     return this.data.profileVersion === version && (this.data.member?.id || null) === memberId && (!isMock || mockRole() === role);
   },
   clearIdentity() {
-    this.setData({ member: null, nickname: '', nicknameStatus: 'unchanged', nicknameError: '', avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false, saving: false,
+    this.setData({ member: null, memberNumber: '', nickname: '', nicknameStatus: 'unchanged', nicknameError: '', avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false, saving: false,
       profileVersion: this.data.profileVersion + 1, avatarVersion: this.data.avatarVersion + 1, avatarReadVersion: this.data.avatarReadVersion + 1 });
   },
   async load() {
@@ -33,7 +34,7 @@ Page({
       if (loadVersion !== this.data.loadVersion || isMock && mockRole() !== role) return;
       const changed = (member?.id || null) !== (this.data.member?.id || null);
       if (changed) this.clearIdentity();
-      this.setData({ member, contact, kindLabel: memberKindText(member), memberNumber: member?.id.slice(-8) || '', kindExpiresText: member?.memberKindExpiresAt ? dateText(member.memberKindExpiresAt) : '',
+      this.setData({ member, contact, kindLabel: memberKindText(member), memberNumber: member ? memberNumberText(member.memberNumber) : '', kindExpiresText: member?.memberKindExpiresAt ? dateText(member.memberKindExpiresAt) : '',
         ...(!this.data.showEdit || changed ? { nickname: member?.nickname || '', nicknameStatus: 'unchanged', nicknameError: '' } : {}),
         staff: !!member?.roles?.length, isOwner: !!member?.roles?.includes('owner') });
       if (member?.hasAvatar && !this.data.avatarUrl) await this.loadAvatar();
@@ -119,7 +120,7 @@ Page({
           : await call<MemberSummary>('profile.update', { nickname }, original.revision)
         : await call<MemberSummary>('identity.ensure', { consentVersions: { privacy: 1, terms: 1 } });
       if (!this.identityMatches(version, original?.id || null, resultRole)) return;
-      this.setData({ member, nickname: member.nickname, nicknameStatus: 'unchanged', nicknameError: '', kindLabel: memberKindText(member), memberNumber: member.id.slice(-8), staff: !!member.roles.length, isOwner: member.roles.includes('owner'), showEdit: false,
+      this.setData({ member, nickname: member.nickname, nicknameStatus: 'unchanged', nicknameError: '', kindLabel: memberKindText(member), memberNumber: memberNumberText(member.memberNumber), staff: !!member.roles.length, isOwner: member.roles.includes('owner'), showEdit: false,
         avatarBase64: '', avatarDraftUrl: '', draftPreviewFailed: false, avatarUrl: '', loadedRole: resultRole });
       toast(original ? '个人资料已保存' : isMock ? '演示身份已建立' : '已用微信登录');
       if (member.hasAvatar) await this.loadAvatar();
@@ -128,8 +129,8 @@ Page({
     } finally { if (this.data.profileVersion === version && (!isMock || mockRole() === role || mockRole() === resultRole)) this.setData({ saving: false }); }
   },
   async copyMemberNumber() {
-    if (!this.data.member || !this.data.memberNumber) return;
-    try { await wx.setClipboardData({ data: this.data.memberNumber }); toast('成员编号已复制'); }
+    if (!this.data.member || memberNumberText(this.data.member.memberNumber) === '待分配') return;
+    try { await wx.setClipboardData({ data: memberNumberText(this.data.member.memberNumber) }); toast('成员编号已复制'); }
     catch (error) { toast(errorMessage(error)); }
   },
   points() { wx.navigateTo({ url: '/pages/points/index' }); },

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createService } from '../../shared/service';
-import { createDemoStore, DEMO_IDENTITIES } from '../../shared/demo';
+import { createDemoStore, DEMO_IDENTITIES, upgradeDemoMemberNumbers } from '../../shared/demo';
 import { key, memberIdFor, statsIdFor, userIdFor } from '../../shared/models';
 import type { Activity, Registration, RpcResponse, TrustedIdentity } from '../../shared/types';
 import { MemoryStore } from '../../shared/memory-store';
@@ -225,9 +225,9 @@ test('member directory covers 200 members with bounded transactions, current rol
     const identity = { appId: 'demo-app', openId: `directory-${index}` };
     const userId = userIdFor(identity), memberId = memberIdFor('oradv', userId);
     seed.users[userId] = { ...sourceUser, id: userId, wxOpenId: identity.openId };
-    seed.memberships[memberId] = { ...sourceMember, id: memberId, userId, nickname: index < 2 ? '重名车友' : `目录车友${index}`, publicId: key('public', memberId) };
+    seed.memberships[memberId] = { ...sourceMember, id: memberId, userId, memberNumber: index + 6, nickname: index < 2 ? '重名车友' : `目录车友${index}`, publicId: key('public', memberId) };
   }
-  const memory = new MemoryStore(seed, () => NOW);
+  const memory = new MemoryStore(upgradeDemoMemberNumbers(seed), () => NOW);
   let maximum = 0;
   const bounded: Store = {
     query: (collection, filters, options) => memory.query(collection, filters, options),

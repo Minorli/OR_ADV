@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.2.0-test.4",
+  "version": "0.2.0-test.5",
   "asOf": "2026-10-16",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -69,27 +69,27 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.2.0-test.4",
+    "sourceVersion": "0.2.0-test.5",
     "typecheck": "passed",
-    "domainTests": 57,
-    "cloudTests": 13,
+    "domainTests": 70,
+    "cloudTests": 14,
     "buildAndTemplateTests": 10,
-    "typescriptTests": 80,
-    "nativePageTests": 8,
+    "typescriptTests": 94,
+    "nativePageTests": 10,
     "pythonToolTests": 14,
-    "totalTests": 102,
+    "totalTests": 118,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
   },
   "previewUpload": {
     "status": "success",
-    "version": "0.2.0-test.4",
+    "version": "0.2.0-test.5",
     "mode": "mock",
     "sdkVersion": "2.1.31",
     "qrGenerated": true,
     "uploadIpWhitelistDisabledByUser": true,
-    "localQrArtifact": "dist/OR_ADV-preview-0.2.0-test.4.png"
+    "localQrArtifact": "dist/OR_ADV-preview-0.2.0-test.5.png"
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": false,
@@ -185,5 +185,17 @@
     "localOutlineIcons": 14,
     "layoutInspection": "native_template_data_in_browser_not_real_device",
     "referenceBusinessPoliciesApplied": false
+  },
+  "memberNumbering": {
+    "status": "implemented_locally_real_cloud_not_run",
+    "initialOwnerNumber": 0,
+    "newMemberNumbersStartAt": 1,
+    "allocation": "atomic_private_sequence_and_number_claim_with_identity",
+    "mayHaveGaps": true,
+    "recycleNumbers": false,
+    "numberGrantsRole": false,
+    "internalHashedIdsPreserved": true,
+    "localV3Upgrade": "preserves_avatar_records_revisions_and_unknown_fields_before_use",
+    "realLegacyBackfillExecuted": false
   }
 }

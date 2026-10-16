@@ -64,6 +64,8 @@ node scripts/cloud-plan.cjs --env test --config config/local.json --check
 
 真实微信用户首次同意后建立内部会员，再由可信部署者初始化首位 owner。单独的 `work/cloud-bootstrap-owner.cjs` 默认为计划，不是任何用户可调用的云函数。其 `--execute` 需要匹配本地测试环境以及受授权的云部署身份；未取得实际身份前不执行。查看 `node work/cloud-bootstrap-owner.cjs --help`，不要将云凭据发到聊天或 GitHub。
 
+编号版初始化会同时将经核实的首位主理人成员设为0号，并写入角色、占号、审计和关闭标记。CLI的`--member-id`仍是内部成员ID，应由受信部署者在后台核对真实主理人档案后使用，不能把界面数字编号或昵称直接作为授权依据。若该档案已领过正号，旧号继续保留占用；其他已分配编号不重排。本轮未执行真实初始化或旧库补号。
+
 ## 0.2a增量结构
 
 当前计划为v2，保留v1作追溯。新增 `activity_briefings` 与 `public_recommendations`，以及成员目录、技能和本人核验时间线所需索引；两类新增集合仍禁止客户端直接读写。现有成员缺少业务身份字段时按普通成员处理，不自动升为创始成员；现有已确认报名与积分流水不自动重写。

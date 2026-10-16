@@ -1,4 +1,4 @@
-import { demoSnapshot, DEMO_IDENTITIES } from './demo';
+import { demoSnapshot, DEMO_IDENTITIES, upgradeDemoMemberNumbers } from './demo';
 import { MemoryStore } from './memory-store';
 import { completionIdFor, key, memberIdFor, registrationIdFor, shanghaiDay, shanghaiYear, statsIdFor, userIdFor, yearRevisionIdFor } from './models';
 import type { Audit, Checkin, MemberStats, Membership, PublicRanking, Qualification, RecommendationProjection, SettlementJob, StaffRole, User } from './models';
@@ -223,7 +223,7 @@ export function showcaseSnapshot(referenceNow = new Date().toISOString()): Store
       successCount: Object.values(seed.registrations).filter(row => (row as Registration).activityId === activityId && (row as Registration).state === 'completed').length,
       failureCount: 0, failures: [] });
   }
-  return seed;
+  return upgradeDemoMemberNumbers(seed);
 }
 
 export function createShowcaseStore(referenceNow?: string): MemoryStore {

@@ -1,4 +1,4 @@
-import { Context, encodeCursor, paginated, parseCursor } from './context';
+import { Context, encodeCursor, parseCursor } from './context';
 import { integer, requireThat, text } from './errors';
 import { key, statsIdFor } from './models';
 import type { Membership, RecommendationProjection, StaffRole, User, MemberStats } from './models';
@@ -6,6 +6,7 @@ import { effectiveMemberKind, memberIdentityFields, recommendationSortKey } from
 import { sha256 } from './hash';
 import type { Transaction } from './store';
 import type { RecommendationEntry, Role, StaffMemberSummary, StaffRoleSummary } from './types';
+import { readMemberNumber } from './member-number';
 
 async function clubRows<T extends { id: string }>(ctx: Context, collection: string, filters: Record<string, unknown>): Promise<T[]> {
   const rows: T[] = [];
@@ -28,7 +29,7 @@ export async function roleSummaries(ctx: Context, tx: Transaction, member: Membe
 }
 async function staffMember(ctx: Context, tx: Transaction, member: Membership): Promise<StaffMemberSummary> {
   const user = await tx.get<User>('users', member.userId);
-  return { id: member.id, memberId: member.id, nickname: member.nickname, ...memberIdentityFields(member, ctx.now),
+  return { id: member.id, memberId: member.id, nickname: member.nickname, memberNumber: readMemberNumber(member.memberNumber), ...memberIdentityFields(member, ctx.now),
     recommendationPriority: member.recommendationPriority ?? 0, revision: member.revision,
     status: user?.status ?? 'unavailable', staffRoles: await roleSummaries(ctx, tx, member) };
 }
@@ -43,13 +44,31 @@ export async function listMembers(ctx: Context) {
   await ctx.store.transaction((tx) => ctx.staff(tx, ['owner','operator']));
   const query = ctx.request.payload.query === undefined || ctx.request.payload.query === '' ? '' : text(ctx.request.payload.query, '查找内容', 60).toLocaleLowerCase();
   const cursor = parseCursor(ctx.request.payload.cursor);
-  let rows: Membership[];
-  if (query) {
-    rows = (await clubRows<Membership>(ctx, 'memberships', { clubId: ctx.clubId }))
-      .filter((member) => (member.nickname.toLocaleLowerCase().includes(query) || member.id.toLocaleLowerCase().endsWith(query)) && (!cursor || member.id > cursor.id))
-      .sort((a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).slice(0, 21);
-  } else rows = await ctx.store.query<Membership>('memberships', { clubId: ctx.clubId }, { orderBy: 'id', limit: 21, after: cursor });
-  const page = paginated(rows, 'id');
+  const seen = new Set<number>();
+  const all = await clubRows<Membership>(ctx, 'memberships', { clubId: ctx.clubId });
+  for (const member of all) {
+    const number = readMemberNumber(member.memberNumber);
+    if (number === undefined) continue;
+    requireThat(!seen.has(number), 'STATE_CONFLICT', '成员编号重复，请联系主理人核对');
+    seen.add(number);
+  }
+  const numericQuery = query !== '' && /^\d+$/.test(query);
+  const numberQuery = numericQuery ? Number(query) : undefined;
+  const rows = all.filter(member => !query || (numericQuery ? member.memberNumber === numberQuery : member.nickname.toLocaleLowerCase().includes(query)))
+    .sort((a, b) => {
+      if (a.memberNumber !== b.memberNumber) {
+        if (a.memberNumber === undefined) return 1;
+        if (b.memberNumber === undefined) return -1;
+        return a.memberNumber - b.memberNumber;
+      }
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
+  const signature = sha256(JSON.stringify([query, rows.map(member => [member.id, member.memberNumber ?? null])]));
+  requireThat(!cursor || cursor.signature === signature, 'CONFLICT_REFRESH', '成员编号或查找结果已更新，请刷新列表');
+  const previous = cursor ? rows.findIndex(member => member.id === cursor.id && (member.memberNumber ?? null) === cursor.value) : -1;
+  requireThat(!cursor || previous >= 0, 'INVALID_INPUT', '成员分页位置不正确');
+  const selected = rows.slice(previous + 1, previous + 21), last = selected[selected.length - 1];
+  const page = { items: selected, nextCursor: last && rows.length > previous + 21 ? encodeCursor({ value: last.memberNumber ?? null, id: last.id, signature }) : null };
   const items: StaffMemberSummary[] = [];
   // Role summaries need four reads per member. Ten per transaction stays
   // safely below CloudBase's 100-operation limit for a 20-member page.

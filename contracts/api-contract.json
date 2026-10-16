@@ -627,7 +627,7 @@
     "membership": "Server-verified founder direct confirmation only after identical score/skill/capacity/time/rule gates; regular confirmation is staff action. No payment state or money data.",
     "recommendations": "Separate opt-in; effective kind and live consent checked on every read; public values only; stale live cursor returns CONFLICT_REFRESH.",
     "briefings": "Confirmed/nonvoid participants and scoped staff only; cancellation/cancelled activity denies member reads; versions protect writes; advanced re-consent deferred.",
-    "directory": "20 per page, role summaries expose no userId; search capped at 200 club records; ten-member read transactions.",
+    "directory": "20 per page; numeric member number ascending then unassigned; role summaries expose no userId; exact numeric or nickname search capped at 200 club records; ten-member read transactions.",
     "initialRevisions": "club/briefing/qualification first save expectedRevision=0; updates must use returned revision"
   },
   "avatarNotes": {
@@ -639,5 +639,14 @@
     "cleanup": "Old-image cleanup failure is recorded with action/code only and does not turn a committed profile into a reported save failure; upload transport uncertainty may leave an orphan for later reconciliation.",
     "publicProjection": "Only self-summary has hasAvatar. No fileID/URL is returned in summaries, employee directories, recommendations or rankings.",
     "rateLimit": "Native cloud entry preserves 120 requests/minute and adds a separate five-avatar-saves/minute limit per trusted identity."
+  },
+  "memberNumberNotes": {
+    "identity": "memberNumber is a private display number, never an identity credential or authorization input. Internal hashed user/member/registration/ledger IDs remain unchanged.",
+    "allocation": "New identities get positive safe integers from 1. Identity/member/counter/number claim/audit are committed in one transaction; repeated identity requests reuse the number. Claimed numbers are never recycled, including after account deletion.",
+    "control": "Private deterministic documents in the existing clubs collection: key(member-sequence,clubId) with kind=member_sequence,nextNumber>=1,primaryOwnerMemberId; key(member-number,clubId,number) with kind=member_number_claim,memberNumber,memberId. Public club settings read/write only clubs/{clubId}.",
+    "zero": "Only trusted one-time deployment bootstrap assigns 0 together with the initial owner role and closed marker. If the initial login already allocated a positive number, its claim stays retired and a gap remains. Additional owners retain their original numbers. Number 0 itself grants no role.",
+    "projections": "Self summary, authorized staff directory and authorized staff event roster return optional memberNumber. Missing legacy numbers are omitted, never replaced by 0 or an internal ID suffix. Public recommendations and rankings omit memberNumber.",
+    "directory": "At most 200 club records, number ascending first and unassigned records last; 20 per page. Numeric queries match the entire number including 0; other queries match nicknames only. Cursor signature binds the result numbers and search so a concurrent backfill requires refresh.",
+    "compatibility": "Real legacy members without a number remain unassigned; no read endpoint scans/reorders or assigns zero. Existing undeployed test data requires trusted backfill before wider use. Only the local mock restores old v3 snapshots through a pure fixture upgrader, preserving avatars, records, identities and business revisions."
   }
 }

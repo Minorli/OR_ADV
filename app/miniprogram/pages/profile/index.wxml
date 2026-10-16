@@ -9,7 +9,7 @@
     <view wx:else class="profile-hero-avatar-button"><view class="profile-hero-avatar profile-avatar-default">OR.</view><text class="profile-or-badge">OR</text></view>
     <view class="profile-hero-name">{{member ? member.nickname : '原始拉力车友'}}</view>
     <view class="profile-kind"><text class="profile-kind-dot"></text>{{member ? kindLabel : '登录后查看个人记录'}}</view>
-    <button wx:if="{{member}}" class="profile-member-number" bindtap="copyMemberNumber">成员编号 {{memberNumber}} <text>复制</text></button>
+    <button wx:if="{{member}}" class="profile-member-number" bindtap="copyMemberNumber" disabled="{{memberNumber === '待分配'}}">成员编号 {{memberNumber}} <text wx:if="{{memberNumber !== '待分配'}}">复制</text></button>
     <view wx:if="{{member}}" class="profile-identity-note">编号供主理人核对档案，不能代替身份核实。</view>
     <view wx:if="{{kindExpiresText}}" class="profile-identity-note">身份有效至 {{kindExpiresText}}</view>
     <button wx:if="{{member}}" class="profile-edit-link" bindtap="edit">{{showEdit ? '收起资料编辑' : '编辑头像与昵称'}} <text>›</text></button>

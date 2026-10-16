@@ -57,7 +57,7 @@
           <view class="stats"><view class="stat"><view class="stat-number">{{pendingCount}}</view><view class="stat-label">待处理</view></view><view class="stat"><view class="stat-number">{{confirmedCount}}</view><view class="stat-label">确认待出发</view></view><view class="stat"><view class="stat-number">{{departedCount}}</view><view class="stat-label">已出发待回</view></view><view class="stat"><view class="stat-number">{{returnedCount}}</view><view class="stat-label">正常结束</view></view></view>
           <view class="field"><text class="field-label">操作说明 / 异常原因（审核未通过、退出、未到、取消必填）</text><input value="{{operationReason}}" maxlength="300" bindinput="reason" placeholder="请填客观说明，不填写敏感信息"/></view>
           <view class="section-head"><text class="section-title">报名与现场名单</text><text class="section-index">{{registrations.length}} 位</text></view>
-          <input value="{{rosterQuery}}" bindinput="searchRoster" maxlength="30" placeholder="搜索本场昵称或成员编号后 8 位"/>
+          <input value="{{rosterQuery}}" bindinput="searchRoster" maxlength="30" placeholder="搜索本场昵称或完整成员编号"/>
           <view class="filter-row"><button wx:for="{{rosterFilters}}" wx:key="value" class="pill {{rosterFilter === item.value ? 'active' : ''}}" data-filter="{{item.value}}" bindtap="filterRoster">{{item.label}}</button></view>
           <view class="small muted mb">{{today}} · 待回场 {{unreturnedCount}} 人。名单优先显示未完成回场核验者，不按成员身份排序。</view>
           <view wx:if="{{rosterLoading}}" class="loading">正在读取名单…</view>

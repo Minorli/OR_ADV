@@ -40,7 +40,8 @@
       "kindRequestStatus": "pending|resolved|null",
       "kindRequestedAt": "timestamp|null",
       "kindRequestReason": "string(private)",
-      "revision": "integer"
+      "revision": "integer",
+      "memberNumber": "optional nonnegative safe integer; 0 reserved for trusted initial owner bootstrap, new regular identities allocate >=1; private display field, no authority"
     },
     "staff_roles": {
       "userId": "string",
@@ -193,7 +194,8 @@
     "points_ledger:businessKey",
     "member_stats:clubId+memberId+scope+year",
     "activity_briefings:clubId+activityId",
-    "public_recommendations:clubId+memberId"
+    "public_recommendations:clubId+memberId",
+    "clubs.member_number_claim:clubId+memberNumber via deterministic private claim document in the allocation transaction"
   ],
   "sensitiveCollections": [
     "users",
@@ -215,7 +217,19 @@
       "kind": "year_guard",
       "year": "integer",
       "revision": "integer; updated atomically with each award/reversal; no scope"
+    },
+    "clubs.member_sequence": {
+      "id": "key(member-sequence,clubId)",
+      "kind": "member_sequence",
+      "nextNumber": "safe integer>=1; next candidate; never lowered by product operations",
+      "primaryOwnerMemberId": "private memberId|null; reservation only, not authorization"
+    },
+    "clubs.member_number_claim": {
+      "id": "key(member-number,clubId,memberNumber)",
+      "kind": "member_number_claim",
+      "memberNumber": "nonnegative safe integer",
+      "memberId": "private immutable membership reference; old positive claims retained after initial owner moves to zero"
     }
   },
-  "privacyNotes": "All direct client DB access denied. Recommendation API projects only opted nickname/member kind; points/counts require separate rankingOptIn. Private briefing never appears in activity public projection. Avatar files are private and client storage access stays denied. Only the current member may request a short-lived avatar URL; public/member/staff projections omit avatar object IDs and URLs."
+  "privacyNotes": "All direct client DB access denied. Recommendation API projects only opted nickname/member kind; points/counts require separate rankingOptIn. Private briefing never appears in activity public projection. Avatar files are private and client storage access stays denied. Only the current member may request a short-lived avatar URL; public/member/staff projections omit avatar object IDs and URLs. Private memberNumber appears only in self and authorized staff responses. Public club projection excludes sequence/claim documents and public rankings/recommendations omit memberNumber."
 }

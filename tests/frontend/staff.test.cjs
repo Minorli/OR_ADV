@@ -21,9 +21,12 @@ test('staff roster gives every unreturned rider equal safety priority and filter
   assert.equal(result.visible.find(item => item.id === 'founder-out').confirmationText, '创始身份自动确认');
   assert.deepEqual(rosterPresentation(rows, today, 'unreturned', '普通').visible.map(item => item.id), ['regular-out']);
   assert.equal(rosterPresentation(rows, today, 'today').visible.length, 3);
-  const sameName = [{ ...base, id: 'one', nickname: '同名车友', memberId: 'member-12345678' }, { ...base, id: 'two', nickname: '同名车友', memberId: 'member-87654321' }];
-  assert.deepEqual(rosterPresentation(sameName, today).visible.map(item => item.memberCode), ['12345678', '87654321']);
-  assert.deepEqual(rosterPresentation(sameName, today, 'all', '87654321').visible.map(item => item.id), ['two']);
+  const sameName = [{ ...base, id: 'one', nickname: '同名车友', memberId: 'internal-one', memberNumber: 0 }, { ...base, id: 'two', nickname: '同名车友', memberId: 'internal-two', memberNumber: 10 }, { ...base, id: 'three', nickname: '同名车友', memberNumber: 20 }, { ...base, id: 'legacy', nickname: '0号车友', memberId: 'hash-with-zero-0' }];
+  assert.deepEqual(rosterPresentation(sameName, today).visible.map(item => item.memberCode), ['0', '10', '20', '待分配']);
+  assert.deepEqual(rosterPresentation(sameName, today, 'all', '10').visible.map(item => item.id), ['two']);
+  assert.deepEqual(rosterPresentation(sameName, today, 'all', '0').visible.map(item => item.id), ['one']);
+  assert.deepEqual(rosterPresentation(sameName, today, 'all', '1').visible.map(item => item.id), []);
+  assert.equal(rosterPresentation(sameName, today, 'all', '同名').visible.length, 3);
 });
 
 test('owner native member controls use revisions and cannot force public consent or grant a staff role through founder status', async () => {
@@ -55,7 +58,7 @@ test('owner native member controls use revisions and cannot force public consent
   assert.equal(page.data.error, '');
   const target = page.data.items.find(item => item.memberId === member.id || item.id === member.id);
   assert.ok(target);
-  assert.equal(target.memberCode, member.id.slice(-8));
+  assert.equal(target.memberCode, String(member.memberNumber));
   await page.select({ currentTarget: { dataset: { id: target.id } } });
   assert.equal(page.data.error, '');
   page.setData({ reason: '核对主理人已有创始会员名册', expiryDate: '' });

@@ -1,12 +1,13 @@
 import { call, currentMember, errorMessage, confirm, toast, isMock } from '../../services/api';
 import type { MemberSummary, PageResult, Role, Activity } from '../../../../shared/types';
+import { memberNumberText } from '../../services/member-number';
 
 interface RoleGrant { role: Role; revision: number; enabled: boolean; activityIds: string[] | null; expiresAt: string | null }
 interface MemberRow {
   id: string; memberId: string; nickname: string; memberKind: 'founder' | 'regular'; memberKindVersion: number;
   memberKindExpiresAt: string | null; revision: number; recommendationPriority: number; recommendationOptIn: boolean;
   kindRequestStatus: 'pending' | 'resolved' | null; kindRequestedAt: string | null; staffRoles?: RoleGrant[];
-  memberCode?: string;
+  memberNumber?: number; memberCode?: string;
 }
 interface ClubSettings { clubId: string; name: string; contactName: string; contactMethod: string; contactValue: string; contactInstructions: string; revision: number; configured: boolean }
 interface Qualification { id: string; memberId: string; type: string; decision: string; expiresAt: string | null; revision: number; reviewedAt: string | null }
@@ -52,7 +53,7 @@ Page({
     try {
       const result = await call<PageResult<MemberRow>>('staff.member.list', { query: this.data.query.trim() || undefined, cursor: append ? this.data.nextCursor : undefined });
       if (this.data.requestVersion !== requestVersion) return;
-      const items = result.items.map(item => ({ ...item, memberCode: (item.memberId || item.id).slice(-8) }));
+      const items = result.items.map(item => ({ ...item, memberCode: memberNumberText(item.memberNumber) }));
       this.setData({ items: append ? [...this.data.items, ...items] : items, nextCursor: result.nextCursor });
     } catch (error) { if (this.data.requestVersion === requestVersion) this.setData({ error: errorMessage(error) }); }
     finally { if (this.data.requestVersion === requestVersion) this.setData({ loadingMore: false }); }

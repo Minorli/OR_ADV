@@ -3,8 +3,8 @@
   "clubId": "oradv",
   "projectPath": "app/miniprogram",
   "privateKeyPath": "",
-  "version": "0.2.0-test.4",
-  "description": "OR ADV 0.2a 黑橙页面内测版",
+  "version": "0.2.0-test.5",
+  "description": "OR ADV 0.2a 成员编号内测版",
   "robot": 1,
   "environments": {
     "test": {

@@ -4,6 +4,7 @@ import { collect, refreshRankings } from './context';
 import { key, memberIdFor, shanghaiYear, userIdFor } from './models';
 import type { Membership, User } from './models';
 import { syncRecommendation } from './members';
+import { allocateMemberNumber } from './member-number';
 
 export async function syncProfileProjections(ctx: Context, memberId: string) {
   const projections = await collect<{ id: string }>(ctx.store, 'public_rankings', { clubId: ctx.clubId, memberId });
@@ -35,14 +36,14 @@ export async function ensureIdentity(ctx: Context) {
     const user: User = { id: userId, clubId: ctx.clubId, appId: identity.appId, wxOpenId: identity.openId, status: 'active',
       consentVersions: { privacy: 1, terms: 1 }, createdAt: ctx.now, updatedAt: ctx.now };
     const id = memberIdFor(ctx.clubId, userId);
-    const member: Membership = { id, clubId: ctx.clubId, userId, nickname: ctx.request.payload.nickname ? text(ctx.request.payload.nickname, '昵称', 30) : '新车友',
+    const member: Membership = { id, clubId: ctx.clubId, userId, memberNumber: await allocateMemberNumber(tx, ctx.clubId, id), nickname: ctx.request.payload.nickname ? text(ctx.request.payload.nickname, '昵称', 30) : '新车友',
       publicId: key('public', ctx.id()), rankingOptIn: false, rankingConsentVersion: 0,
       memberKind: 'regular', memberKindVersion: 0, memberKindExpiresAt: null,
       recommendationOptIn: false, recommendationConsentVersion: 0, recommendationPriority: 0,
       revision: 1, createdAt: ctx.now, updatedAt: ctx.now };
     await tx.set('users', user.id, user);
     await tx.set('memberships', id, member);
-    await ctx.audit(tx, { user, member }, 'membership', id, { created: true });
+    await ctx.audit(tx, { user, member }, 'membership', id, { created: true, memberNumber: member.memberNumber });
     return ctx.summary(tx, { user, member });
   });
 }

@@ -1,8 +1,9 @@
 import { createService } from '../../../shared/service';
-import { createDemoStore, DEMO_IDENTITIES } from '../../../shared/demo';
+import { createDemoStore, DEMO_IDENTITIES, upgradeDemoMemberNumbers } from '../../../shared/demo';
 import { createShowcaseStore } from '../../../shared/demo-showcase';
 import { MemoryStore } from '../../../shared/memory-store';
 import type { RpcResponse, MemberSummary } from '../../../shared/types';
+import type { StoreSnapshot } from '../../../shared/store';
 import { clearMockAvatarFiles, createMockAvatarStorage } from './profile-avatar';
 
 interface RuntimeConfig { mode: 'mock' | 'cloud'; envId: string; appId: string; version: string }
@@ -44,7 +45,17 @@ export function resetMock(dataset: 'showcase' | 'empty' = 'showcase'): void {
 function getMockService(): ReturnType<typeof createService> {
   if (service) return service;
   const snapshot = wx.getStorageSync(STORE_KEY);
-  store = snapshot && typeof snapshot === 'object' ? new MemoryStore(snapshot) : createShowcaseStore();
+  if (snapshot !== undefined && snapshot !== '') {
+    try {
+      if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new Error('Invalid local snapshot');
+      const upgraded = upgradeDemoMemberNumbers(snapshot as StoreSnapshot);
+      const restored = new MemoryStore(upgraded);
+      wx.setStorageSync(STORE_KEY, upgraded);
+      store = restored;
+    } catch {
+      throw new ApiError('LOCAL_DATA_UPGRADE_FAILED', '本机演示数据未能完成编号更新，请检查本机存储后重试。原有数据不会被重置。');
+    }
+  } else store = createShowcaseStore();
   service = createService(store, { avatarStorage: createMockAvatarStorage() });
   return service;
 }
