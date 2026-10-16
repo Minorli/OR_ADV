@@ -1,33 +1,51 @@
-import { call, currentMember, errorMessage, isMock, mockRole, switchMockRole, resetMock, confirm, toast } from '../../services/api';
+import { call, currentMember, errorMessage, isMock, mockRole, switchMockRole, resetMock, confirm, toast, runtime } from '../../services/api';
 import { mockRoleLabels, mockRoles, dateText } from '../../services/presentation';
 import { emptyContact, contactPerson, memberKindText } from '../../services/member';
-import type { ClubContact } from '../../services/member';
 import type { MemberSummary } from '../../../../shared/types';
 import { AvatarError, prepareAvatar } from '../../services/profile-avatar';
 import { memberNumberText } from '../../services/member-number';
 import type { MemberDossier } from '../../../../shared/dossier-types';
-interface ProfileReadSnapshot { member: MemberSummary; profileVersion: number; loadVersion: number; role: string }
+import { profileDossierProgress } from '../../../../shared/profile-overview-types';
+import type { ProfileOverview } from '../../../../shared/profile-overview-types';
+const profileEnvironment = () => JSON.stringify([runtime.mode, runtime.appId, runtime.envId]);
+const activeLoads = new WeakMap<object, { role: string; version: number; lifecycle: number; environment: string; promise: Promise<void> }>();
+const identityReads = new WeakMap<object, { role: string; version: number; lifecycle: number; environment: string; memberId: string | null; promise: Promise<MemberSummary | null> }>();
+function freshIdentity(page: object, role: string, version: number, lifecycle: number, memberId: string | null): Promise<MemberSummary | null> {
+  const pending = identityReads.get(page);
+  if (pending && pending.role === role && pending.version === version && pending.lifecycle === lifecycle && pending.environment === profileEnvironment() && pending.memberId === memberId) return pending.promise;
+  let promise: Promise<MemberSummary | null>;
+  promise = currentMember().finally(() => { if (identityReads.get(page)?.promise === promise) identityReads.delete(page); });
+  identityReads.set(page, { role, version, lifecycle, environment: profileEnvironment(), memberId, promise });
+  return promise;
+}
+interface ProfileReadSnapshot { member: MemberSummary; profileVersion: number; loadVersion: number; role: string; lifecycle: number; environment: string }
 Page({
   data: {
     isMock, member: null as MemberSummary | null, contact: emptyContact, kindLabel: '游客', memberNumber: '', kindExpiresText: '',
     nickname: '', nicknameStatus: 'unchanged', nicknameError: '', consent: false, kindReason: '', roles: mockRoleLabels, roleLabel: '',
     staff: false, isOwner: false, showPrivacy: false, showEdit: false, loading: false, saving: false, error: '', notice: '',
     avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false,
-    loadVersion: 0, profileVersion: 0, avatarVersion: 0, avatarReadVersion: 0, loadedRole: '',
+    loadVersion: 0, profileVersion: 0, lifecycleVersion: 0, loadedScope: '', avatarVersion: 0, avatarReadVersion: 0, loadedRole: '',
     identityVerified: false, dossierReadVersion: 0, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。',
     dossierCount: '0 / 11', dossierParts: [] as { name: string; ready: boolean }[],
   },
   onShow() {
     if (wx.getStorageSync('oradv-open-privacy')) { this.setData({ showPrivacy: true }); wx.setStorageSync('oradv-open-privacy', false); }
-    void this.resume();
+    return this.resume();
   },
-  async resume() { if (this.data.saving) { await this.verifyIdentity(); return; } await this.load(); },
+  async resume() {
+    const pending = activeLoads.get(this), role = mockRole();
+    if (pending && pending.version === this.data.loadVersion && pending.role === role && pending.lifecycle === this.data.lifecycleVersion && pending.environment === profileEnvironment()) { await pending.promise; return; }
+    if (this.data.saving || this.data.avatarProcessing || this.data.showEdit) { await this.verifyIdentity(); return; }
+    await this.load();
+  },
+  onHide() { this.setData({ lifecycleVersion: this.data.lifecycleVersion + 1, identityVerified: false }); },
   onUnload() { this.setData({ loadVersion: this.data.loadVersion + 1, profileVersion: this.data.profileVersion + 1, avatarVersion: this.data.avatarVersion + 1 }); },
   identityMatches(version: number, memberId: string | null, role: string) {
-    return this.data.profileVersion === version && (this.data.member?.id || null) === memberId && (!isMock || mockRole() === role);
+    return this.data.profileVersion === version && this.data.loadedScope === profileEnvironment() && (this.data.member?.id || null) === memberId && (!isMock || mockRole() === role);
   },
   readMatches(snapshot: ProfileReadSnapshot) {
-    return this.data.loadVersion === snapshot.loadVersion && this.identityMatches(snapshot.profileVersion, snapshot.member.id, snapshot.role);
+    return this.data.lifecycleVersion === snapshot.lifecycle && this.data.loadedScope === snapshot.environment && this.data.loadVersion === snapshot.loadVersion && this.identityMatches(snapshot.profileVersion, snapshot.member.id, snapshot.role);
   },
   clearIdentity() {
     this.setData({ member: null, memberNumber: '', nickname: '', nicknameStatus: 'unchanged', nicknameError: '', avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false, saving: false, kindReason: '', consent: false, kindExpiresText: '', showEdit: false,
@@ -35,61 +53,56 @@ Page({
       profileVersion: this.data.profileVersion + 1, avatarVersion: this.data.avatarVersion + 1, avatarReadVersion: this.data.avatarReadVersion + 1 });
   },
   async verifyIdentity() {
-    const role = mockRole(), version = this.data.profileVersion, memberId = this.data.member?.id || null;
-    if (isMock && this.data.loadedRole && this.data.loadedRole !== role) { this.clearIdentity(); await this.load(); return false; }
+    const role = mockRole(), version = this.data.profileVersion, lifecycle = this.data.lifecycleVersion, scope = profileEnvironment(), memberId = this.data.member?.id || null;
+    if (this.data.loadedScope && this.data.loadedScope !== scope || isMock && this.data.loadedRole && this.data.loadedRole !== role) { this.clearIdentity(); await this.load(); return false; }
     this.setData({ identityVerified: false });
     try {
-      const member = await currentMember();
-      if (version !== this.data.profileVersion) return false;
+      const member = await freshIdentity(this, role, version, lifecycle, memberId);
+      if (version !== this.data.profileVersion || lifecycle !== this.data.lifecycleVersion || scope !== profileEnvironment()) return false;
       if (isMock && mockRole() !== role || (member?.id || null) !== memberId) { this.clearIdentity(); await this.load(); return false; }
       this.setData({ identityVerified: true, staff: !!member?.roles.length, isOwner: !!member?.roles.includes('owner') });
       return true;
     } catch (error) {
-      if (version === this.data.profileVersion && (!isMock || mockRole() === role)) { this.clearIdentity(); this.setData({ error: errorMessage(error) }); }
+      if (version === this.data.profileVersion && lifecycle === this.data.lifecycleVersion && scope === profileEnvironment() && (!isMock || mockRole() === role)) { this.clearIdentity(); this.setData({ error: errorMessage(error) }); }
       return false;
     }
   },
-  async load() {
-    const role = mockRole(), loadVersion = this.data.loadVersion + 1;
-    if (isMock && this.data.loadedRole && this.data.loadedRole !== role) this.clearIdentity();
-    this.setData({ loading: true, error: '', identityVerified: false, loadedRole: role, loadVersion,
+  load(): Promise<void> {
+    const role = mockRole();
+    let promise: Promise<void>;
+    promise = this.loadOverview().finally(() => { if (activeLoads.get(this)?.promise === promise) activeLoads.delete(this); });
+    activeLoads.set(this, { role, version: this.data.loadVersion, lifecycle: this.data.lifecycleVersion, environment: profileEnvironment(), promise });
+    return promise;
+  },
+  async loadOverview() {
+    const role = mockRole(), loadVersion = this.data.loadVersion + 1, lifecycle = this.data.lifecycleVersion, scope = profileEnvironment();
+    if (this.data.loadedScope && this.data.loadedScope !== scope || isMock && this.data.loadedRole && this.data.loadedRole !== role) this.clearIdentity();
+    this.setData({ loading: true, error: '', identityVerified: false, loadedRole: role, loadedScope: scope, loadVersion,
       avatarReadVersion: this.data.avatarReadVersion + 1, dossierReadVersion: this.data.dossierReadVersion + 1, avatarLoading: false, dossierLoading: false,
       roleLabel: mockRoleLabels[mockRoles.indexOf(role)] || '游客' });
     try {
-      const contactRead = call<ClubContact>('club.public').then(
-        value => ({ value, error: '' }),
-        error => ({ value: emptyContact, error: `组织方联系信息暂时无法读取：${errorMessage(error)}` }),
-      );
-      const member = await currentMember();
-      if (loadVersion !== this.data.loadVersion) return;
+      const result = await call<ProfileOverview>('profile.overview');
+      if (loadVersion !== this.data.loadVersion || lifecycle !== this.data.lifecycleVersion || scope !== profileEnvironment()) return;
       if (isMock && mockRole() !== role) { this.clearIdentity(); await this.load(); return; }
-      const changed = (member?.id || null) !== (this.data.member?.id || null);
+      const member = result.member, changed = (member?.id || null) !== (this.data.member?.id || null);
       if (changed) this.clearIdentity();
-      this.setData({ member, kindLabel: memberKindText(member), memberNumber: member ? memberNumberText(member.memberNumber) : '', kindExpiresText: member?.memberKindExpiresAt ? dateText(member.memberKindExpiresAt) : '',
+      this.setData({ member, contact: result.contact, error: result.contactError, kindLabel: memberKindText(member), memberNumber: member ? memberNumberText(member.memberNumber) : '',
+        kindExpiresText: member?.memberKindExpiresAt ? dateText(member.memberKindExpiresAt) : '',
         ...(!this.data.showEdit || changed ? { nickname: member?.nickname || '', nicknameStatus: 'unchanged', nicknameError: '' } : {}),
-        staff: !!member?.roles?.length, isOwner: !!member?.roles?.includes('owner'), identityVerified: true });
-      if (!member?.hasAvatar) this.setData({ avatarUrl: '' });
-      const profileVersion = this.data.profileVersion;
-      const readContact = contactRead.then(contact => {
-        if (loadVersion === this.data.loadVersion && this.identityMatches(profileVersion, member?.id || null, role)) this.setData({ contact: contact.value, error: contact.error });
-      });
-      if (member) {
-        const snapshot: ProfileReadSnapshot = { member, profileVersion, loadVersion, role };
-        // Only this load may reuse its just-verified identity. External retries
-        // and all mutations keep their existing fresh identity checks.
-        await Promise.all([readContact, member.hasAvatar && !this.data.avatarUrl ? this.readAvatar(snapshot) : Promise.resolve(), this.readDossier(snapshot)]);
-      } else await readContact;
-      if (loadVersion === this.data.loadVersion && isMock && mockRole() !== role) { this.clearIdentity(); await this.load(); }
+        staff: !!member?.roles?.length, isOwner: !!member?.roles?.includes('owner'), identityVerified: true,
+        avatarUrl: result.avatarUrl, avatarError: result.avatarError, dossierError: '', loading: false,
+        dossierStatus: result.dossier?.status || '尚未提交骑手资料', dossierNote: result.dossier?.note || '分次准备，保存后可继续填写。',
+        dossierCount: result.dossier ? `${result.dossier.ready} / ${result.dossier.total}` : '0 / 11', dossierParts: result.dossier?.parts || [] });
     } catch (error) {
-      if (loadVersion === this.data.loadVersion && (!isMock || mockRole() === role)) { this.clearIdentity(); this.setData({ error: errorMessage(error) }); }
+      if (loadVersion === this.data.loadVersion && lifecycle === this.data.lifecycleVersion && scope === profileEnvironment() && (!isMock || mockRole() === role)) { this.clearIdentity(); this.setData({ error: errorMessage(error) }); }
     }
-    finally { if (loadVersion === this.data.loadVersion && (!isMock || mockRole() === role)) this.setData({ loading: false }); }
+    finally { if (loadVersion === this.data.loadVersion && lifecycle === this.data.lifecycleVersion && scope === profileEnvironment() && this.data.loading && (!isMock || mockRole() === role)) this.setData({ loading: false }); }
   },
   async loadDossier() {
     if (!await this.verifyIdentity()) return;
     const member = this.data.member;
     if (!member) return;
-    await this.readDossier({ member, profileVersion: this.data.profileVersion, loadVersion: this.data.loadVersion, role: mockRole() });
+    await this.readDossier({ member, profileVersion: this.data.profileVersion, loadVersion: this.data.loadVersion, role: mockRole(), lifecycle: this.data.lifecycleVersion, environment: profileEnvironment() });
   },
   async readDossier(snapshot: ProfileReadSnapshot) {
     if (!this.readMatches(snapshot)) return;
@@ -99,12 +112,8 @@ Page({
       const dossier = await call<MemberDossier>('dossier.mine');
       if (!this.readMatches(snapshot) || readVersion !== this.data.dossierReadVersion) return;
       if (dossier.memberId !== snapshot.member.id) { this.clearIdentity(); this.setData({ error: '当前成员资料已变化，请重新加载' }); return; }
-      const draft = dossier.draft, bikeCount = draft.bikes.length;
-      const ready = [draft.riderName, draft.ridingExperience, draft.contactValue, ...Object.values(draft.gear), ...draft.bikes.flatMap(bike => [bike.brand, bike.model, bike.photoAssetId, bike.tireAssetId])].filter(Boolean).length;
-      const status = { draft: '骑手资料待准备', pending: '骑手资料等待审核', approved: '本次骑手资料已通过', returned: '骑手资料需补充' };
-      this.setData({ dossierStatus: status[dossier.status], dossierCount: `${ready} / ${7 + Math.max(1, bikeCount) * 4}`,
-        dossierNote: dossier.status === 'returned' ? dossier.review?.reason || '请查看主理人的补充说明。' : dossier.status === 'pending' ? `已提交第 ${dossier.submission?.submissionRevision} 版，等待主理人核对。` : dossier.status === 'approved' ? '仅适用于本次提交资料；修改后需重新审核。' : '填写称呼与联络办法，准备护具、车辆及轮胎照片。',
-        dossierParts: [{ name: '头盔', ready: !!draft.gear.helmet }, { name: '护甲', ready: !!draft.gear.armor }, { name: '护膝', ready: !!draft.gear.knee }, { name: '靴子', ready: !!draft.gear.boots }, { name: `车辆 ${bikeCount}`, ready: bikeCount > 0 }, { name: '轮胎', ready: bikeCount > 0 && draft.bikes.every(bike => !!bike.tireAssetId) }] });
+      const progress = profileDossierProgress(dossier);
+      this.setData({ dossierStatus: progress.status, dossierNote: progress.note, dossierCount: `${progress.ready} / ${progress.total}`, dossierParts: progress.parts });
     } catch (error) { if (this.readMatches(snapshot) && readVersion === this.data.dossierReadVersion) this.setData({ dossierError: errorMessage(error) }); }
     finally { if (this.readMatches(snapshot) && readVersion === this.data.dossierReadVersion) this.setData({ dossierLoading: false }); }
   },
@@ -112,7 +121,7 @@ Page({
     if (!await this.verifyIdentity()) return;
     const member = this.data.member;
     if (!member?.hasAvatar) return;
-    await this.readAvatar({ member, profileVersion: this.data.profileVersion, loadVersion: this.data.loadVersion, role: mockRole() });
+    await this.readAvatar({ member, profileVersion: this.data.profileVersion, loadVersion: this.data.loadVersion, role: mockRole(), lifecycle: this.data.lifecycleVersion, environment: profileEnvironment() });
   },
   async readAvatar(snapshot: ProfileReadSnapshot) {
     if (!this.readMatches(snapshot)) return;
@@ -121,7 +130,7 @@ Page({
     try {
       const result = await call<{ url: string | null }>('profile.avatar.get');
       if (!this.readMatches(snapshot) || readVersion !== this.data.avatarReadVersion) return;
-      this.setData({ avatarUrl: result.url || '', avatarError: result.url ? '' : '头像暂时无法显示，可以重试读取。' });
+      this.setData({ avatarUrl: result.url || '', avatarError: result.url ? '' : '头像暂时无法显示，请重试。' });
     } catch (error) { if (this.readMatches(snapshot) && readVersion === this.data.avatarReadVersion) this.setData({ avatarUrl: '', avatarError: errorMessage(error) }); }
     finally { if (this.readMatches(snapshot) && readVersion === this.data.avatarReadVersion) this.setData({ avatarLoading: false }); }
   },
@@ -130,7 +139,7 @@ Page({
     const { scope, src } = event.currentTarget.dataset;
     if (scope === 'draft') {
       if (src === this.data.avatarDraftUrl) this.setData({ draftPreviewFailed: true, avatarError: '头像预览未能显示，请重新选择后保存。' });
-    } else if (src === this.data.avatarUrl) this.setData({ avatarUrl: '', avatarError: '头像未能显示，可以重试读取。' });
+    } else if (src === this.data.avatarUrl) this.setData({ avatarUrl: '', avatarError: '头像暂时无法显示，请重试。' });
   },
   async chooseAvatar(event: WechatMiniprogram.CustomEvent<{ avatarUrl?: string }>) {
     const path = event.detail.avatarUrl;
@@ -196,8 +205,8 @@ Page({
       if (!this.identityMatches(version, original?.id || null, resultRole)) return;
       this.setData({ member, nickname: original ? member.nickname : '', nicknameStatus: 'unchanged', nicknameError: '', kindLabel: memberKindText(member), memberNumber: memberNumberText(member.memberNumber), staff: !!member.roles.length, isOwner: member.roles.includes('owner'), showEdit: !original,
         avatarBase64: '', avatarDraftUrl: '', draftPreviewFailed: false, avatarUrl: '', loadedRole: resultRole });
-      toast(original ? '个人资料已保存' : isMock ? '演示身份已建立' : '已用微信登录');
-      const snapshot: ProfileReadSnapshot = { member, profileVersion: version, loadVersion: this.data.loadVersion, role: resultRole };
+      toast(original ? '个人资料已保存' : isMock ? '本地身份已建立' : '已用微信登录');
+      const snapshot: ProfileReadSnapshot = { member, profileVersion: version, loadVersion: this.data.loadVersion, role: resultRole, lifecycle: this.data.lifecycleVersion, environment: profileEnvironment() };
       await Promise.all([member.hasAvatar ? this.readAvatar(snapshot) : Promise.resolve(), this.readDossier(snapshot)]);
     } catch (error) {
       if (this.data.profileVersion === version && (!isMock || mockRole() === role || mockRole() === resultRole)) this.setData({ error: errorMessage(error) });
@@ -282,8 +291,8 @@ Page({
     this.setData({ notice: '', consent: false, showEdit: false }); await this.load();
   },
   async reset() {
-    if (!isMock || !await confirm('重置本机演示', '本机演示会恢复整套虚构活动、成员、核验与积分记录，并清空演示准备清单。只影响本机演示，不修改真实云端或旧版保存的数据。')) return;
-    try { resetMock(); this.clearIdentity(); this.setData({ notice: '本机演示已重置', consent: false, showEdit: false }); await this.load(); }
+    if (!isMock || !await confirm('重置本地数据', '将恢复本地活动、成员、核验和积分记录，并清空本地准备清单。')) return;
+    try { resetMock(); this.clearIdentity(); this.setData({ notice: '本地数据已重置', consent: false, showEdit: false }); await this.load(); }
     catch (error) { this.setData({ error: error instanceof AvatarError ? error.message : errorMessage(error) }); }
   },
   async deletion() {

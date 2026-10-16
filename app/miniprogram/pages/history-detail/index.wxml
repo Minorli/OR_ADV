@@ -1,4 +1,3 @@
-<view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
 <view class="page history-detail">
   <view wx:if="{{loading}}" class="loading">正在打开本场记录…</view>
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">刷新记录</button></view>

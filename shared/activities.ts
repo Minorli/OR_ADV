@@ -86,6 +86,26 @@ export async function saveActivity(ctx: Context) {
   });
 }
 
+export async function saveActivityContent(ctx: Context) {
+  const p = ctx.request.payload;
+  requireThat(Object.keys(p).every(field => ['activityId', 'title', 'description', 'reason'].includes(field)), 'INVALID_INPUT', '只可修改活动标题与介绍');
+  const title = text(p.title, '标题', 80), description = text(p.description, '活动介绍', 4000), reason = text(p.reason, '修改原因', 500);
+  return ctx.store.transaction(async tx => {
+    const actor = await ctx.staff(tx, ['owner', 'operator'], text(p.activityId, 'activityId', 100));
+    const activity = await ctx.activity(tx, p.activityId);
+    ctx.revision(activity);
+    requireThat(publicStates.includes(activity.state), 'STATE_CONFLICT', '草稿请使用完整活动编辑');
+    const next: Activity = { ...activity, title, description, revision: activity.revision + 1 };
+    await tx.set('activities', next.id, next);
+    await ctx.audit(tx, actor, 'activity', next.id, {
+      state: next.state, ruleVersion: next.ruleVersion, revision: next.revision, contentOnly: true,
+      before: { title: activity.title.slice(0, 80), description: activity.description.slice(0, 4000) },
+      after: { title, description },
+    }, reason);
+    return publicActivity(next);
+  });
+}
+
 export async function changeActivity(ctx: Context, operation: string) {
   return ctx.store.transaction(async (tx) => {
     const actor = await ctx.staff(tx, ['owner','operator'], text(ctx.request.payload.activityId, 'activityId', 100));

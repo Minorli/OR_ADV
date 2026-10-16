@@ -150,5 +150,5 @@ test('native profile keeps optional avatars private, durable and scoped to the c
   assert(![...files.keys()].some(file => file.startsWith('/user-data/oradv-mock-avatars-v3/')), 'reset only deletes owned mock avatar files');
   api.switchMockRole('member'); await page.load();
   assert.equal(!!page.data.member.hasAvatar, false); assert.equal(page.data.avatarUrl, '');
-  assert(notices.includes('演示身份已建立'));
+  assert(notices.includes('本地身份已建立'));
 });

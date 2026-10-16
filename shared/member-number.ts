@@ -5,6 +5,7 @@ import type { Transaction } from './store';
 export interface MemberNumberSequence {
   id: string; clubId: string; kind: 'member_sequence'; nextNumber: number;
   primaryOwnerMemberId: string | null;
+  reservedNumbers?: number[];
 }
 export interface MemberNumberClaim {
   id: string; clubId: string; kind: 'member_number_claim'; memberNumber: number; memberId: string;
@@ -19,6 +20,9 @@ export function readMemberNumber(value: unknown): number | undefined {
 export function validateMemberSequence(row: MemberNumberSequence, clubId: string): void {
   requireThat(row.id === memberSequenceId(clubId) && row.clubId === clubId && row.kind === 'member_sequence'
     && validMemberNumber(row.nextNumber) && row.nextNumber >= 1
+    && (row.reservedNumbers === undefined || Array.isArray(row.reservedNumbers) && row.reservedNumbers.length <= 100
+      && row.reservedNumbers.every(number => validMemberNumber(number) && number > 0 && number < Number.MAX_SAFE_INTEGER)
+      && new Set(row.reservedNumbers).size === row.reservedNumbers.length)
     && (row.primaryOwnerMemberId === null || typeof row.primaryOwnerMemberId === 'string' && /^member_[a-f0-9]{64}$/.test(row.primaryOwnerMemberId)),
   'STATE_CONFLICT', '编号计数异常，请联系主理人处理');
 }
@@ -35,7 +39,16 @@ async function sequence(tx: Transaction, clubId: string): Promise<MemberNumberSe
 
 /** Called inside the same transaction that creates the identity and membership. */
 export async function allocateMemberNumber(tx: Transaction, clubId: string, memberId: string): Promise<number> {
-  const current = await sequence(tx, clubId), number = current.nextNumber;
+  const current = await sequence(tx, clubId);
+  let number = current.nextNumber;
+  const reserved = new Set(current.reservedNumbers ?? []);
+  while (reserved.has(number)) {
+    const claim = await tx.get<MemberNumberClaim>('clubs', memberNumberClaimId(clubId, number));
+    requireThat(claim, 'STATE_CONFLICT', '保留编号缺少占用记录，请联系主理人处理');
+    validateMemberNumberClaim(claim, clubId);
+    requireThat(claim.memberNumber === number, 'STATE_CONFLICT', '保留编号占用记录不一致');
+    number++;
+  }
   requireThat(number < Number.MAX_SAFE_INTEGER, 'STATE_CONFLICT', '成员编号已达上限，请联系主理人处理');
   requireThat(!await tx.get('clubs', memberNumberClaimId(clubId, number)), 'STATE_CONFLICT', '编号已被占用，请联系主理人核对计数');
   await tx.set<MemberNumberClaim>('clubs', memberNumberClaimId(clubId, number), { id: memberNumberClaimId(clubId, number), clubId, kind: 'member_number_claim', memberNumber: number, memberId });

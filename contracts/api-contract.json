@@ -1134,6 +1134,34 @@
         "moderated_review"
       ],
       "businessIdempotency": false
+    },
+    {
+      "action": "profile.overview",
+      "authorization": "signed_wechat_optional_existing_member_self",
+      "input": [],
+      "output": [
+        "memberSummary_or_null",
+        "clubPublic",
+        "dossierProgress_without_contacts_or_assetIDs",
+        "private_avatarUrl_or_section_error"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.activity.content.save",
+      "authorization": "owner_or_operator",
+      "input": [
+        "activityId",
+        "title",
+        "description",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "publicActivity"
+      ],
+      "businessIdempotency": false,
+      "constraint": "Non-draft activity wording corrections only; preserves operational fields and frozen ruleVersion; appends bounded before/after audit."
     }
   ],
   "errors": [

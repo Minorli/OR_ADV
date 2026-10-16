@@ -99,7 +99,7 @@ Page({
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
     const ids = [...new Set([...Object.values(this.data.draft.gear), ...this.data.draft.bikes.flatMap(b => [b.photoAssetId, b.tireAssetId])].filter((id): id is string => !!id))];
     const results = await Promise.all(ids.map(async assetId => {
-      try { const result = await resolveMemberMedia(assetId); return { assetId, url: result.url, error: result.url ? '' : '照片暂时无法读取，请重试' }; }
+      try { const result = await resolveMemberMedia(assetId); return { assetId, url: result.url, error: result.url ? '' : '照片暂时无法显示，请重试' }; }
       catch (error) { return { assetId, url: '', error: friendly(error) }; }
     }));
     if (!this.matches(version, viewerId, role)) return;
@@ -190,7 +190,7 @@ Page({
         this.setData({ error: friendly(error) });
         if (error instanceof MemberMediaError && error.draftId) {
           try { await this.rememberUpload(error.draftId, { draftId: error.draftId, label: uploadLabel, ...(gear ? { gear } : { bikeId, part }) }); }
-          catch { if (this.matches(version, viewerId, role)) this.setData({ error: '照片原件已保留，本机待办未能更新，请检查存储后重新打开。' }); }
+          catch { if (this.matches(version, viewerId, role)) this.setData({ error: '照片原件已保留，待传列表暂时无法更新，请稍后重试。' }); }
         }
       }
     } finally { if (this.matches(version, viewerId, role)) this.setData({ uploading: false, uploadLabel: '' }); }
@@ -215,7 +215,7 @@ Page({
     const draftId = event.currentTarget.dataset.id;
     if (this.data.mode !== 'own' || this.data.saving || this.data.uploading || !this.data.pendingUploads.some(item => item.draftId === draftId)) return;
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
-    if (!await confirm('移除待传照片', '仅删除这份尚未完成的本机照片副本，不影响已提交的审核资料。') || !this.matches(version, viewerId, role)) return;
+    if (!await confirm('移除待传照片', '仅删除当前设备中尚未上传的照片，不影响已提交的审核资料。') || !this.matches(version, viewerId, role)) return;
     this.setData({ uploading: true, error: '' });
     try { await this.assertViewer(); await discardMemberMediaDraft(draftId); if (this.matches(version, viewerId, role)) await this.forgetUpload(draftId); }
     catch (error) { if (this.matches(version, viewerId, role)) this.setData({ error: friendly(error) }); }
@@ -223,7 +223,7 @@ Page({
   },
   photoFailed(event: WechatMiniprogram.CustomEvent) {
     const id = event.currentTarget.dataset.assetId;
-    if (id) this.renderDraft(this.data.draft, { photoErrors: { ...this.data.photoErrors, [id]: '照片预览失败，请重新读取或更换照片' } });
+    if (id) this.renderDraft(this.data.draft, { photoErrors: { ...this.data.photoErrors, [id]: '照片暂时无法显示，请重试或更换照片' } });
   },
   retryPhotos() { void this.loadPhotos(); },
   preview(event: WechatMiniprogram.CustomEvent) {
@@ -233,7 +233,7 @@ Page({
   consent(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { this.setData({ consent: event.detail.value.includes('accepted') }); },
   async persist() {
     const current = this.data.dossier;
-    if (!current) throw new ApiError('INVALID_INPUT', '请先读取资料');
+    if (!current) throw new ApiError('INVALID_INPUT', '请先打开骑手资料');
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
     await this.assertViewer();
     const result = await call<MemberDossier>('dossier.save', { draft: this.data.draft }, current.revision);

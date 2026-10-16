@@ -1,13 +1,14 @@
-<view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
-<view class="page">
-  <view class="eyebrow">CLUB OPERATIONS</view><view class="title">员工工作台</view>
-  <view class="subtitle">先处理眼前的事，再从容安排下一场。</view>
+<view wx:if="{{isMock}}" class="demo">本机数据</view>
+<view class="page staff-page">
+  <view class="eyebrow">CLUB OPERATIONS</view><view class="title">{{canManage ? '活动管理' : '现场工作台'}}</view>
+  <view class="subtitle">创建与发布活动，集中处理报名和现场记录。</view>
   <view wx:if="{{loading}}" class="loading">正在核对管理权限与名单…</view>
-  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">刷新最新状态</button></view>
+  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">刷新状态</button><button wx:if="{{isOwner}}" class="text-button" bindtap="members">组织方设置</button></view>
   <view wx:if="{{notice}}" class="notice">{{notice}}</view>
   <view wx:if="{{!authorized && !loading}}" class="empty">当前身份没有员工权限。<text>{{'\n'}}</text>请联系主理人确认授权范围。<button class="secondary full mt" bindtap="profile">返回个人与隐私</button></view>
   <block wx:if="{{authorized}}">
     <view class="staff-strip">{{member.nickname}} · {{canManage ? '活动运营权限' : '现场核验权限'}}{{isOwner ? ' · 主理人' : ''}}</view>
+    <view wx:if="{{canManage}}" class="ops-create-bar"><view><view class="card-title">准备下一场同行</view><view class="small muted mt">保存草稿 → 预览确认 → 发布招募</view></view><button class="primary" bindtap="newActivity" disabled="{{!!busy}}">新建活动</button></view>
     <view class="filter-row"><button class="pill {{pane === 'overview' ? 'active' : ''}}" data-pane="overview" bindtap="pane">待办</button><button class="pill {{pane === 'activities' ? 'active' : ''}}" data-pane="activities" bindtap="pane">活动</button><button class="pill {{pane === 'roster' ? 'active' : ''}}" data-pane="roster" bindtap="pane">现场名单</button><button class="pill {{pane === 'briefing' ? 'active' : ''}}" data-pane="briefing" bindtap="pane">行前说明</button><button wx:if="{{canManage}}" class="pill {{pane === 'settlement' ? 'active' : ''}}" data-pane="settlement" bindtap="pane">完成结算</button><button wx:if="{{isOwner}}" class="pill {{pane === 'owner' ? 'active' : ''}}" data-pane="owner" bindtap="pane">更正</button></view>
     <view wx:if="{{pane === 'overview'}}">
       <view class="section-head"><text class="section-title">{{today}} · 工作待办</text><button wx:if="{{isOwner}}" class="text-button" bindtap="members">会员与俱乐部设置 →</button></view>
@@ -19,13 +20,14 @@
       <view class="notice">创始成员符合本场条件时可自动确认；普通成员由运营核对线下安排后确认。所有人都要完成相同的资格与现场安全核验。</view>
     </view>
     <block wx:if="{{pane === 'activities' || pane === 'overview'}}">
-      <view class="section-head"><text class="section-title">授权活动</text><button wx:if="{{canManage}}" class="text-button" bindtap="newActivity">＋ 新建草稿</button></view>
+      <view class="section-head"><text class="section-title">活动列表</text><text class="section-index">{{items.length}} 场</text></view>
       <view wx:if="{{!items.length && !loading}}" class="empty">暂无可管理的活动。<text>{{'\n'}}</text>{{canManage ? '可以先创建一场低门槛的入门同行。' : '请联系主理人分配本场权限。'}}</view>
-      <view wx:for="{{items}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="select"><view class="row"><text class="tag">{{item.stateText}}</text><text class="tiny muted">v{{item.ruleVersion}}</text></view><view class="card-title mt">{{item.title}}</view><view class="small muted mt">{{item.dateText}}<text>{{'\n'}}</text>{{item.location}}</view><view class="divider"></view><view class="row small"><text>预留 {{item.reservedSeats}} / {{item.capacity}} 位</text><text class="muted">打开工作名单 →</text></view></view>
-      <view wx:if="{{editor}}" class="card">
-        <view class="card-title">{{form.id ? '编辑活动草稿' : '新建活动草稿'}}</view><view class="small muted mt">时间均按北京时间。只填写公开区域，不写敏感精确线路。</view>
-        <view class="field"><text class="field-label">活动标题</text><input value="{{form.title}}" maxlength="60" data-field="title" bindinput="field" placeholder="例如：京北山麓 · 新人同行"/></view>
-        <view class="field"><text class="field-label">活动介绍</text><textarea value="{{form.description}}" maxlength="2000" data-field="description" bindinput="field" placeholder="说明内容、强度、人员与线下安排"/></view>
+      <view wx:for="{{items}}" wx:key="id" class="card ops-activity-card" data-id="{{item.id}}" bindtap="select"><view class="row"><text class="tag">{{item.stateText}}</text><text class="tiny muted">规则 v{{item.ruleVersion}}</text></view><view class="card-title mt">{{item.title}}</view><view class="small muted mt">{{item.dateText}}<text>{{'\n'}}</text>{{item.location}}</view><view class="divider"></view><view class="row small"><text>预留 {{item.reservedSeats}} / {{item.capacity}} 位</text><button wx:if="{{canManage}}" class="text-button" data-id="{{item.id}}" catchtap="editListed">{{item.state === 'draft' ? '编辑草稿' : '修订标题与介绍'}}</button><text wx:else class="muted">打开工作名单 →</text></view></view>
+      <view wx:if="{{editor}}" id="activity-editor" class="card ops-editor">
+        <view class="ops-editor-heading"><view><view class="eyebrow">{{editorKind === 'content' ? 'ACTIVITY UPDATE' : 'ACTIVITY DRAFT'}}</view><view class="card-title">{{editorKind === 'content' ? '修订活动文字' : form.id ? '编辑活动草稿' : '新建活动草稿'}}</view></view><text wx:if="{{form.id}}" class="tiny muted">版本 {{form.revision}}</text></view><view wx:if="{{editorKind === 'draft'}}" class="small muted mt">时间均按北京时间。这里只填写公开区域，精确集合点另存行前说明。</view>
+        <view class="field"><text class="field-label">活动标题</text><input value="{{form.title}}" maxlength="80" data-field="title" bindinput="field" placeholder="例如：京北山麓 · 新人同行" disabled="{{!!busy}}"/></view>
+        <view class="field"><text class="field-label">活动介绍</text><textarea value="{{form.description}}" maxlength="4000" data-field="description" bindinput="field" placeholder="说明内容、强度、人员与线下安排" disabled="{{!!busy}}"/></view>
+        <block wx:if="{{editorKind === 'draft'}}">
         <view class="form-grid"><view class="field"><text class="field-label">公开地点 / 区域</text><input value="{{form.location}}" maxlength="80" data-field="location" bindinput="field"/></view><view class="field"><text class="field-label">难度</text><input value="{{form.difficulty}}" maxlength="20" data-field="difficulty" bindinput="field"/></view></view>
         <view class="field-label">活动开始（北京时间）</view><view class="form-grid mb"><picker mode="date" value="{{form.startDate}}" data-field="startDate" bindchange="field"><view class="picker">{{form.startDate}} ▾</view></picker><picker mode="time" value="{{form.startTime}}" data-field="startTime" bindchange="field"><view class="picker">{{form.startTime}} ▾</view></picker></view>
         <view class="field-label">计划结束（北京时间）</view><view class="form-grid mb"><picker mode="date" value="{{form.endDate}}" data-field="endDate" bindchange="field"><view class="picker">{{form.endDate}} ▾</view></picker><picker mode="time" value="{{form.endTime}}" data-field="endTime" bindchange="field"><view class="picker">{{form.endTime}} ▾</view></picker></view>
@@ -36,8 +38,10 @@
         <view class="switch-row field"><text class="field-label">需要人工资格审核</text><switch color="#ff6b00" checked="{{form.requiresReview}}" bindchange="reviewSwitch"/></view>
         <view class="field"><text class="field-label">必要装备说明</text><textarea value="{{form.equipment}}" maxlength="1000" data-field="equipment" bindinput="field" placeholder="头盔、防护装备、车辆状态要求等"/></view>
         <view class="field"><text class="field-label">风险与安全说明</text><textarea value="{{form.safetyNotice}}" maxlength="2000" data-field="safetyNotice" bindinput="field" placeholder="说明真实风险、现场调整与退出安排"/></view>
-        <view class="notice">发布后冻结关键规则；当前内测仅编辑草稿。需要改期或修改已发布规则时，请先停止招募、联系已申请者，由主理人处理。</view>
-        <view class="actions"><button class="primary grow" loading="{{busy === 'save'}}" disabled="{{!!busy}}" bindtap="save">保存草稿</button><button class="secondary" disabled="{{!!busy}}" bindtap="closeEditor">收起</button></view>
+        <view class="notice">保存后可先预览，再发布招募。发布后，时间、区域、名额、资格、装备与积分规则固定。</view>
+        </block>
+        <block wx:else><view class="ops-frozen-summary"><text class="tag">{{selected.stateText}} · 规则 v{{selected.ruleVersion}}</text><view class="small mt">{{selected.dateText}} · {{selected.location}}</view><view class="small muted mt">名额 {{selected.capacity}} 位 · 成长 {{selected.pointsRule.growth}} 分 · 年度 {{selected.pointsRule.annual}} 分</view></view><view class="notice">本次仅修订标题和介绍，其他活动条件保持原样。集合与联络安排请在「行前说明」中更新，并联系参加者。</view><view class="field"><text class="field-label">修改原因</text><textarea value="{{form.reason}}" maxlength="500" data-field="reason" bindinput="field" placeholder="说明这次修订的内容和依据" disabled="{{!!busy}}"/></view></block>
+        <view class="actions"><button class="primary grow" loading="{{busy === 'save'}}" disabled="{{!!busy}}" bindtap="save">{{editorKind === 'content' ? '保存文字修订' : '保存草稿'}}</button><button class="secondary" disabled="{{!!busy}}" bindtap="closeEditor">收起</button></view>
       </view>
     </block>
     <block wx:if="{{pane === 'roster' || pane === 'settlement'}}">
@@ -45,7 +49,7 @@
       <block wx:if="{{selected}}">
         <view class="card"><view class="row"><text class="tag tag-dark">{{selected.stateText}}</text><text class="tiny muted">规则 v{{selected.ruleVersion}}</text></view><view class="card-title mt">{{selected.title}}</view><view class="small muted mt">{{selected.dateText}} · {{selected.location}}</view><view class="row small mt"><text>预留 {{selected.reservedSeats}} / {{selected.capacity}} 位</text><text>余 {{selected.slots}} 位</text></view>
           <view wx:if="{{canManage}}" class="actions">
-            <button wx:if="{{selected.state === 'draft'}}" class="mini secondary" bindtap="edit">编辑草稿</button><button wx:if="{{selected.state === 'draft'}}" class="mini primary" data-action="publish" disabled="{{!!busy}}" bindtap="lifecycle">发布招募</button>
+            <button class="mini secondary" bindtap="edit" disabled="{{!!busy}}">{{selected.state === 'draft' ? '编辑草稿' : '修订标题与介绍'}}</button><button class="mini secondary" bindtap="previewActivity">预览活动页</button><button wx:if="{{selected.state === 'draft'}}" class="mini primary" data-action="publish" disabled="{{!!busy}}" bindtap="lifecycle">发布招募</button>
             <button wx:if="{{selected.state === 'published'}}" class="mini secondary" data-action="close" disabled="{{!!busy}}" bindtap="lifecycle">关闭报名</button>
             <button wx:if="{{selected.state === 'published'}}" class="mini secondary" disabled="{{!!busy}}" bindtap="promote">提升候补</button>
             <button wx:if="{{selected.state === 'published' || selected.state === 'closed'}}" class="mini primary" data-action="start" disabled="{{!!busy}}" bindtap="lifecycle">开始活动</button>
@@ -60,7 +64,7 @@
           <input value="{{rosterQuery}}" bindinput="searchRoster" maxlength="30" placeholder="搜索本场昵称或完整成员编号"/>
           <view class="filter-row"><button wx:for="{{rosterFilters}}" wx:key="value" class="pill {{rosterFilter === item.value ? 'active' : ''}}" data-filter="{{item.value}}" bindtap="filterRoster">{{item.label}}</button></view>
           <view class="small muted mb">{{today}} · 待回场 {{unreturnedCount}} 人。名单优先显示未完成回场核验者，不按成员身份排序。</view>
-          <view wx:if="{{rosterLoading}}" class="loading">正在读取名单…</view>
+          <view wx:if="{{rosterLoading}}" class="loading">正在加载名单…</view>
           <view wx:if="{{!rosterLoading && !registrations.length}}" class="empty">本场还没有申请记录。</view>
           <view wx:if="{{!rosterLoading && registrations.length && !displayedRegistrations.length}}" class="empty">当前筛选没有匹配的参加者。</view>
           <view wx:for="{{displayedRegistrations}}" wx:key="id" class="card {{item.unreturned ? 'ops-unreturned' : ''}}">
@@ -81,14 +85,14 @@
           <view class="stats"><view class="stat"><view class="stat-number">+{{selected.pointsRule.growth}}</view><view class="stat-label">每人 · 成长积分</view></view><view class="stat"><view class="stat-number">+{{selected.pointsRule.annual}}</view><view class="stat-label">每人 · 年度积分</view></view></view>
           <button class="secondary full" loading="{{busy === 'preview'}}" disabled="{{!!busy || (selected.state !== 'ended' && selected.state !== 'settled')}}" bindtap="preview">读取最新结算预览</button>
           <view wx:if="{{preview}}" class="card mt"><view class="card-title">正常完成待结算 {{preview.eligibleCount}} 人</view><view class="small muted mt">按规则 v{{preview.ruleVersion}} 办理；实际完成日期确定积分年度。尚未处理完 {{preview.unresolvedCount}} 人，请先核对名单。</view><view wx:for="{{previewRows}}" wx:key="id" class="list-link"><text>{{item.nickname || '本场参加者'}}</text><text class="tag">{{item.stateText}}</text></view><button class="primary full mt" loading="{{busy === 'settlement'}}" disabled="{{!!busy}}" bindtap="settle">核对并执行结算</button></view>
-          <view wx:if="{{settlement}}" class="card mt"><view class="card-title">结算返回结果</view><view class="small mt">成功 {{settlement.successCount}} 人 · 失败 {{settlement.failureCount}} 人 · {{settlement.status === 'completed' ? '本场结算完成' : '本场仍有未完成事项'}}</view><view wx:for="{{settlement.failures}}" wx:key="registrationId" class="notice error">{{item.message || '本条结算失败，请核查后重试'}}</view><view class="small muted mt">存在失败时，核查原因并重新读取预览后重试。已成功记录的积分不会重复发放。</view></view>
+          <view wx:if="{{settlement}}" class="card mt"><view class="card-title">结算返回结果</view><view class="small mt">成功 {{settlement.successCount}} 人 · 失败 {{settlement.failureCount}} 人 · {{settlement.status === 'completed' ? '本场结算完成' : '本场仍有未完成事项'}}</view><view wx:for="{{settlement.failures}}" wx:key="registrationId" class="notice error">{{item.message || '本条结算失败，请核查后重试'}}</view><view class="small muted mt">存在失败时，核查原因并刷新预览后重试。已成功记录的积分不会重复发放。</view></view>
         </block>
       </block>
     </block>
     <view wx:if="{{pane === 'briefing' && selected}}" class="card">
       <view class="row"><text class="card-title">{{selected.title}} · 行前说明</text><text class="tag">版本 {{briefing.revision}}</text></view>
       <view class="notice">精确集合地点与本场联络方式仅供已确认参加者和获授权员工查看，与公开活动介绍分开保存。</view>
-      <view wx:if="{{briefingLoading}}" class="loading">正在读取行前说明…</view>
+      <view wx:if="{{briefingLoading}}" class="loading">正在加载行前安排…</view>
       <view class="field"><text class="field-label">精确集合地点</text><textarea disabled="{{!canManage}}" value="{{briefing.meetingPoint}}" data-field="meetingPoint" bindinput="briefingField" maxlength="500" placeholder="集合点名称、到达提示"/></view>
       <view class="field-label">集合时间（北京时间）</view><view class="form-grid"><picker disabled="{{!canManage}}" mode="date" value="{{briefingDate}}" data-field="briefingDate" bindchange="briefingField"><view class="picker">{{briefingDate}} ▾</view></picker><picker disabled="{{!canManage}}" mode="time" value="{{briefingTime}}" data-field="briefingTime" bindchange="briefingField"><view class="picker">{{briefingTime}} ▾</view></picker></view>
       <picker disabled="{{!canManage}}" range="{{contactLabels}}" value="{{briefingContactIndex}}" bindchange="briefingContact"><view class="picker mt">{{contactLabels[briefingContactIndex]}} ▾</view></picker>

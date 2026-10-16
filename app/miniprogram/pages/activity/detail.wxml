@@ -1,7 +1,6 @@
-<view wx:if="{{isMock}}" class="demo">本机演示 · 人物与活动均为虚构</view>
 <view class="ride-detail">
   <view wx:if="{{loading}}" class="loading">正在获取活动规则…</view>
-  <view wx:if="{{error}}" class="detail-error notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
+  <view wx:if="{{error}}" class="detail-error notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
   <block wx:if="{{activity}}">
     <view class="detail-cover cover-fallback"><image wx:if="{{!coverFailed}}" class="detail-photo" src="{{activity.cover}}" mode="aspectFill" binderror="coverError"/><view class="detail-photo-shade"></view><view class="detail-cover-top"><text class="detail-cover-brand">OR / ORIGINAL RALLY</text><text class="detail-cover-note">示意封面</text></view><view class="detail-cover-copy"><view class="detail-cover-tags"><text class="detail-state {{activity.statusTone}}">{{activity.stateText}}</text><text class="detail-duration">{{activity.durationText}}</text></view><view class="detail-title">{{activity.title}}</view></view></view>
     <view class="detail-content">

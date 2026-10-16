@@ -41,7 +41,7 @@ Page({
   readSnapshot(): ContentReadSnapshot { return { version: this.data.version, viewerId: this.data.viewerId, role: this.data.loadedRole, environment: this.data.loadedEnvironment, isOwner: this.data.isOwner }; },
   readMatches(snapshot: ContentReadSnapshot) {
     if (snapshot.version === this.data.version && this.data.loadedEnvironment !== environmentScope()) {
-      this.setData({ version: this.data.version + 1 }); this.clearPrivate(); this.setData({ error: '当前环境已变化，请重新加载栏目' }); return false;
+      this.setData({ version: this.data.version + 1 }); this.clearPrivate(); this.setData({ error: '页面已更新，请重新打开栏目' }); return false;
     }
     return this.matches(snapshot.version, snapshot.viewerId, snapshot.role) && snapshot.environment === this.data.loadedEnvironment && snapshot.isOwner === this.data.isOwner;
   },
@@ -122,7 +122,7 @@ Page({
     const section = sections[Number(event.detail.value)];
     if (!section || section === this.data.section) return;
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
-    if (this.data.editorDirty && (!await confirm('切换栏目', '当前修改尚未保存。切换后会重新读取所选栏目的内容。') || !this.matches(version, viewerId, role))) return;
+    if (this.data.editorDirty && (!await confirm('切换栏目', '当前修改尚未保存，切换后会放弃这些修改。') || !this.matches(version, viewerId, role))) return;
     this.setData({ section, sectionIndex: sections.indexOf(section), content: null, draft: blank(section), editorDirty: false, rights: false,
       inquiryContact: '', inquiryMessage: '', selectedOffer: '', inquiryConsent: false, submissionId: '', formLocked: false, inquiries: [], shownInquiries: [], nextCursor: null, notice: '' });
     await this.load();
@@ -199,18 +199,18 @@ Page({
     if (!value || typeof value !== 'object' || value.version !== 2 || !value.scope || Object.entries(scope).some(([key, expected]) => value.scope[key] !== expected)
       || typeof value.contact !== 'string' || typeof value.message !== 'string' || typeof value.offerId !== 'string'
       || typeof value.submissionId !== 'string' || typeof value.locked !== 'boolean' || value.contact.length > 100 || value.message.length > 1000)
-      throw new ApiError('LOCAL_DRAFT_INVALID', '本机咨询草稿暂时无法读取，原数据已保留，请联系组织方核对');
+      throw new ApiError('LOCAL_DRAFT_INVALID', '咨询草稿暂时无法打开，内容已保留，请联系组织方');
     this.setData({ inquiryContact: value.contact, inquiryMessage: value.message, selectedOffer: value.offerId, submissionId: value.submissionId, formLocked: value.locked, inquiryConsent: false });
   },
   persistForm() {
     if (!this.data.viewerId || !inquiryKind(this.data.section)) return;
-    if (this.data.loadedEnvironment !== environmentScope()) throw new ApiError('STALE_ENVIRONMENT', '当前环境已变化，请重新打开咨询页面');
+    if (this.data.loadedEnvironment !== environmentScope()) throw new ApiError('STALE_ENVIRONMENT', '页面已更新，请重新打开咨询');
     wx.setStorageSync(formKey(this.data.viewerId, this.data.section), { version: 2, scope: formScope(this.data.viewerId, this.data.section), contact: this.data.inquiryContact, message: this.data.inquiryMessage, offerId: this.data.selectedOffer, submissionId: this.data.submissionId, locked: this.data.formLocked });
   },
   formField(field: 'inquiryContact' | 'inquiryMessage', value: string) {
     if (this.data.mode !== 'view' || !this.data.member || !this.data.identityReady || this.data.loadedEnvironment !== environmentScope() || this.data.busy || this.data.formLocked || isMock && this.data.loadedRole !== mockRole()) return;
     this.setData({ [field]: value, inquiryConsent: false, error: '' });
-    try { this.persistForm(); } catch { this.setData({ error: '咨询草稿未能保存在本机，请检查存储后重试。' }); }
+    try { this.persistForm(); } catch { this.setData({ error: '咨询草稿暂时无法保存，请检查设备存储后重试。' }); }
   },
   inquiryContact(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.formField('inquiryContact', event.detail.value); },
   inquiryMessage(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.formField('inquiryMessage', event.detail.value); },
@@ -220,7 +220,7 @@ Page({
     if (!this.data.member) { this.profile(); return; }
     if (!this.data.identityReady || this.data.loadedEnvironment !== environmentScope() || isMock && this.data.loadedRole !== mockRole() || this.data.busy || this.data.formLocked || !this.data.content?.offers.some(offer => offer.id === id)) return;
     this.setData({ selectedOffer: id, inquiryConsent: false });
-    try { this.persistForm(); } catch { this.setData({ error: '咨询草稿未能保存在本机，请检查存储后重试。' }); }
+    try { this.persistForm(); } catch { this.setData({ error: '咨询草稿暂时无法保存，请检查设备存储后重试。' }); }
   },
   async submitInquiry() {
     if (this.data.mode !== 'view' || this.data.busy || !this.data.member || !inquiryKind(this.data.section) || !await this.verifyCurrent()) return;
@@ -238,12 +238,12 @@ Page({
       this.setData({ inquiries: [result, ...this.data.inquiries.filter(item => item.id !== result.id)], inquiryContact: '', inquiryMessage: '', selectedOffer: '', submissionId: '', formLocked: false,
         inquiryConsent: false, notice: '咨询已收到，可在下方查看处理记录。此记录不代表费用、兑换或合作已获确认。' }); this.showInquiries();
       try { wx.removeStorageSync(submittedDraftKey); }
-      catch { this.setData({ notice: '咨询已收到。本机旧草稿未能移除，再次重试会沿用原记录，请勿另建重复咨询。' }); }
+      catch { this.setData({ notice: '咨询已收到，旧草稿暂时无法清除。请勿重复提交，重试会保留原记录。' }); }
     } catch (error) {
       if (!this.matches(version, viewerId, role)) return;
       const knownRejection = !sent || error instanceof ApiError && ['INVALID_INPUT', 'CONSENT_REQUIRED', 'RATE_LIMITED', 'NOT_FOUND', 'UNAUTHENTICATED', 'FORBIDDEN'].includes(error.code);
       this.setData({ error: errorMessage(error), formLocked: !knownRejection });
-      try { this.persistForm(); } catch { this.setData({ error: '提交结果或本机草稿尚未确认，请保留当前页面，检查连接和存储后重试。' }); }
+      try { this.persistForm(); } catch { this.setData({ error: '暂时无法确认提交结果。请保留当前页面，检查网络和设备存储后重试。' }); }
     } finally { if (this.matches(version, viewerId, role)) this.setData({ busy: false }); }
   },
   showInquiries() { this.setData({ shownInquiries: this.data.mode === 'manage' ? this.data.inquiries : this.data.inquiries.filter(item => item.kind === this.data.section) }); },

@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.3.0-test.3",
+  "version": "0.3.0-test.4",
   "asOf": "2026-10-16",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -55,10 +55,9 @@
   "referencesAreMock": true,
   "wechatVerification": "not_reverified",
   "remainingWork": [
-    "actual owner WeChat login and trusted number0/owner initialization",
     "new business rules owner promised to specify individually",
     "bounded cloud video upload capability and real acceptance",
-    "trusted owner initialization and actual contact approval",
+    "actual club contact configuration and approval",
     "real WeChat identity, business concurrency and client rule evidence; technical concurrency passed",
     "real iOS/Android, weak-network and recovery acceptance",
     "0.2b full-club cumulative reporting and historical points migration",
@@ -68,27 +67,27 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.3.0-test.3",
+    "sourceVersion": "0.3.0-test.4",
     "typecheck": "passed",
-    "domainTests": 115,
-    "cloudTests": 64,
+    "domainTests": 128,
+    "cloudTests": 73,
     "buildAndTemplateTests": 10,
-    "typescriptTests": 189,
-    "nativePageTests": 71,
+    "typescriptTests": 211,
+    "nativePageTests": 83,
     "pythonToolTests": 14,
-    "totalTests": 274,
+    "totalTests": 308,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
   },
   "previewUpload": {
     "status": "success",
-    "version": "0.3.0-test.3",
+    "version": "0.3.0-test.4",
     "mode": "cloud",
     "sdkVersion": "2.1.31",
     "qrGenerated": true,
     "uploadIpWhitelistDisabledByUser": true,
-    "localQrArtifact": "dist/OR_ADV-cloud-preview-0.3.0-test.3.png"
+    "localQrArtifact": "dist/OR_ADV-cloud-preview-0.3.0-test.4.png"
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": true,
@@ -236,14 +235,14 @@
     "functionTimeoutSeconds": 30,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "05777bb1dae2f8e464abdbc74a9538a61b59e1ff6a6929d699a4f251bdc19497",
+    "functionBackendSha256": "1452377aa1c7943ab494d95aa3bcee5fcb10ca1c5cc014405d260685af2ad09c",
     "nativeEventCompatibility": {
       "fixed": "discard_observed_userInfo_and_tcbContext_before_domain",
       "trustedIdentity": "SDK_context_only",
       "rawEventSizeLimitPreserved": true,
       "remoteMalformedProbesPassed": 2,
       "realPhoneRetest": "four_tabs_and_registration_user_confirmed",
-      "diagnosticBuild": "native-envelope-20261016.7",
+      "diagnosticBuild": "native-envelope-20261016.8",
       "actualDeployedSourceVerifiedByDownload": true,
       "diagnosticLoggingVerifiedByRemoteReadback": true
     },
@@ -274,11 +273,11 @@
   },
   "developmentUpload": {
     "status": "success",
-    "version": "0.3.0-test.3",
+    "version": "0.3.0-test.4",
     "mode": "cloud",
     "formalReviewSubmitted": false,
     "published": false,
-    "experienceSelectionByVersionManager": "verified_in_official_console_2026-10-16"
+    "experienceSelectionByVersionManager": "new_development_upload_experience_version_not_reverified"
   },
   "newPrototypeIteration": {
     "allFourTabsAndLeafFlowsImplemented": true,
@@ -309,7 +308,7 @@
       "stage": "rate_limit",
       "sdkErrorCode": "-501001",
       "status": "deployed_source_verified_real_cloud_and_phone_retest_passed",
-      "diagnosticBuild": "native-envelope-20261016.7",
+      "diagnosticBuild": "native-envelope-20261016.8",
       "backendCode": "DATABASE_TRANSACTION_CONFLICT",
       "runtimeCredentials": "present",
       "singleTransactionErrors": [
@@ -318,10 +317,10 @@
       ],
       "quotaExhaustionObserved": false
     },
-    "performanceFollowup": "test3_client_single_identity_reads_implemented_uploaded_phone_latency_pending"
+    "performanceFollowup": "test4_profile_single_RPC_whole_page_commit_and_layout_implemented_uploaded_phone_pending"
   },
   "frontendReadOptimization": {
-    "version": "0.3.0-test.3",
+    "version": "0.3.0-test.4",
     "scope": [
       "profile",
       "skills",
@@ -331,10 +330,12 @@
       "history-detail"
     ],
     "freshIdentityReadsPerNormalLoad": 1,
-    "nativeRegressionTests": 31,
+    "nativeRegressionTests": 34,
     "longLivedIdentityCache": false,
     "mutationAndIndependentRetryChecksPreserved": true,
-    "phoneLatencyVerified": false
+    "phoneLatencyVerified": false,
+    "profileInitialRPCs": 1,
+    "foregroundCoalescing": "same_visible_epoch_and_exact_environment_only"
   },
   "imageUploadCompatibility": {
     "SDK": "wx-server-sdk4.0.2",
@@ -344,7 +345,7 @@
     "businessRecordsWritten": 0
   },
   "experienceRelease": {
-    "status": "verified_current_experience_version",
+    "status": "last_officially_verified_experience_version",
     "version": "0.3.0-test.3",
     "appNameMatched": true,
     "appIdMatched": true,
@@ -355,5 +356,57 @@
     "formalReviewSubmitted": false,
     "phoneRetest": "pending_after_test3_frontend_changes",
     "temporaryConsoleSessionLoggedOut": true
-  }
+  },
+  "ownerBootstrap": {
+    "status": "executed_and_read_back",
+    "memberNumber": 0,
+    "previousNumber": 2,
+    "ownerEnabled": true,
+    "allActivities": true,
+    "closedMarker": true,
+    "identityVerification": "user_designated_unique_logged_in_account_excluding_developer_and_employee",
+    "phoneOwnerWorkspaceRetested": false
+  },
+  "memberNumberMigration": {
+    "status": "executed_and_idempotence_read_back",
+    "developerNumber": 1024,
+    "employeeNumber": 1,
+    "retiredNumbers": [
+      2,
+      3
+    ],
+    "ordinaryNextNumber": 4,
+    "internalIdsAndPointsChanged": false
+  },
+  "cloudFixtureDataset": {
+    "status": "applied_and_read_back",
+    "datasetId": "cloud-beta-20261016-v1",
+    "hash": "b7860ab9899df41ee6aefb32ca7ae0ea620b8a8a3c4e832baaca490a7a96125d",
+    "dataRecords": 157,
+    "manifestRecords": 1,
+    "fictionalMembers": 8,
+    "futureActivities": 3,
+    "historicalActivities": 3,
+    "registrations": 26,
+    "checkins": 38,
+    "ledgerEntries": 19,
+    "realMemberPointsChanged": false,
+    "memberNumberControlsChanged": false,
+    "automaticCleanupAfterOwnerBootstrap": "refuses_manual_review_required"
+  },
+  "roadmapV04": {
+    "status": "user_requested_planning_in_progress",
+    "ownerAndManagerHighestBusinessPermissions": true,
+    "managerNumber": 1,
+    "managerRoleGranted": false,
+    "memberKinds": [
+      "club_member",
+      "founding_partner"
+    ],
+    "contentAdministrator": "scoped_public_content_only",
+    "spendablePointsUse": "club_goods_and_services_redemption"
+  },
+  "knownPageDefects": [
+    "dossier_and_club_content_unbound_WXML_conditionals_next_patch"
+  ]
 }

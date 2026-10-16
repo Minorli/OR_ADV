@@ -1,0 +1,216 @@
+{
+  "datasetId": "cloud-beta-20261016-v1",
+  "referenceAt": "2026-10-16T00:00:00.000Z",
+  "memberCreatedAt": "2026-07-01T00:00:00.000Z",
+  "fixtureAppId": "fixture-cloud-beta-20261016-v1",
+  "provenance": "Administrator-authorized fictional test-cloud records; never real WeChat users, attendance, consent, qualifications or awards.",
+  "members": [
+    "山石",
+    "北岸",
+    "阿岳",
+    "林间",
+    "岩角",
+    "小岚",
+    "禾川",
+    "青禾"
+  ],
+  "activities": [
+    {
+      "slug": "gravel-intro",
+      "title": "秋日砂石路入门",
+      "state": "published",
+      "startAt": "2026-10-24T09:00:00+08:00",
+      "endAt": "2026-10-24T16:00:00+08:00",
+      "location": "北京周边 · 砂石路练习区域",
+      "difficulty": "入门",
+      "capacity": 20,
+      "growth": 120,
+      "annual": 120,
+      "description": "从站姿、低速平衡和砂石路制动开始，按经验分组练习。集合地点与路线由组织方确认，参加前请先核对车辆和装备。",
+      "registrations": [
+        [
+          0,
+          "confirmed"
+        ],
+        [
+          3,
+          "pending_confirmation"
+        ],
+        [
+          5,
+          "cancelled"
+        ]
+      ]
+    },
+    {
+      "slug": "forest-route",
+      "title": "山林路线同行",
+      "state": "published",
+      "startAt": "2026-11-07T08:30:00+08:00",
+      "endAt": "2026-11-07T17:00:00+08:00",
+      "location": "北京周边 · 林道与乡道连接路线",
+      "difficulty": "基础",
+      "capacity": 16,
+      "growth": 180,
+      "annual": 180,
+      "description": "沿林道与乡道连接路线分段同行，重点练习队形、间距、路口等待和补给安排。以实际路况和现场负责人安排为准。",
+      "registrations": [
+        [
+          1,
+          "pending_confirmation"
+        ],
+        [
+          2,
+          "confirmed"
+        ]
+      ]
+    },
+    {
+      "slug": "offroad-practice",
+      "title": "非铺装控车训练日",
+      "state": "published",
+      "startAt": "2026-11-21T09:00:00+08:00",
+      "endAt": "2026-11-21T16:30:00+08:00",
+      "location": "北京周边 · 封闭练习区域",
+      "difficulty": "基础",
+      "capacity": 12,
+      "growth": 240,
+      "annual": 240,
+      "description": "围绕视线、重心、缓坡起步和碎石弯道安排分站练习。按车辆与骑行经验分组，完成每站后再进入下一项。",
+      "registrations": [
+        [
+          6,
+          "confirmed"
+        ],
+        [
+          7,
+          "pending_confirmation"
+        ]
+      ]
+    },
+    {
+      "slug": "summer-gravel",
+      "title": "夏日砂石路基础练习",
+      "state": "settled",
+      "startAt": "2026-07-18T09:00:00+08:00",
+      "endAt": "2026-07-18T16:00:00+08:00",
+      "location": "北京周边 · 砂石路练习区域",
+      "difficulty": "入门",
+      "capacity": 20,
+      "growth": 120,
+      "annual": 120,
+      "description": "围绕站姿、缓速通过与直线制动整理练习项目，记录出发、回场及完成情况。",
+      "story": "上午从站姿和低速平衡热身，随后进行直线制动与砂石路通过练习。下午按车辆与经验分组跑短线，回场后集中复盘，整理每个人需要继续练习的项目。",
+      "registrations": [
+        [
+          0,
+          "completed"
+        ],
+        [
+          1,
+          "completed"
+        ],
+        [
+          2,
+          "completed"
+        ],
+        [
+          3,
+          "completed"
+        ],
+        [
+          4,
+          "completed"
+        ],
+        [
+          5,
+          "completed"
+        ],
+        [
+          6,
+          "completed"
+        ],
+        [
+          7,
+          "completed"
+        ]
+      ]
+    },
+    {
+      "slug": "valley-route",
+      "title": "山谷路线与队形练习",
+      "state": "settled",
+      "startAt": "2026-08-22T08:30:00+08:00",
+      "endAt": "2026-08-22T17:00:00+08:00",
+      "location": "北京周边 · 山谷连接路线",
+      "difficulty": "基础",
+      "capacity": 16,
+      "growth": 180,
+      "annual": 180,
+      "description": "将队形、路口等待与补给安排纳入同一次路线练习，按实际完成时间归档。",
+      "story": "沿山谷连接路线分段同行，路口统一等待，补给点清点人数。返程前复盘了车距、视线和慢车节奏，把需要改善的协作方式记进下一次行前说明。",
+      "registrations": [
+        [
+          0,
+          "completed"
+        ],
+        [
+          1,
+          "completed"
+        ],
+        [
+          2,
+          "completed"
+        ],
+        [
+          3,
+          "completed"
+        ],
+        [
+          4,
+          "completed"
+        ],
+        [
+          5,
+          "completed"
+        ]
+      ]
+    },
+    {
+      "slug": "autumn-control",
+      "title": "初秋非铺装控车训练",
+      "state": "settled",
+      "startAt": "2026-09-19T09:00:00+08:00",
+      "endAt": "2026-09-19T16:30:00+08:00",
+      "location": "北京周边 · 封闭练习区域",
+      "difficulty": "基础",
+      "capacity": 12,
+      "growth": 240,
+      "annual": 240,
+      "description": "按视线、重心和碎石弯道三个项目组织练习，保留完成记录供后续核对。",
+      "story": "把视线、重心与碎石弯道拆成三个练习区，逐组轮换。每轮结束后回到集合点，讨论控车动作和路面变化，再完成下一轮。",
+      "registrations": [
+        [
+          0,
+          "completed"
+        ],
+        [
+          1,
+          "completed"
+        ],
+        [
+          2,
+          "completed"
+        ],
+        [
+          6,
+          "completed"
+        ],
+        [
+          7,
+          "completed"
+        ]
+      ]
+    }
+  ]
+}

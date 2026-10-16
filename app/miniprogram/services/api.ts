@@ -57,7 +57,7 @@ function getMockService(): ReturnType<typeof createService> {
       wx.setStorageSync(STORE_KEY, upgraded);
       store = restored;
     } catch {
-      throw new ApiError('LOCAL_DATA_UPGRADE_FAILED', '本机演示数据未能完成编号更新，请检查本机存储后重试。原有数据不会被重置。');
+      throw new ApiError('LOCAL_DATA_UPGRADE_FAILED', '本地数据未能完成编号更新，请检查本机存储后重试。原有数据不会被重置。');
     }
   } else store = createShowcaseStore();
   service = createService(store, { avatarStorage: createMockAvatarStorage(), memberMediaStorage: createLocalMemberMediaStorage() });

@@ -1,4 +1,3 @@
-<view wx:if="{{isMock}}" class="demo">本机演示 · 人物与活动均为虚构</view>
 <view class="home">
   <view class="home-hero">
     <swiper class="ride-swiper" autoplay circular interval="6000" duration="450" bindchange="heroChange" current="{{heroCurrent}}">
@@ -22,7 +21,7 @@
       <view class="next-copy">{{nextTrip.nextAction}}</view><button class="next-button" bindtap="trip">{{nextTrip.buttonLabel}}<text>→</text></button>
     </view>
     <view wx:elif="{{member}}" class="home-welcome"><text class="welcome-dot"></text><view><view class="welcome-title">{{member.nickname}}，下一场见</view><view class="welcome-copy">{{member.memberKind === 'founder' ? '选一场合适的活动，核对条件后出发。' : '查看近期活动，提交意向后等待工作人员确认。'}}</view></view></view>
-    <view wx:if="{{personalError}}" class="notice error">个人记录暂时未能读取：{{personalError}}<button class="text-button" bindtap="retry">重新核对</button></view>
+    <view wx:if="{{personalError}}" class="notice error">个人记录暂时无法显示：{{personalError}}<button class="text-button" bindtap="retry">重试</button></view>
 
     <view class="activity-heading"><view><view class="section-kicker">FIND YOUR NEXT RIDE</view><view class="activity-section-title">近期活动</view></view><button class="history-link" bindtap="history">查看往期 ›</button></view>
     <scroll-view scroll-x class="activity-filters" enhanced show-scrollbar="{{false}}"><view class="filter-track"><button wx:for="{{filters}}" wx:key="value" class="activity-filter {{filter === item.value ? 'selected' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view></scroll-view>
@@ -37,7 +36,7 @@
     </view>
     <view wx:if="{{loading}}" class="loading">正在加载活动…</view><view wx:if="{{!loading && !error && !items.length}}" class="empty">暂无符合筛选的活动。<text>{{'\n'}}</text>可以切换筛选，或稍后再来看看。</view><button wx:if="{{nextCursor && !loading}}" class="secondary full more-activities" bindtap="more">查看更多活动 ↓</button>
     <view wx:if="{{partnersConfigured}}" class="home-partners"><view class="partners-heading"><view><view class="section-kicker">CLUB PARTNERS</view><view class="activity-section-title">{{partnersTitle}}</view></view><button class="history-link" bindtap="partners">了解合作 ›</button></view><view wx:if="{{partnersIntroduction}}" class="partners-introduction">{{partnersIntroduction}}</view><scroll-view wx:if="{{partners.length}}" scroll-x class="partners-scroll" show-scrollbar="{{false}}"><view class="partners-track"><view wx:for="{{partners}}" wx:key="heading" class="partner-card" bindtap="partners"><view class="partner-name">{{item.heading}}</view><view class="partner-introduction">{{item.introduction}}</view><text class="partner-arrow">↗</text></view></view></scroll-view></view>
-    <view wx:if="{{partnersError}}" class="notice">合作信息暂时未能读取。<button class="text-button" bindtap="retryPartners">重新读取合作信息</button></view>
+    <view wx:if="{{partnersError}}" class="notice">合作信息暂时无法显示。<button class="text-button" bindtap="retryPartners">重试</button></view>
     <view class="home-footer"><view class="footer-wordmark">ORIGINAL RALLY</view><view>按能力参与 · 按规则同行 · 平安返回</view><view class="footer-small">成员身份与积分不替代技能和现场安全核验。</view></view>
   </view>
 </view>

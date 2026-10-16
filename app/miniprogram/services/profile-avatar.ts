@@ -44,7 +44,7 @@ function registeredFiles(): Record<string, true> {
 }
 function localPath(fileId: string): string {
   const match = FILE_ID.exec(fileId);
-  if (!match) throw new AvatarError('演示头像标识无效');
+  if (!match) throw new AvatarError('头像标识无效');
   return `${wx.env.USER_DATA_PATH}/oradv-mock-avatars-v3/${match[1]}-${match[2]}.${match[3]}`;
 }
 function missing(error: unknown): boolean {
@@ -55,7 +55,7 @@ function removeLocal(fileId: string): void {
   const files = registeredFiles();
   if (!files[fileId] || !FILE_ID.test(fileId)) return;
   try { wx.getFileSystemManager().unlinkSync(localPath(fileId)); }
-  catch (error) { if (!missing(error)) throw new AvatarError('本机演示头像未能清理，请重试'); }
+  catch (error) { if (!missing(error)) throw new AvatarError('本地头像未能清理，请重试'); }
   const { [fileId]: removed, ...remaining } = files;
   wx.setStorageSync(FILES_KEY, remaining);
 }
@@ -75,7 +75,7 @@ export function createMockAvatarStorage() {
       return fileId;
     },
     async url(fileId: string): Promise<string> {
-      if (!registeredFiles()[fileId]) throw new AvatarError('演示头像已失效，请重新选择');
+      if (!registeredFiles()[fileId]) throw new AvatarError('头像已失效，请重新选择');
       const path = localPath(fileId);
       wx.getFileSystemManager().accessSync(path);
       return path;

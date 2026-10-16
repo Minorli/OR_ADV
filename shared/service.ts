@@ -1,6 +1,6 @@
 import { Context } from './context';
 import { DomainError, requireThat } from './errors';
-import { changeActivity, getActivity, listActivities, saveActivity } from './activities';
+import { changeActivity, getActivity, listActivities, saveActivity, saveActivityContent } from './activities';
 import { currentIdentity, ensureIdentity, requestDeletion, updateProfile } from './identity';
 import { applyRegistration, cancelRegistration, listRegistrations, promoteWaitlist, recordCheckin, registrationTimeline, reviewRegistration } from './registrations';
 import { listRankings, ownPoints, previewSettlement, reversePoints, runSettlement } from './points';
@@ -19,6 +19,7 @@ import { LEARNING_ACTIONS, dispatchLearning } from './learning';
 import { CLUB_CONTENT_ACTIONS, dispatchClubContent } from './club-content';
 import { HISTORY_CONTENT_ACTIONS, dispatchHistoryContent } from './history-content';
 import { OVERVIEW_ACTIONS, dispatchClubOverview } from './club-overview';
+import { profileOverview } from './profile-overview';
 
 export function createService(store: Store, options: ServiceOptions = {}) {
   return {
@@ -51,6 +52,7 @@ export function createService(store: Store, options: ServiceOptions = {}) {
           case 'identity.me': data = await currentIdentity(ctx); break;
           case 'identity.delete': data = await requestDeletion(ctx); break;
           case 'identity.memberKind.request': data = await requestMemberKind(ctx); break;
+          case 'profile.overview': data = await profileOverview(ctx); break;
           case 'profile.update': data = await updateProfile(ctx); break;
           case 'profile.avatar.save': data = await saveAvatar(ctx); break;
           case 'profile.avatar.get': data = await ownAvatar(ctx); break;
@@ -75,6 +77,7 @@ export function createService(store: Store, options: ServiceOptions = {}) {
           case 'staff.qualification.review': data = await reviewQualification(ctx); break;
           case 'qualifications.mine': data = await listQualifications(ctx, true); break;
           case 'staff.activity.list': data = await listActivities(ctx, true); break;
+          case 'staff.activity.content.save': data = await saveActivityContent(ctx); break;
           case 'staff.activity.save': data = await saveActivity(ctx); break;
           case 'staff.activity.publish': case 'staff.activity.close': case 'staff.activity.start': case 'staff.activity.end': case 'staff.activity.cancel':
             data = await changeActivity(ctx, request.action.split('.')[2]); break;

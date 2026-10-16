@@ -1,8 +1,7 @@
-<view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
 <view class="page">
   <view class="eyebrow">CLUB MANAGEMENT</view><view class="title">会员与俱乐部</view><view class="subtitle">身份、员工授权与技能分别核实，每次变更都有依据。</view>
   <view wx:if="{{loading}}" class="loading">正在核对主理人权限…</view>
-  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="load">重新读取最新资料</button></view>
+  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="load">刷新</button></view>
   <view wx:if="{{notice}}" class="notice">{{notice}}</view>
   <view wx:if="{{!authorized && !loading}}" class="empty">仅主理人可管理此处资料。<button class="secondary full mt" bindtap="back">返回工作台</button></view>
   <block wx:if="{{authorized}}">
@@ -12,7 +11,7 @@
       <view class="small muted mt">查看成员资料。成员身份不授予员工权限，普通成员与创始成员使用同一套安全核验标准。</view>
       <view wx:if="{{!loadingMore && !items.length}}" class="empty">没有找到匹配会员。</view>
       <view wx:for="{{items}}" wx:key="id" class="card mt" data-id="{{item.id}}" bindtap="select"><view class="row"><text class="card-title">{{item.nickname}}</text><text class="tag {{item.memberKind === 'founder' ? 'tag-dark' : ''}}">{{item.memberKind === 'founder' ? '创始成员' : '普通成员'}}</text></view><view class="member-code tiny muted mt">成员编号 · {{item.memberCode}}</view><view class="row small mt"><text class="muted">{{item.kindRequestStatus === 'pending' ? '身份核实待处理' : '查看身份、授权与技能'}}</text><text>管理 →</text></view></view>
-      <button wx:if="{{nextCursor}}" class="secondary full" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="more">继续读取会员</button>
+      <button wx:if="{{nextCursor}}" class="secondary full" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="more">查看更多成员</button>
       <view wx:if="{{selected}}" class="card mt member-editor">
         <view class="row"><text class="card-title">{{selected.nickname}}</text><text class="tag">{{selected.memberKind === 'founder' ? '创始成员' : '普通成员'}}</text></view>
         <view class="member-code tiny muted mt">成员编号 · {{selected.memberCode}} · 请通过既有可信联络渠道核对本人</view>
@@ -30,7 +29,7 @@
         <view class="small muted" wx:if="{{roleIndex === 1 || roleIndex === 2}}">只勾选本次需要授权的场次，当前选择 {{scopeIds.length}} 场。</view><button class="secondary full mt" disabled="{{!!busy}}" bindtap="saveRole">保存员工授权</button>
         <view class="divider"></view><view class="section-title">技能资格核验</view><view class="small muted mt">只记录实际核验结论；参加次数和积分不代表掌握技能。</view>
         <view wx:for="{{qualifications}}" wx:key="id" class="list-link" data-id="{{item.id}}" bindtap="qualification"><text>{{item.type}}</text><text class="tag">{{item.decision === 'approved' ? '已核验' : item.decision === 'rejected' ? '未通过' : '待核验'}}</text></view>
-        <button wx:if="{{qualificationCursor}}" class="text-button" disabled="{{!!busy}}" bindtap="moreQualifications">继续读取技能资格</button>
+        <button wx:if="{{qualificationCursor}}" class="text-button" disabled="{{!!busy}}" bindtap="moreQualifications">查看更多技能资格</button>
         <view class="field"><text class="field-label">技能项目</text><input value="{{qualificationType}}" data-field="qualificationType" bindinput="field" maxlength="60" placeholder="按俱乐部实际核验项目填写"/></view><picker mode="date" value="{{qualificationDate}}" data-field="qualificationDate" bindchange="field"><view class="picker">{{qualificationDate || '资格到期日（选填）'}} ▾</view></picker>
         <view class="actions"><button class="primary grow" data-decision="approved" disabled="{{!!busy}}" bindtap="reviewQualification">实际核验通过</button><button class="secondary" data-decision="rejected" disabled="{{!!busy}}" bindtap="reviewQualification">核验未通过</button></view>
       </view>

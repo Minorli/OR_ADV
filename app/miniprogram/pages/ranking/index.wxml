@@ -1,4 +1,3 @@
-<view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
 <view class="page ranking-page">
   <view class="ranking-heading"><view><view class="ranking-kicker">ORIGINAL RALLY</view><view class="ranking-title">成员排行</view></view><view class="ranking-year">{{year}} 年</view></view>
   <view class="own-score-card">
@@ -6,7 +5,7 @@
     <view class="own-score-line"><view class="own-score-number">{{member ? member.growthPoints : '—'}}<text wx:if="{{member}}">分</text></view><button wx:if="{{member}}" class="score-detail" bindtap="points">查看明细 <text>↗</text></button><button wx:else class="score-detail" bindtap="profile">登录查看 <text>↗</text></button></view>
     <view wx:if="{{member}}" class="own-score-meta"><text>年度积分 <text class="own-score-meta-value">{{member.annualPoints}}</text></text><view class="score-meta-divider"></view><text>完成同行 <text class="own-score-meta-value">{{member.completedCount}}</text> 次</text></view>
     <view wx:else class="own-score-meta">登录后查看自己的报名与成长记录</view>
-    <view wx:if="{{member}}" class="own-public-ranking"><view class="own-public-ranking-label">{{metric === 'annual' ? '年度积分' : metric === 'completed_count' ? '完成次数' : '成长积分'}}公开名次</view><view wx:if="{{ownRanking && ownRanking.rank !== null}}" class="own-public-ranking-value">{{ownRanking.rank}}<text> / {{ownRanking.publicCount}} 位公开成员</text></view><view wx:elif="{{ownRanking && !ownRanking.rankingOptIn}}" class="own-ranking-unlisted">未加入公开榜单</view><view wx:elif="{{ownRanking}}" class="own-ranking-unlisted">暂未列入 · 当前 {{ownRanking.publicCount}} 位公开成员</view><view wx:elif="{{ownRankingError}}" class="own-ranking-retry"><text>名次暂时未能核对</text><button class="text-button" bindtap="retryOwnRanking">重新核对</button></view><view wx:else class="own-ranking-unlisted">正在核对公开记录…</view></view>
+    <view wx:if="{{member}}" class="own-public-ranking"><view class="own-public-ranking-label">{{metric === 'annual' ? '年度积分' : metric === 'completed_count' ? '完成次数' : '成长积分'}}公开名次</view><view wx:if="{{ownRanking && ownRanking.rank !== null}}" class="own-public-ranking-value">{{ownRanking.rank}}<text> / {{ownRanking.publicCount}} 位公开成员</text></view><view wx:elif="{{ownRanking && !ownRanking.rankingOptIn}}" class="own-ranking-unlisted">未加入公开榜单</view><view wx:elif="{{ownRanking}}" class="own-ranking-unlisted">暂未列入 · 当前 {{ownRanking.publicCount}} 位公开成员</view><view wx:elif="{{ownRankingError}}" class="own-ranking-retry"><text>名次暂时未能核对</text><button class="text-button" bindtap="retryOwnRanking">重试</button></view><view wx:else class="own-ranking-unlisted">正在核对公开记录…</view></view>
   </view>
   <block wx:if="{{founderRail.length}}">
     <view class="ranking-section-head"><view class="ranking-section-title"><view class="orange-marker"></view>创始成员</view><button class="text-button" bindtap="duties">查看职责 ›</button></view>
@@ -14,7 +13,7 @@
   </block>
   <view class="row mb"><text class="small muted">公开推荐与实际积分</text><button class="text-button" bindtap="rules">积分说明 ›</button></view>
   <view class="ranking-switch"><button class="ranking-switch-item {{mode === 'recommended' ? 'is-active' : ''}}" data-mode="recommended" bindtap="mode">俱乐部推荐</button><button class="ranking-switch-item {{mode === 'points' ? 'is-active' : ''}}" data-mode="points" bindtap="mode">实际积分榜</button></view>
-  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
+  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
   <block wx:if="{{mode === 'recommended'}}">
     <view class="ranking-explainer">创始成员优先，其他顺序由俱乐部编排。推荐顺序不代表积分名次。</view>
     <view class="ranking-list"><view wx:for="{{recommendations}}" wx:key="memberPublicId" class="ranking-member-row"><view class="public-member-initial {{item.memberKind === 'founder' ? 'is-founder' : ''}}">{{item.initial}}</view><view class="public-member-body"><view class="public-member-name">{{item.nickname}}</view><view class="public-member-meta"><text class="member-kind-label {{item.memberKind === 'founder' ? 'is-founder' : ''}}">{{item.memberKind === 'founder' ? '创始成员' : '俱乐部成员'}}</text><text wx:if="{{item.hasPublicPoints}}">完成 {{item.completedCount}} 次</text></view></view><view wx:if="{{item.hasPublicPoints}}" class="public-member-score">{{item.growthPoints}}<text>成长积分</text></view><view wx:else class="private-score-label">积分未公开</view></view></view>
@@ -30,7 +29,7 @@
     <button wx:if="{{nextCursor && !loading}}" class="secondary full ranking-more" bindtap="more">查看更多记录</button>
     <button wx:if="{{member}}" class="ranking-settings" loading="{{saving}}" disabled="{{saving}}" bindtap="optIn">{{member.rankingOptIn ? '退出公开积分榜' : '了解并自愿加入积分榜'}} <text>›</text></button><button wx:else class="ranking-settings" bindtap="profile">我的公开与隐私设置 <text>›</text></button>
   </block>
-  <view wx:if="{{loading}}" class="loading">正在读取成员记录…</view>
+  <view wx:if="{{loading}}" class="loading">正在加载成员记录…</view>
   <view wx:if="{{contact.configured}}" class="ranking-contact" bindtap="contact"><view><view class="ranking-contact-title">联系{{contact.contactName || '组织方'}}</view><view class="ranking-contact-note">{{contact.contactInstructions || '报名、活动与记录问题'}}</view></view><text>›</text></view>
   <view class="footer-note">推荐与积分榜分别征求同意，可以随时退出。<text>{{'\n'}}</text>积分不代替技能与现场安全核验。</view>
 </view>

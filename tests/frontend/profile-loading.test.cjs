@@ -29,134 +29,106 @@ async function environment(role = 'member', avatar = false) {
   const module = require.cache[require.resolve(apiPath)]; let intercept, identityError;
   module.exports = { ...real,
     async currentMember() { calls.push('identity.me'); if (identityError) throw identityError; return real.currentMember(); },
-    async call(action, ...args) { calls.push(action); return intercept ? intercept(action, args, real) : real.call(action, ...args); },
+    async call(action, ...args) { calls.push(action); if (action === 'profile.overview' && identityError) throw identityError; return intercept ? intercept(action, args, real) : real.call(action, ...args); },
   };
-  return { api: real, calls, files, setIntercept(value) { intercept = value; }, failIdentity(value) { identityError = value; }, restore() { module.exports = real; } };
+  return { api: real, calls, files, setIntercept(value) { intercept = value; }, failIdentity(value) { identityError = value; }, cloudContext(target) { module.exports = { ...module.exports, isMock: false, mockRole: () => 'guest', runtime: target }; }, restore() { module.exports = real; } };
 }
 
-test('ordinary profile foreground loads use exactly one fresh identity read without caching it across visits', async () => {
-  for (const role of ['guest', 'member']) {
-    const env = await environment(role);
+test('profile opens with exactly one complete overview request for guests, members and saved avatars', async () => {
+  for (const [role, avatar] of [['guest', false], ['member', false], ['member', true]]) {
+    const env = await environment(role, avatar);
     try {
-      const page = profile(); await page.resume();
-      assert.equal(page.data.error, '');
-      assert.deepEqual(env.calls.sort(), role === 'guest' ? ['club.public', 'identity.me'] : ['club.public', 'dossier.mine', 'identity.me']);
-      env.calls.length = 0; await page.resume();
-      assert.equal(env.calls.filter(action => action === 'identity.me').length, 1, 'another foreground always revalidates identity');
+      const p = profile(); await p.onShow();
+      assert.deepEqual(env.calls, ['profile.overview']); assert.equal(p.data.loading, false); assert.equal(p.data.identityVerified, true);
+      assert.equal(Boolean(p.data.member), role !== 'guest'); if (avatar) assert(p.data.avatarUrl);
+      env.calls.length = 0; await p.onShow(); assert.deepEqual(env.calls, ['profile.overview'], 'later visits refresh through one request');
     } finally { env.restore(); }
   }
 });
 
-test('cold avatar and dossier fetches start in parallel under one verified load generation', async () => {
-  const env = await environment('member', true), release = gate(), avatarStarted = gate(), started = new Set();
-  env.setIntercept(async (action, args, real) => {
-    const result = await real.call(action, ...args);
-    if (['profile.avatar.get', 'dossier.mine'].includes(action)) { started.add(action); if (action === 'profile.avatar.get') avatarStarted.release(); await release.promise; }
-    return result;
-  });
-  const page = profile(), pending = page.resume();
+test('duplicate foreground callbacks share one pending request and reveal the complete page together', async () => {
+  const env = await environment('member', true), held = gate(), started = gate();
+  env.setIntercept(async (action, args, real) => { const result = await real.call(action, ...args); if (action === 'profile.overview') { started.release(); await held.promise; } return result; });
+  const p = profile(), first = p.onShow(); await started.promise; const second = p.onShow();
   try {
-    await avatarStarted.promise; await new Promise(resolve => setImmediate(resolve));
-    assert.deepEqual([...started].sort(), ['dossier.mine', 'profile.avatar.get'], 'neither private request waits for the other response');
-  } finally { release.release(); await pending; env.restore(); }
-  assert.equal(page.data.error, ''); assert(page.data.avatarUrl); assert.equal(page.data.dossierError, '');
-  assert.deepEqual(env.calls.sort(), ['club.public', 'dossier.mine', 'identity.me', 'profile.avatar.get']);
+    assert.deepEqual(env.calls, ['profile.overview']); assert.equal(p.data.loading, true); assert.equal(p.data.member, null); assert.equal(p.data.avatarUrl, '');
+    held.release(); await Promise.all([first, second]);
+    assert(p.data.member); assert(p.data.avatarUrl); assert.equal(p.data.dossierParts.length, 6); assert.equal(p.data.dossierCount, '0 / 11'); assert.equal(p.data.loading, false);
+  } finally { held.release(); env.restore(); }
 });
 
-test('pending public contact cannot delay private reads or clearing a failed identity', async () => {
-  const env = await environment('member', true), contact = gate();
-  env.setIntercept(async (action, args, real) => {
-    if (action === 'club.public') await contact.promise;
-    return real.call(action, ...args);
-  });
-  const page = profile(), pending = page.resume();
-  try {
-    await new Promise(resolve => setImmediate(resolve));
-    assert(page.data.avatarUrl, 'avatar loads while the optional contact request is still pending');
-    assert.equal(page.data.dossierLoading, false); assert.equal(page.data.identityVerified, true);
-    assert(env.calls.includes('dossier.mine'));
-  } finally { contact.release(); await pending; }
-  const secondContact = gate();
-  env.setIntercept(async (action, args, real) => { if (action === 'club.public') await secondContact.promise; return real.call(action, ...args); });
-  env.failIdentity(new env.api.ApiError('NETWORK', 'identity unavailable'));
-  page.setData({ avatarBase64: 'private-unsaved-image', avatarDraftUrl: 'private-unsaved-file', showEdit: true });
-  const failed = page.resume();
-  try {
-    await new Promise(resolve => setImmediate(resolve));
-    assert.equal(page.data.member, null); assert.equal(page.data.avatarBase64, ''); assert.equal(page.data.avatarUrl, '');
-    assert.equal(page.data.identityVerified, false); assert(page.data.error.includes('identity unavailable'));
-  } finally { secondContact.release(); await failed; env.restore(); }
-});
-
-test('contact, avatar and dossier failures stay independent while identity failure clears private drafts', async () => {
-  for (const failed of ['club.public', 'profile.avatar.get', 'dossier.mine']) {
+test('optional contact and avatar notices preserve the complete profile while a failed overview clears private state', async () => {
+  for (const section of ['contactError', 'avatarError']) {
     const env = await environment('member', true);
-    env.setIntercept((action, args, real) => action === failed ? Promise.reject(new real.ApiError('NETWORK', `${failed} unavailable`)) : real.call(action, ...args));
+    env.setIntercept(async (action, args, real) => { const result = await real.call(action, ...args); return action === 'profile.overview' ? { ...result, [section]: '暂时无法显示', ...(section === 'avatarError' ? { avatarUrl: '' } : {}) } : result; });
     try {
-      const page = profile(); await page.resume(); assert(page.data.member);
-      if (failed === 'club.public') { assert(page.data.error.includes('unavailable')); assert(page.data.avatarUrl); assert.equal(page.data.dossierError, ''); }
-      if (failed === 'profile.avatar.get') { assert(page.data.avatarError.includes('unavailable')); assert.equal(page.data.dossierError, ''); assert.equal(page.data.error, ''); }
-      if (failed === 'dossier.mine') { assert(page.data.dossierError.includes('unavailable')); assert(page.data.avatarUrl); assert.equal(page.data.avatarError, ''); }
+      const p = profile(); await p.resume(); assert(p.data.member); assert.equal(p.data.dossierError, '');
+      assert.equal(section === 'contactError' ? p.data.error : p.data.avatarError, '暂时无法显示');
       env.failIdentity(new env.api.ApiError('NETWORK', 'identity unavailable'));
-      page.setData({ avatarBase64: 'private-unsaved-image', avatarDraftUrl: 'private-unsaved-file', nickname: '未保存的私人昵称', showEdit: true });
-      await page.resume();
-      assert.equal(page.data.member, null); assert.equal(page.data.avatarUrl, ''); assert.equal(page.data.avatarBase64, '');
-      assert.equal(page.data.nickname, ''); assert.equal(page.data.identityVerified, false); assert.equal(page.data.staff, false);
+      p.setData({ avatarBase64: 'private-image', nickname: 'private-draft', showEdit: false }); await p.load();
+      assert.equal(p.data.member, null); assert.equal(p.data.avatarUrl, ''); assert.equal(p.data.avatarBase64, ''); assert.equal(p.data.nickname, ''); assert.equal(p.data.identityVerified, false);
     } finally { env.restore(); }
   }
 });
 
-test('external private retries and saving foregrounds still verify identity freshly', async () => {
+test('external private retries and dirty or saving foregrounds still verify identity freshly', async () => {
   const env = await environment('member', true);
   try {
-    const page = profile(); await page.resume(); env.calls.length = 0;
-    await page.loadAvatar(); assert.deepEqual(env.calls, ['identity.me', 'profile.avatar.get']);
-    env.calls.length = 0; await page.loadDossier(); assert.deepEqual(env.calls, ['identity.me', 'dossier.mine']);
-    page.setData({ saving: true, avatarBase64: 'private-in-progress', nickname: '未保存的称呼' });
-    env.calls.length = 0; await page.resume(); assert.deepEqual(env.calls, ['identity.me']);
-    assert.equal(page.data.avatarBase64, 'private-in-progress'); assert.equal(page.data.nickname, '未保存的称呼');
-    env.api.switchMockRole('founder'); await page.resume();
-    assert.equal(page.data.member.memberKind, 'founder'); assert.equal(page.data.saving, false); assert.equal(page.data.avatarBase64, ''); assert.equal(page.data.avatarUrl, '');
+    const p = profile(); await p.resume(); env.calls.length = 0;
+    await p.loadAvatar(); assert.deepEqual(env.calls, ['identity.me', 'profile.avatar.get']);
+    env.calls.length = 0; await p.loadDossier(); assert.deepEqual(env.calls, ['identity.me', 'dossier.mine']);
+    p.setData({ saving: true, avatarBase64: 'private-in-progress', nickname: '未保存的称呼' });
+    env.calls.length = 0; await Promise.all([p.resume(), p.resume()]); assert.deepEqual(env.calls, ['identity.me'], 'concurrent verification does not duplicate the identity call');
+    assert.equal(p.data.avatarBase64, 'private-in-progress'); assert.equal(p.data.nickname, '未保存的称呼');
+    env.api.switchMockRole('founder'); await p.resume(); assert.equal(p.data.member.memberKind, 'founder'); assert.equal(p.data.saving, false); assert.equal(p.data.avatarBase64, ''); assert.equal(p.data.avatarUrl, '');
+    p.setData({ showEdit: true, nickname: '尚未保存' }); env.calls.length = 0; await p.resume(); assert.deepEqual(env.calls, ['identity.me']); assert.equal(p.data.nickname, '尚未保存');
   } finally { env.restore(); }
 });
 
-test('older parallel private responses cannot replace the next identity profile', async () => {
-  const env = await environment('member', true), release = gate(), avatarStarted = gate();
-  const own = await env.api.call('dossier.mine'); await env.api.call('dossier.save', { draft: { ...own.draft, riderName: '只属于上一身份的资料' } }, own.revision);
-  env.setIntercept(async (action, args, real) => {
-    const role = real.mockRole(), result = await real.call(action, ...args);
-    if (role === 'member' && ['profile.avatar.get', 'dossier.mine'].includes(action)) { if (action === 'profile.avatar.get') avatarStarted.release(); await release.promise; }
-    return result;
-  });
-  const page = profile(), pending = page.resume();
+test('a delayed previous account overview cannot replace a newer account page', async () => {
+  const env = await environment('member', true), held = gate(), started = gate();
+  env.setIntercept(async (action, args, real) => { const role = real.mockRole(), result = await real.call(action, ...args); if (action === 'profile.overview' && role === 'member') { started.release(); await held.promise; } return result; });
+  const p = profile(), pending = p.resume(); await started.promise;
   try {
-    await avatarStarted.promise; env.api.switchMockRole('founder'); await page.resume();
-    const currentId = page.data.member.id; release.release(); await pending;
-    assert.equal(page.data.member.id, currentId); assert.equal(page.data.member.memberKind, 'founder');
-    assert.equal(page.data.avatarUrl, ''); assert.equal(page.data.dossierCount, '0 / 11'); assert.equal(page.data.dossierError, '');
-  } finally { release.release(); env.restore(); }
+    env.api.switchMockRole('founder'); await p.resume(); const currentId = p.data.member.id;
+    held.release(); await pending; assert.equal(p.data.member.id, currentId); assert.equal(p.data.member.memberKind, 'founder'); assert.equal(p.data.avatarUrl, ''); assert.equal(p.data.dossierCount, '0 / 11');
+  } finally { held.release(); env.restore(); }
 });
 
-test('a newer same-member load supersedes old private responses and mismatched dossier identities are cleared', async () => {
-  const env = await environment('member', true), release = gate(), avatarStarted = gate(), counts = new Map();
-  env.setIntercept(async (action, args, real) => {
-    const result = await real.call(action, ...args), count = (counts.get(action) || 0) + 1; counts.set(action, count);
-    if (['profile.avatar.get', 'dossier.mine'].includes(action) && count === 1) {
-      if (action === 'profile.avatar.get') avatarStarted.release(); await release.promise;
-      return action === 'profile.avatar.get' ? { url: '/outdated-avatar' } : { ...result, draft: { ...result.draft, riderName: '旧一轮资料' } };
-    }
-    return result;
-  });
-  const page = profile(), pending = page.resume();
-  try {
-    await avatarStarted.promise; await page.resume();
-    const currentUrl = page.data.avatarUrl; assert(currentUrl); release.release(); await pending;
-    assert.equal(page.data.avatarUrl, currentUrl); assert.equal(page.data.dossierCount, '0 / 11');
-    env.setIntercept(async (action, args, real) => {
-      const result = await real.call(action, ...args);
-      return action === 'dossier.mine' ? { ...result, memberId: 'another-member' } : result;
-    });
-    await page.resume(); assert.equal(page.data.member, null); assert.equal(page.data.avatarUrl, '');
-    assert.equal(page.data.identityVerified, false); assert(page.data.error.includes('当前成员资料已变化'));
-  } finally { release.release(); env.restore(); }
+test('an explicit newer refresh supersedes an older same-member overview', async () => {
+  const env = await environment('member', true), held = gate(), started = gate(); let count = 0;
+  env.setIntercept(async (action, args, real) => { const result = await real.call(action, ...args); if (action === 'profile.overview' && ++count === 1) { started.release(); await held.promise; return { ...result, avatarUrl: '/obsolete-avatar', dossier: { ...result.dossier, ready: 99 } }; } return result; });
+  const p = profile(), pending = p.resume(); await started.promise;
+  try { await p.load(); const currentUrl = p.data.avatarUrl; held.release(); await pending; assert.equal(p.data.avatarUrl, currentUrl); assert.notEqual(currentUrl, '/obsolete-avatar'); assert.equal(p.data.dossierCount, '0 / 11'); }
+  finally { held.release(); env.restore(); }
+});
+
+test('independent dossier retry refuses mismatched member data', async () => {
+  const env = await environment('member', true);
+  try { const p = profile(); await p.load(); env.setIntercept(async (action, args, real) => { const result = await real.call(action, ...args); return action === 'dossier.mine' ? { ...result, memberId: 'another-member' } : result; }); await p.loadDossier(); assert.equal(p.data.member, null); assert.equal(p.data.avatarUrl, ''); assert.equal(p.data.identityVerified, false); assert(p.data.error.includes('当前成员资料已变化')); }
+  finally { env.restore(); }
+});
+
+test('an unloaded profile cannot apply its late overview response', async () => {
+  const env = await environment('member', true), held = gate(), started = gate();
+  env.setIntercept(async (action, args, real) => { const result = await real.call(action, ...args); if (action === 'profile.overview') { started.release(); await held.promise; } return result; });
+  const p = profile(), pending = p.onShow(); await started.promise; p.onUnload(); held.release(); await pending;
+  assert.equal(p.data.member, null); assert.equal(p.data.avatarUrl, ''); env.restore();
+});
+
+test('a new visible lifecycle under the same cloud role cannot reuse an old account overview', async () => {
+  const env = await environment('member', true), held = gate(), started = gate();
+  env.cloudContext({ mode: 'cloud', appId: 'wx0123456789abcdef', envId: 'profile-cloud-a', version: 'test' });
+  env.setIntercept(async (action, args, real) => { const role = real.mockRole(), result = await real.call(action, ...args); if (action === 'profile.overview' && role === 'member') { started.release(); await held.promise; } return result; });
+  const p = profile(), first = p.onShow(); await started.promise; p.onHide(); env.api.switchMockRole('founder');
+  try { await p.onShow(); const current = p.data.member.id; held.release(); await first; assert.equal(p.data.member.id, current); assert.equal(p.data.member.memberKind, 'founder'); assert.equal(p.data.avatarUrl, ''); assert.equal(env.calls.filter(c => c === 'profile.overview').length, 2); }
+  finally { held.release(); env.restore(); }
+});
+
+test('an environment change creates a fresh request and discards the old cloud overview', async () => {
+  const env = await environment('member', true), held = gate(), started = gate(), target = { mode: 'cloud', appId: 'wx0123456789abcdef', envId: 'profile-cloud-a', version: 'test' }; let firstCall = true;
+  env.cloudContext(target); env.setIntercept(async (action, args, real) => { const result = await real.call(action, ...args); if (action === 'profile.overview' && firstCall) { firstCall = false; started.release(); await held.promise; return { ...result, avatarUrl: '/private-env-a' }; } return result; });
+  const p = profile(), first = p.onShow(); await started.promise; target.envId = 'profile-cloud-b'; env.api.switchMockRole('founder');
+  try { await p.onShow(); const current = p.data.member.id; held.release(); await first; assert.equal(p.data.member.id, current); assert.equal(p.data.avatarUrl, ''); assert.equal(p.data.member.memberKind, 'founder'); assert.equal(env.calls.filter(c => c === 'profile.overview').length, 2); }
+  finally { held.release(); env.restore(); }
 });
