@@ -13,10 +13,11 @@ export interface HandlerDependencies {
   invoke: (request: RpcRequest, identity: TrustedIdentity, traceId: string) => Promise<RpcResponse>;
   now?: () => number;
   trace?: () => string;
-  log?: (entry: { traceId: string; action: string; code: string; serverBuild?: string; rejectedFields?: string[]; rejectedFieldCount?: number }) => void;
+  runtimeDiagnostics?: () => { credentials: 'present' | 'partial' | 'missing'; sessionToken: boolean };
+  log?: (entry: { traceId: string; action: string; code: string; serverBuild?: string; rejectedFields?: string[]; rejectedFieldCount?: number; stage?: string; backendCode?: string; backendHints?: string[]; runtimeAuth?: { credentials: string; sessionToken: boolean } }) => void;
 }
 
-const SERVER_BUILD = 'native-envelope-20261016.1';
+const SERVER_BUILD = 'native-envelope-20261016.4';
 class EnvelopeFieldError extends DomainError {
   readonly fields: string[];
   readonly fieldCount: number;
@@ -30,6 +31,25 @@ class EnvelopeFieldError extends DomainError {
 function reject(code: string, message: string): never { throw new DomainError(code, message); }
 function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+function backendCode(error: unknown): string | undefined {
+  if (!object(error)) return;
+  const code = error.code ?? error.errCode;
+  if (typeof code === 'number' && Number.isSafeInteger(code)) return String(code);
+  if (typeof code === 'string' && code.length <= 80 && /^(?:-?\d{1,10}|[A-Z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*)$/.test(code)) return code;
+}
+function backendHints(error: unknown): string[] {
+  if (!object(error)) return [];
+  const message = typeof error.errMsg === 'string' ? error.errMsg : typeof error.message === 'string' ? error.message : '';
+  const patterns: [string, RegExp][] = [
+    ['document_get', /document\.get/i], ['document_set', /document\.set/i],
+    ['transaction', /transaction/i], ['permission', /permission|forbidden|access.denied|权限/i],
+    ['signature', /signatur|sign.param|签名/i], ['token', /token/i], ['credential', /credential|secret.?id|secret.?key/i],
+    ['environment', /environment|envid|环境/i], ['missing_resource', /not.exist|not.found|不存在/i],
+    ['timeout', /timeout|timed.out/i], ['network', /ENOTFOUND|ECONNRESET|ECONNREFUSED|ENETUNREACH/i],
+    ['invalid_argument', /invalid.param|invalid.argument|invalid.operand|参数/i], ['collection', /collection/i],
+  ];
+  return patterns.filter(([, pattern]) => pattern.test(message)).map(([name]) => name);
 }
 
 export function validateRuntime(config: RuntimeConfig, context: WeChatContext): TrustedIdentity {
@@ -47,9 +67,9 @@ export function validateRuntime(config: RuntimeConfig, context: WeChatContext): 
 
 export function validateEnvelope(value: unknown): RpcRequest {
   if (!object(value)) reject('INVALID_INPUT', '请求格式不正确');
-  // Native wx.cloud.callFunction adds userInfo to the event. It is transport
-  // metadata, never an identity source; validateRuntime still uses SDK context.
-  const allowed = ['action', 'requestId', 'clubId', 'payload', 'expectedRevision', 'userInfo'];
+  // Native calls add userInfo and tcbContext (observed in real beta requests).
+  // Discard both transport fields; validateRuntime only uses SDK context.
+  const allowed = ['action', 'requestId', 'clubId', 'payload', 'expectedRevision', 'userInfo', 'tcbContext'];
   const rejected = Object.keys(value).filter(key => !allowed.includes(key));
   if (rejected.length) throw new EnvelopeFieldError(rejected);
   let size: number;
@@ -88,21 +108,28 @@ export function createCloudHandler(dependencies: HandlerDependencies) {
   return async (event: unknown): Promise<RpcResponse> => {
     const traceId = (dependencies.trace ?? randomUUID)();
     let action = 'invalid';
+    let stage = 'envelope';
     try {
       if (object(event) && typeof event.action === 'string' && /^[a-z][a-zA-Z.]{1,79}$/.test(event.action)) action = event.action;
       const request = validateEnvelope(event);
       action = request.action;
+      stage = 'identity';
       const identity = validateRuntime(dependencies.config(), dependencies.context());
-      await rateLimit(dependencies.store(), identity, (dependencies.now ?? Date.now)());
+      stage = 'store_init';
+      const store = dependencies.store();
+      stage = 'rate_limit';
+      await rateLimit(store, identity, (dependencies.now ?? Date.now)());
       if (request.action === 'profile.avatar.save') await rateLimit(dependencies.store(), identity, (dependencies.now ?? Date.now)(), ':avatar', 5);
       if (request.action === 'media.image.save') await rateLimit(dependencies.store(), identity, (dependencies.now ?? Date.now)(), ':member-media-image', 20);
+      stage = 'dispatch';
       const result = await dependencies.invoke(request, identity, traceId);
       if (!result.ok) dependencies.log?.({ traceId: result.traceId, action, code: result.error.code });
       return result;
     } catch (error) {
       const known = error instanceof DomainError;
       const code = known ? error.code : 'TEMPORARY_FAILURE';
-      dependencies.log?.({ traceId, action, code, serverBuild: SERVER_BUILD,
+      dependencies.log?.({ traceId, action, code, serverBuild: SERVER_BUILD, stage,
+        ...(!known ? { backendCode: backendCode(error), backendHints: backendHints(error), runtimeAuth: dependencies.runtimeDiagnostics?.() } : {}),
         ...(error instanceof EnvelopeFieldError ? { rejectedFields: error.fields, rejectedFieldCount: error.fieldCount } : {}),
       });
       return { ok: false, error: { code, message: known ? error.message : '服务暂时不可用，请稍后重试', retryable: known ? error.retryable || code === 'TEMPORARY_FAILURE' : true }, traceId };

@@ -1188,6 +1188,7 @@
     "qualification_thresholds"
   ],
   "nativeTransportMetadata": {
-    "userInfo": "WeChat native callFunction may append this top-level metadata. Cloud entry discards it before dispatch, never derives actor/role from it, and counts it in the original event size. Other unknown fields remain rejected."
+    "userInfo": "WeChat native callFunction may append this top-level metadata. Cloud entry discards it before dispatch, never derives actor/role from it, and counts it in the original event size. Other unknown fields remain rejected.",
+    "tcbContext": "Observed on actual native beta calls on 2026-10-16. Ignore this top-level platform context before strict domain dispatch, never derive identity, environment or roles from it; include it in total event byte limits."
   }
 }

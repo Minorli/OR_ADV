@@ -23,6 +23,11 @@ function getStore(): Store {
 export const main = createCloudHandler({
   config: () => ({ envId: process.env.ORADV_ENV_ID, appId: process.env.ORADV_APP_ID, runtimeEnvId: process.env.TCB_ENV || process.env.SCF_NAMESPACE }),
   context: () => cloud.getWXContext(),
+  runtimeDiagnostics: () => ({
+    credentials: process.env.TENCENTCLOUD_SECRETID && process.env.TENCENTCLOUD_SECRETKEY ? 'present'
+      : process.env.TENCENTCLOUD_SECRETID || process.env.TENCENTCLOUD_SECRETKEY ? 'partial' : 'missing',
+    sessionToken: Boolean(process.env.TENCENTCLOUD_SESSIONTOKEN),
+  }),
   store: getStore,
   invoke: async (request, identity, traceId) => {
     service ??= createService(getStore(), { clubId: 'oradv', avatarStorage: createAvatarStorage(cloud), memberMediaStorage: createMemberMediaStorage(cloud),

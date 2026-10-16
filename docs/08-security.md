@@ -102,6 +102,8 @@ memberKind与staff_roles、qualifications分别核对。主理人认定身份需
 
 ## 原生调用事件与后台版本权限修复（0.3.0-test.2）
 
-微信原生callFunction会在顶层自动附加userInfo。入口只兼容并移除这一项平台元数据，再将五字段业务请求交给领域服务；原始事件仍计入大小上限，其他未知顶层字段和payload字段校验不放宽。身份仍仅来自getWXContext，不使用event.userInfo授权。见[CloudBase官方调用说明](https://docs.cloudbase.net/cloud-function/how-use)。
+微信原生callFunction会在顶层自动附加userInfo；本项目2026-10-16真实手机日志还确认附加tcbContext。入口仅兼容并移除这两项平台元数据，再将五字段业务请求交给领域服务；原始事件仍计入大小上限，其他未知顶层字段和payload字段校验不放宽。身份仍仅来自getWXContext，不使用event.userInfo授权。见[CloudBase官方调用说明](https://docs.cloudbase.net/cloud-function/how-use)。
 
 微信平台“开发者权限”用于开发／调试，“登录”用于本人进入后台，“开发管理”用于提交审核、发布、回退等版本操作。具备相应权限的开发负责人可管理体验版本和体验成员，不应把全部版本操作写成只能管理员执行；权限不足时由管理员在成员管理补充授权。云资源购买／账单和产品内owner仍分别管理。见[微信官方协同发布说明](https://developers.weixin.qq.com/miniprogram/dev/framework/quickstart/release.html)。
+
+实际tcbContext字段已通过多条本人页面／公开联系请求的受限日志确认，不是猜测扩展白名单。无论该对象包含什么uid、角色、AppID或环境字段，都不作为业务鉴权或环境选择依据；缺失可信SDK上下文仍在数据库访问前拒绝。

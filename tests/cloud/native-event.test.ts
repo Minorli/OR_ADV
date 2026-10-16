@@ -108,3 +108,64 @@ test('rejected native fields log bounded names and a build marker without loggin
   assert(!JSON.stringify(logs).includes('姓名'));
   assert(!JSON.stringify(result).includes('transportExtension'));
 });
+
+test('observed native tcbContext metadata is removed and cannot override trusted identity, environment or roles', async () => {
+  const tcbContext = { uid: 'forged-owner', envId: 'another-environment', openId: 'forged-owner', roles: ['owner'] };
+  const event = { ...request, userInfo: metadata, tcbContext };
+  assert.deepEqual(validateEnvelope(event), request);
+  assert.deepEqual(event.tcbContext, tcbContext, 'transport event is not mutated');
+  const store = new MemoryStore();
+  let called = 0;
+  const handler = createCloudHandler({ config: () => config, context: () => context, store: () => store,
+    invoke: async (rpc, identity, traceId) => {
+      called++;
+      assert.deepEqual(rpc, request);
+      assert.deepEqual(identity, { appId: config.appId, openId: context.OPENID });
+      return { ok: true, data: null, traceId };
+    },
+  });
+  assert.equal((await handler(event)).ok, true);
+  assert.equal(called, 1);
+  const forbidden = createCloudHandler({ config: () => config, context: () => ({}),
+    store: () => { throw Error('untrusted platform metadata must not allow store access'); },
+    invoke: async () => { throw Error('untrusted platform metadata must not allow invocation'); },
+  });
+  const noTrustedIdentity = await forbidden(event);
+  assert.equal(noTrustedIdentity.ok, false);
+  if (!noTrustedIdentity.ok) assert.equal(noTrustedIdentity.error.code, 'TEMPORARY_FAILURE');
+  assert.throws(() => validateEnvelope({ ...request, tcbContext: 'x'.repeat(17_000) }), { code: 'INVALID_INPUT' });
+  assert.throws(() => validateEnvelope({ ...event, role: 'owner' }), { code: 'INVALID_INPUT' });
+});
+
+test('pre-dispatch SDK failures log only a bounded backend code and stage, never secret error text', async () => {
+  for (const [code, expected] of [['INVALID_PARAM', 'INVALID_PARAM'], [-501001, '-501001'], ['private|token=/secret', undefined]] as const) {
+    const logs: any[] = [];
+    const handler = createCloudHandler({ config: () => config, context: () => context,
+      store: () => { throw Object.assign(new Error('private-secret=credential; user-content=hidden'), { code }); },
+      invoke: async () => { throw Error('must not invoke'); }, log: entry => logs.push(entry),
+    });
+    const result = await handler({ ...request, tcbContext: { uid: 'ignored' } });
+    assert.equal(result.ok, false);
+    assert.equal(logs[0].stage, 'store_init');
+    assert.equal(logs[0].backendCode, expected);
+    assert(!JSON.stringify(logs).includes('private-secret'));
+    assert(!JSON.stringify(logs).includes('user-content'));
+    assert(!JSON.stringify(result).includes('credential'));
+  }
+});
+
+test('wrapped SDK errors produce fixed technical hints without retaining source message or credentials', async () => {
+  const logs: any[] = [];
+  const failure = Object.assign(new Error('document.get:fail token signature permission denied in transaction; secret=private-value'), { errCode: -501001 });
+  const handler = createCloudHandler({ config: () => config, context: () => context,
+    store: () => ({ ...new MemoryStore(), transaction: async () => { throw failure; } }) as any,
+    invoke: async () => { throw Error('must not invoke'); }, log: entry => logs.push(entry),
+    runtimeDiagnostics: () => ({ credentials: 'present', sessionToken: true }),
+  });
+  await handler(request);
+  assert.equal(logs[0].stage, 'rate_limit');
+  assert.deepEqual(logs[0].backendHints, ['document_get', 'transaction', 'permission', 'signature', 'token']);
+  assert.deepEqual(logs[0].runtimeAuth, { credentials: 'present', sessionToken: true });
+  assert(!JSON.stringify(logs).includes('private-value'));
+  assert(!JSON.stringify(logs).includes('permission denied in'));
+});

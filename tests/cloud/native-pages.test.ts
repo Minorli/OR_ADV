@@ -45,10 +45,12 @@ test('cloud-mode native tabs, consented login and private dossier accept enriche
   const now = '2026-10-16T12:00:00.000Z', store = createDemoStore(now), service = createService(store, { now: () => now });
   const trusted = { OPENID: 'native-pages-trusted-user', APPID: runtime.appId, ENV: runtime.envId };
   const forged = { appId: 'wxffffffffffffffff', openId: 'untrusted-event-user', roles: ['owner'], memberNumber: 0 };
+  const forgedTcbContext = { uid: 'untrusted-tcb-uid', roles: ['owner'], env: 'untrusted-other-environment', appId: forged.appId, openId: forged.openId };
   const requests: string[] = [], failures: { action: string; code: string }[] = [];
   const handler = createCloudHandler({ config: () => ({ ...runtime, runtimeEnvId: runtime.envId }), context: () => trusted, store: () => store,
     now: () => Date.parse(now), invoke: (request, identity, traceId) => {
       assert.equal((request as unknown as Record<string, unknown>).userInfo, undefined);
+      assert.equal((request as unknown as Record<string, unknown>).tcbContext, undefined);
       assert.deepEqual(identity, { appId: runtime.appId, openId: trusted.OPENID });
       return service.handle(request, identity, traceId);
     } });
@@ -63,7 +65,7 @@ test('cloud-mode native tabs, consented login and private dossier accept enriche
       // WeChat serializes the client's object, then enriches the function event.
       const wire = JSON.parse(JSON.stringify(data));
       requests.push(wire.action);
-      const result = await handler({ ...wire, userInfo: forged });
+      const result = await handler({ ...wire, userInfo: forged, tcbContext: forgedTcbContext });
       if (!result.ok) failures.push({ action: wire.action, code: result.error.code });
       return { result: JSON.parse(JSON.stringify(result)) };
     } },

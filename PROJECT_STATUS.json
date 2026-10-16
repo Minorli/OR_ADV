@@ -71,12 +71,12 @@
     "sourceVersion": "0.3.0-test.2",
     "typecheck": "passed",
     "domainTests": 115,
-    "cloudTests": 41,
+    "cloudTests": 44,
     "buildAndTemplateTests": 10,
-    "typescriptTests": 166,
+    "typescriptTests": 169,
     "nativePageTests": 40,
     "pythonToolTests": 14,
-    "totalTests": 220,
+    "totalTests": 223,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
@@ -233,16 +233,24 @@
     "functionTimeoutSeconds": 30,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "0b60945ffc96a63ba7352b2a3e9b3e8a64747a1ee3168ef612225350f96e5ab1",
+    "functionBackendSha256": "a7e8bccc00a1fbea9a0ab52f0da802a83e59447091310fdbe04bc71bee60da17",
     "nativeEventCompatibility": {
-      "fixed": "ignore_only_top_level_platform_userInfo_before_domain",
+      "fixed": "discard_observed_userInfo_and_tcbContext_before_domain",
       "trustedIdentity": "SDK_context_only",
       "rawEventSizeLimitPreserved": true,
       "remoteMalformedProbesPassed": 2,
-      "realPhoneRetest": "failed_test.2_unresolved",
-      "diagnosticBuild": "native-envelope-20261016.1",
+      "realPhoneRetest": "field_rejection_resolved_new_rate_limit_runtime_failure",
+      "diagnosticBuild": "native-envelope-20261016.4",
       "actualDeployedSourceVerifiedByDownload": true,
       "diagnosticLoggingVerifiedByRemoteReadback": true
+    },
+    "sdkTechnicalTransactionProbe": {
+      "readSucceeded": true,
+      "writeAndReadbackSucceeded": true,
+      "identity": "authorized_CLI_temporary_credential_not_function_role",
+      "technicalCollection": "rpc_limits",
+      "technicalRecordsWritten": 1,
+      "businessRecordsWritten": 0
     }
   },
   "developmentUpload": {
@@ -268,15 +276,21 @@
   "userReportedBetaFailure": {
     "message": "请求包含不支持的字段",
     "scope": "multiple_native_pages",
-    "rootCause": "outer_rpc_unknown_field_not_yet_identified",
-    "backendFixDeployed": false,
+    "rootCause": "observed_extra_native_tcbContext",
+    "backendFixDeployed": true,
     "independentSecurityReview": "passed",
-    "newRegressionTests": 6,
-    "phoneRetest": "failed_on_test.2",
-    "resolution": "awaiting_fresh_native_request_diagnostics",
+    "newRegressionTests": 9,
+    "phoneRetest": "different_error_after_transport_fix",
+    "resolution": "transport_fixed_runtime_database_failure_under_investigation",
     "priorFix": "partial_userInfo_compatibility_insufficient",
     "userInfoCompatibilityDeployed": true,
     "diagnosticDeployed": true,
-    "actualDeployedSourceDownloadedAndVerified": true
+    "actualDeployedSourceDownloadedAndVerified": true,
+    "runtimeIssue": {
+      "stage": "rate_limit",
+      "sdkErrorCode": "-501001",
+      "status": "awaiting_native_error_classification",
+      "diagnosticBuild": "native-envelope-20261016.4"
+    }
   }
 }
