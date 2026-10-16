@@ -116,3 +116,15 @@ node scripts/cloud-setup.cjs apply --env test --config config/local.json
 v3新增骑手档案、私有素材、题库与作答、技能提交、俱乐部栏目／咨询、往期故事／评价共9个集合，复用单个原生调用入口。上传照片压缩至64KiB后经鉴权云函数保存；公开照片单独确认使用权，不复用私人装备材料。云端短片上传仍返回MEDIA_VIDEO_UNAVAILABLE，不能把本地选择／演练完成写成云端已收片。
 
 当前部署选用官方CLI 3.8.7、Nodejs20.19、Event、index.main、30秒／256MB；锁定依赖在本机构建并随包上传，installDependency=false。配置只含ORADV_ENV_ID及ORADV_APP_ID，不创建HTTP或定时触发器。部署前核对最终后端哈希，真实读回运行时、变量和触发方式；凭据、打包清单与原始日志仅保留本机。云函数成功部署后仍需通过手机建立真实身份并验证业务。
+
+
+## v5历史列表索引升级
+
+当前已使用的环境禁止再次执行首次空环境初始化。`config/database-plan.v5.json`只增加活动历史查询的非唯一复合索引：`activities(clubId ASC, state ASC, startAt DESC, id ASC)`。先查看离线计划：
+
+```sh
+node scripts/cloud-upgrade-history.cjs --env test --config config/local.json
+# 实际执行需另加 --execute --app-id <实际AppID> --env-id <实际测试EnvId>
+```
+
+工具在写入前后验证v3、v4全部32集合、35个原索引和数据库／存储拒绝规则；拒绝生产别名、不匹配目标及同名冲突，只允许增加这一条索引。既有索引不删除、规则不改写、业务记录不更新。2026-10-16已执行并读回：32集合、36个项目索引，原索引与拒绝规则保持一致。离线回归另验证重复执行零写入。

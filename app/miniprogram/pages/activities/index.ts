@@ -4,19 +4,37 @@ import { activityVisual } from '../../services/visual';
 import { memberKindText, tripNextAction } from '../../services/member';
 import type { Activity, MemberSummary, PageResult, Registration } from '../../../../shared/types';
 import type { ClubContentView } from '../../../../shared/club-content-types';
+import { readReferenceChrome, syncReferenceTab, openReferencePanel, closeReferencePanel } from '../../services/reference-ui';
 type JoinedRegistration = Registration & { activityStartAt?: string; activityState?: string };
 interface NextTrip { activityId: string; title: string; dateText: string; stateText: string; nextAction: string; buttonLabel: string }
+const heroTimers = new WeakMap<object, ReturnType<typeof setInterval>>();
+function referenceActivity(activity: Activity) {
+  const card = activityVisual(activity), date = new Date(Date.parse(activity.startAt) + 8 * 3600000);
+  const end = new Date(Date.parse(activity.endAt) + 8 * 3600000);
+  const shortDateText = Number.isFinite(date.getTime()) && Number.isFinite(end.getTime())
+    ? `${date.getUTCMonth() + 1}.${date.getUTCDate()}–${end.getUTCMonth() + 1}.${end.getUTCDate()}` : '日期待定';
+  return { ...card, shortDateText };
+}
 Page({
-  data: { isMock, items: [] as ReturnType<typeof activityVisual>[], displayItems: [] as ReturnType<typeof activityVisual>[], heroCurrent: 0, coverErrors: {} as Record<string, boolean>, heroSlides: [
-    { id: 'together', cover: '/assets/covers/dunes.jpg', kicker: 'ORIGINAL RALLY / TOGETHER', title: '一个人骑很快\n一群人走很远', caption: '原始拉力 · 和熟悉的车友，走下一段路' },
-    { id: 'ready', cover: '/assets/covers/forest.jpg', kicker: 'BE READY / RIDE STEADY', title: '准备充分\n再去更远的地方', caption: '从基础控车，到一场完整的非铺装同行' },
-    { id: 'record', cover: '/assets/covers/ridge.jpg', kicker: 'EVERY RIDE COUNTS', title: '走过的路\n都有迹可循', caption: '每场报名、核验与完成，留下一份记录' },
-    { id: 'practice', cover: '/assets/covers/forest.jpg', kicker: 'PRACTICE / PROGRESS', title: '练得扎实\n走得从容', caption: '知识练习与技能记录，留下真实的练习过程' },
+  data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, items: [] as ReturnType<typeof referenceActivity>[], displayItems: [] as ReturnType<typeof referenceActivity>[], heroCurrent: 0, coverErrors: {} as Record<string, boolean>, heroSlides: [
+    { id: 'together', cover: '/assets/covers/v2-1.jpg', kicker: 'OR · ORIGINAL RALLY', title: '一个人骑很快\n一群人走很远', caption: 'Ride Together, Ride Far.' },
+    { id: 'ready', cover: '/assets/covers/dunes.jpg', kicker: 'SLOGAN', title: '从库布齐的沙\n到贺兰山的风', caption: '下一段路，和车友一起出发' },
+    { id: 'record', cover: '/assets/covers/v2-3.jpg', kicker: 'BROTHERHOOD', title: '轮胎丈量\n最野的中国', caption: '每一次同行，都留下自己的足迹' },
+    { id: 'practice', cover: '/assets/covers/v2-4.jpg', kicker: 'ORIGINAL RALLY', title: '去穿越\n只为更远的路', caption: 'OR · ADV 探险拉力俱乐部' },
   ], member: null as MemberSummary | null, kindLabel: '游客', nextTrip: null as NextTrip | null,
-    partners: [] as { heading: string; introduction: string }[], partnersTitle: '', partnersIntroduction: '', partnersConfigured: false,
-    partnersError: '', personalError: '', loading: false, requestVersion: 0, error: '', filter: 'published', nextCursor: null as string | null, filters: [{ value: 'all', label: '全部活动' }, { value: 'published', label: '正在招募' }, { value: 'in_progress', label: '正在同行' }, { value: 'settled', label: '往期记录' }] },
-  onShow() { void this.load(); },
-  onUnload() { this.setData({ requestVersion: this.data.requestVersion + 1, member: null, kindLabel: '游客', nextTrip: null }); },
+    partners: [] as { heading: string; introduction: string }[], partnerLoop: [] as { id: number; heading: string }[], partnersTitle: '', partnersIntroduction: '', partnersConfigured: false,
+    partnersError: '', personalError: '', loading: false, requestVersion: 0, error: '', filter: 'all', nextCursor: null as string | null, filters: [{ value: 'all', label: '全部活动' }, { value: 'published', label: '正在招募' }, { value: 'in_progress', label: '正在同行' }, { value: 'settled', label: '往期记录' }] },
+  onShow() { syncReferenceTab(this, 0); this.startHero(); void this.load(); },
+  onHide() { this.stopHero(); },
+  onUnload() { this.stopHero(); this.setData({ requestVersion: this.data.requestVersion + 1, member: null, kindLabel: '游客', nextTrip: null }); },
+  startHero() {
+    if (heroTimers.has(this)) return;
+    const timer = setInterval(() => {
+      if (heroTimers.get(this) === timer) this.setData({ heroCurrent: (this.data.heroCurrent + 1) % this.data.heroSlides.length });
+    }, 4200);
+    heroTimers.set(this, timer);
+  },
+  stopHero() { const timer = heroTimers.get(this); if (timer !== undefined) clearInterval(timer); heroTimers.delete(this); },
   isCurrent(version: number, role: string) { return this.data.requestVersion === version && (!isMock || mockRole() === role); },
   async onPullDownRefresh() { await this.load(); wx.stopPullDownRefresh(); },
   async load(append = false) {
@@ -31,7 +49,7 @@ Page({
     try {
       const result = await call<PageResult<Activity>>('activity.list', { state: this.data.filter === 'all' ? undefined : this.data.filter, cursor: append ? this.data.nextCursor : undefined, limit: 20 });
       if (!this.isCurrent(requestVersion, role)) return;
-      const items = [...(append ? this.data.items : []), ...result.items.map(activityVisual)];
+      const items = [...(append ? this.data.items : []), ...result.items.map(referenceActivity)];
       const priority = (state: string) => state === 'published' ? 0 : state === 'in_progress' ? 1 : state === 'closed' ? 2 : 3;
       const displayItems = this.data.filter === 'all' ? [...items].sort((a, b) => priority(a.state) - priority(b.state) || Date.parse(a.startAt) - Date.parse(b.startAt)) : items;
       this.setData({ items, displayItems, nextCursor: result.nextCursor });
@@ -58,10 +76,10 @@ Page({
       if (!this.isCurrent(requestVersion, role)) return;
       const published = content.configured && content.status === 'published';
       const partners = published ? content.blocks.slice(0, 8).map(block => ({ heading: block.heading, introduction: block.body.length > 84 ? `${block.body.slice(0, 84)}…` : block.body })) : [];
-      this.setData({ partners, partnersTitle: published ? content.title : '', partnersIntroduction: published ? content.introduction : '',
+      this.setData({ partners, partnerLoop: [...partners, ...partners].map((partner, id) => ({ id, heading: partner.heading })), partnersTitle: published ? content.title : '', partnersIntroduction: published ? content.introduction : '',
         partnersConfigured: !!published && (!!partners.length || !!content.introduction), partnersError: '' });
     } catch (error) {
-      if (this.isCurrent(requestVersion, role)) this.setData({ partners: [], partnersConfigured: false, partnersTitle: '', partnersIntroduction: '', partnersError: errorMessage(error) });
+      if (this.isCurrent(requestVersion, role)) this.setData({ partners: [], partnerLoop: [], partnersConfigured: false, partnersTitle: '', partnersIntroduction: '', partnersError: errorMessage(error) });
     }
   },
   filter(event: WechatMiniprogram.TouchEvent) { this.setData({ filter: event.currentTarget.dataset.value, items: [], displayItems: [], nextCursor: null }); void this.load(); },
@@ -71,9 +89,10 @@ Page({
   more() { void this.load(true); },
   retry() { void this.load(); },
   retryPartners() { void this.loadPartners(this.data.requestVersion, mockRole()); },
-  partners() { wx.navigateTo({ url: '/pages/club-content/index?section=partners' }); },
-  learning() { wx.navigateTo({ url: '/pages/learning/index' }); },
-  open(event: WechatMiniprogram.TouchEvent) { wx.navigateTo({ url: `/pages/activity/detail?id=${encodeURIComponent(event.currentTarget.dataset.id)}` }); },
+  partners() { openReferencePanel(this, 'partners'); },
+  learning() { openReferencePanel(this, 'learning'); },
+  open(event: WechatMiniprogram.TouchEvent) { openReferencePanel(this, 'activity', { id: event.currentTarget.dataset.id }); },
+  closeReference() { closeReferencePanel(this); },
   trip() { if (this.data.nextTrip) wx.navigateTo({ url: `/pages/trip/detail?id=${encodeURIComponent(this.data.nextTrip.activityId)}` }); },
   profile() { wx.switchTab({ url: '/pages/profile/index' }); },
   points() { wx.navigateTo({ url: '/pages/points/index' }); },

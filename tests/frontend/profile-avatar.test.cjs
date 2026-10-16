@@ -1,3 +1,4 @@
+const { freshPageModule } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -37,7 +38,7 @@ test('native profile keeps optional avatars private, durable and scoped to the c
   const apiPath = path.join(root, 'services/api.js'), pagePath = path.join(root, 'pages/profile/index.js');
   const openPage = () => {
     let definition; global.Page = value => { definition = value; };
-    delete require.cache[require.resolve(pagePath)]; require(pagePath);
+    freshPageModule(pagePath);
     const instance = { ...definition, data: structuredClone(definition.data) };
     instance.setData = values => Object.assign(instance.data, values);
     return instance;

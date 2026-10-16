@@ -1,0 +1,12 @@
+{
+  "component": true,
+  "usingComponents": {
+    "reference-activity": "../reference-activity/index",
+    "reference-dossier": "../reference-dossier/index",
+    "reference-learning": "../reference-learning/index",
+    "reference-skills": "../reference-skills/index",
+    "reference-club-content": "../reference-club-content/index",
+    "reference-history-detail": "../reference-history-detail/index",
+    "reference-redemption": "../reference-redemption/index"
+  }
+}

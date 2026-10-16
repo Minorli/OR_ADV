@@ -1,0 +1,10 @@
+{
+  "version": 5,
+  "clubId": "oradv",
+  "basePlans": ["database-plan.v3.json", "database-plan.v4.json"],
+  "mode": "indexes_only",
+  "collections": [],
+  "indexes": [
+    { "collection": "activities", "name": "club_state_start_desc_id", "fields": [["clubId", "asc"], ["state", "asc"], ["startAt", "desc"], ["id", "asc"]], "unique": false }
+  ]
+}

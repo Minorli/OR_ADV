@@ -1,38 +1,47 @@
-<view class="page profile-page">
-  <view class="profile-page-heading"><text>我的</text><text class="profile-brand">ORIGINAL RALLY</text></view>
-  <view wx:if="{{loading || (!identityVerified && member)}}" class="loading">正在加载个人资料…</view>
-  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
-  <view wx:if="{{notice}}" class="notice">{{notice}}</view>
-  <view wx:if="{{identityVerified || !member}}" class="profile-hero">
-    <view class="profile-avatar-frame">
-      <button wx:if="{{member}}" class="profile-hero-avatar-button" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" binderror="avatarChoiceFailed" disabled="{{saving || avatarProcessing}}"><image wx:if="{{avatarUrl}}" class="profile-hero-avatar" src="{{avatarUrl}}" mode="aspectFill" data-scope="saved" data-src="{{avatarUrl}}" binderror="avatarFailed"/><view wx:else class="profile-hero-avatar profile-avatar-default">OR.</view></button>
-      <view wx:else class="profile-hero-avatar profile-avatar-default">OR.</view>
-      <text class="profile-or-badge">OR</text>
+<view class="page reference-v2 profile-reference profile-page" style="padding-top:{{v2Chrome.top}}px">
+  <view class="topbar" style="top:{{v2Chrome.top}}px;padding-right:{{v2Chrome.right}}px"><text class="h1">我的</text><view class="tb-actions"><text class="tag o">{{member && identityVerified ? adminTitle || kindLabel : '车友'}}</text></view></view>
+  <view class="reference-profile-body">
+    <view wx:if="{{loading || (!identityVerified && member)}}" class="loading">正在加载个人资料…</view>
+    <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
+    <view wx:if="{{notice}}" class="notice">{{notice}}</view>
+    <view wx:if="{{logoutError}}" class="notice error">{{logoutError}}<button class="text-button" bindtap="retryLogout">重试保存退出设置</button></view>
+    <view wx:if="{{identityVerified || !member}}" class="profile">
+      <view class="av profile-avatar-frame">
+        <button wx:if="{{member}}" class="profile-hero-avatar-button" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" binderror="avatarChoiceFailed" disabled="{{saving || avatarProcessing}}"><image wx:if="{{avatarUrl}}" class="profile-hero-avatar" src="{{avatarUrl}}" mode="aspectFill" data-scope="saved" data-src="{{avatarUrl}}" binderror="avatarFailed"/><view wx:else class="profile-hero-avatar profile-avatar-default">{{nicknameInitial}}</view></button>
+        <view wx:else class="profile-hero-avatar profile-avatar-default">OR</view><text class="badge i profile-or-badge">OR</text>
+      </view>
+      <view class="nm">{{member ? member.nickname : '原始拉力车友'}}</view>
+      <button wx:if="{{member}}" class="id reference-profile-number" bindtap="copyMemberNumber" disabled="{{memberNumber === '待分配'}}">No.{{memberNumber}} · {{adminTitle || kindLabel}}</button>
+      <view wx:else class="id" bindtap="edit">用微信登录，留下你的同行记录 ›</view>
+      <view class="tags"><text wx:if="{{member && joinedDays !== null}}" class="tag o">已加入 {{joinedDays}} 天</text><text wx:if="{{member && dossierApproved}}" class="tag gn">骑手资料已核对</text><text wx:if="{{member && kindExpiresText}}" class="tag">身份有效至 {{kindExpiresText}}</text><text wx:if="{{!member}}" class="tag o" bindtap="edit">登录 / 设置个人资料</text></view>
     </view>
-    <view class="profile-hero-name">{{member ? member.nickname : '原始拉力车友'}}</view>
-    <view class="profile-kind"><text class="profile-kind-dot"></text>{{adminTitle ? adminTitle + ' · ' : ''}}{{member ? kindLabel : '登录后查看个人记录'}}</view>
-    <button wx:if="{{member}}" class="profile-member-number" bindtap="copyMemberNumber" disabled="{{memberNumber === '待分配'}}">成员编号 {{memberNumber}} <text wx:if="{{memberNumber !== '待分配'}}">复制</text></button>
-    <view wx:if="{{member}}" class="profile-identity-note">编号供主理人核对档案，不能代替身份核实。</view>
-    <view wx:if="{{kindExpiresText}}" class="profile-identity-note">身份有效至 {{kindExpiresText}}</view>
-    <button wx:if="{{member}}" class="profile-edit-link" bindtap="edit">{{showEdit ? '收起资料编辑' : member.nickname === '新车友' ? '设置头像与昵称' : '编辑头像与昵称'}} <text>›</text></button>
-  </view>
-  <view wx:if="{{member && identityVerified}}" class="profile-stats" bindtap="points"><view class="profile-stat"><view class="profile-stat-number">{{member.growthPoints}}</view><view class="profile-stat-label">成长积分</view></view><view class="profile-stat"><view class="profile-stat-number">{{member.annualPoints}}</view><view class="profile-stat-label">年度积分</view></view><view class="profile-stat"><view class="profile-stat-number">{{member.completedCount}}</view><view class="profile-stat-label">完成同行</view></view></view>
-  <view wx:if="{{member && identityVerified}}" class="profile-dossier-card" bindtap="dossier"><view class="profile-dossier-head"><view><text class="profile-dossier-title">{{dossierStatus}}</text><text class="profile-dossier-note">{{dossierError || dossierNote}}</text></view><text class="profile-dossier-count">{{dossierCount}}</text></view><view class="profile-dossier-tags"><text wx:for="{{dossierParts}}" wx:key="name" class="profile-dossier-tag {{item.ready ? 'ready' : ''}}">{{item.name}}</text></view><text class="profile-dossier-open">继续准备 / 查看审核 ›</text></view>
-    <view class="profile-section-heading"><view class="profile-section-marker"></view><text>考核与准备</text><text class="profile-section-sub">记录 · 提交 · 复核</text></view>
-  <view class="profile-shortcuts">
-    <view class="profile-shortcut-row">
-      <button class="profile-shortcut" bindtap="safety"><image src="/assets/icons/shield.png" class="profile-shortcut-icon" mode="aspectFit"/><text>安全问答</text></button>
-      <button class="profile-shortcut" bindtap="basicSkills"><image src="/assets/icons/trips.png" class="profile-shortcut-icon" mode="aspectFit"/><text>基础控车记录</text></button>
-      <button class="profile-shortcut" bindtap="advancedSkills"><image src="/assets/icons/members.png" class="profile-shortcut-icon" mode="aspectFit"/><text>进阶控车记录</text></button>
+
+    <view wx:if="{{member && identityVerified}}" class="verify-card" bindtap="dossier">
+      <view class="vc-hd"><view class="vc-lf"><text class="b">{{dossierStatus}} · {{dossierPercent}}%</text><text class="span">{{dossierError || dossierNote}}</text></view><text class="vc-st {{dossierApproved ? 'gn' : 'r'}}">{{dossierBadge}}</text></view>
+      <view class="vc-bar"><view class="i" style="width:{{dossierPercent}}%"></view></view><view class="vc-tags"><text class="vc-t" aria-label="驾驶证资料尚未启用收集">驾驶证</text><text wx:for="{{dossierParts}}" wx:key="name" class="vc-t {{item.ready ? 'on' : ''}}">{{item.name}}</text></view>
     </view>
-    <view class="profile-shortcut-row">
-      <button class="profile-shortcut" bindtap="practice"><image src="/assets/icons/calendar.png" class="profile-shortcut-icon" mode="aspectFit"/><text>练车与活动</text></button>
-      <button class="profile-shortcut" bindtap="redemption"><image src="/assets/icons/points.png" class="profile-shortcut-icon" mode="aspectFit"/><text>积分兑换</text></button>
-      <button class="profile-shortcut" bindtap="handbook"><image src="/assets/icons/contact.png" class="profile-shortcut-icon" mode="aspectFit"/><text>车队手册</text></button>
+    <view wx:if="{{member && identityVerified}}" class="stats"><view class="st" bindtap="points"><text class="b">{{member.growthPoints}}</text><text class="span">积分</text></view><view class="st" bindtap="ranking"><text class="b">{{statistics && statistics.rank !== null ? statistics.rank : '—'}}</text><text class="span">排名</text></view><view class="st"><text class="b">{{statistics && statistics.distanceKm !== null ? statistics.distanceKm : '—'}}</text><text class="span">累计里程</text></view><view class="st" bindtap="trips"><text class="b">{{member.completedCount}}</text><text class="span">参加活动</text></view></view>
+    <view wx:if="{{member && identityVerified && statisticsError}}" class="reference-statistics-error">{{statisticsError}}</view>
+
+    <view class="card-h reference-assessment-heading"><text class="h3">考核中心</text><text class="muted">练习与审核记录</text></view>
+    <view class="grid">
+      <button class="gi" bindtap="safety"><image class="i" src="/assets/icons/v2-shield.png" mode="aspectFit"/><text class="span">安全穿越考核</text></button>
+      <button class="gi" bindtap="basicSkills"><image class="i" src="/assets/icons/v2-video.png" mode="aspectFit"/><text class="span">基础控车考核</text></button>
+      <button class="gi" bindtap="advancedSkills"><image class="i" src="/assets/icons/v2-flag.png" mode="aspectFit"/><text class="span">进阶控车考核</text></button>
+      <button class="gi" bindtap="practice"><image class="i" src="/assets/icons/v2-clock.png" mode="aspectFit"/><text class="span">日常练车报名</text></button>
+      <button class="gi" bindtap="redemption"><image class="i" src="/assets/icons/v2-gift.png" mode="aspectFit"/><text class="span">积分兑换</text></button>
+      <button class="gi" bindtap="handbook"><image class="i" src="/assets/icons/v2-doc.png" mode="aspectFit"/><text class="span">车队手册</text></button>
     </view>
-  </view>
-  <view class="profile-menu profile-club-menu"><view class="profile-menu-row" bindtap="core"><view><view class="profile-menu-title">核心成员与职责</view><view class="profile-menu-caption">公开的协作分工与负责人介绍</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="handbook"><view><view class="profile-menu-title">车队手册</view><view class="profile-menu-caption">准备、同行与记录说明</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="rules"><view><view class="profile-menu-title">积分说明</view><view class="profile-menu-caption">由组织方核实并发布的计分办法</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="contacts"><view><view class="profile-menu-title">联系我们</view><view class="profile-menu-caption">主要联系办法与补充联络信息</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="business"><view><view class="profile-menu-title">商务合作</view><view class="profile-menu-caption">留下意向，查看组织方回复</view></view><text class="profile-menu-arrow">›</text></view></view>
-  <view wx:if="{{member && identityVerified}}" class="profile-menu"><view class="profile-menu-row" bindtap="trips"><view><view class="profile-menu-title">我的同行</view><view class="profile-menu-caption">报名进度、集合准备与完成记录</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="points"><view><view class="profile-menu-title">积分明细</view><view class="profile-menu-caption">核对积分来源与更正记录</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="ranking"><view><view class="profile-menu-title">成员排行</view><view class="profile-menu-caption">按实际积分记录查看</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="privacySettings"><view><view class="profile-menu-title">隐私设置</view><view class="profile-menu-caption">分别管理公开展示的同意</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="edit"><view><view class="profile-menu-title">头像与昵称</view><view class="profile-menu-caption">头像、昵称与自己的成员档案</view></view><text class="profile-menu-arrow">›</text></view><view wx:if="{{staff}}" class="profile-menu-row" bindtap="staff"><view><view class="profile-menu-title">员工工作台</view><view class="profile-menu-caption">报名确认、现场核验与活动结算</view></view><text class="profile-menu-arrow">›</text></view><view wx:if="{{isOwner}}" class="profile-menu-row" bindtap="members"><view><view class="profile-menu-title">成员与身份管理</view><view class="profile-menu-caption">核对成员身份，管理工作权限</view></view><text class="profile-menu-arrow">›</text></view></view>
+    <view class="list-menu">
+      <view class="li" bindtap="core"><image class="ic" src="/assets/icons/v2-shield.png" mode="aspectFit"/><view class="tx"><text class="b">车队核心成员</text><text class="span">领队 / 技师 / 运营 / 商务</text></view><text class="ar">›</text></view>
+      <view class="li" bindtap="handbook"><image class="ic" src="/assets/icons/v2-doc.png" mode="aspectFit"/><view class="tx"><text class="b">OR车队手册</text><text class="span">车队公约 / 费用制度 / 应急预案</text></view><text class="ar">›</text></view>
+      <view class="li" bindtap="rules"><image class="ic" src="/assets/icons/v2-arrows.png" mode="aspectFit"/><view class="tx"><text class="b">积分规则</text><text class="span">获取 · 用途 · 记录核对</text></view><text class="ar">›</text></view>
+      <view class="li" bindtap="contacts"><image class="ic" src="/assets/icons/v2-mail.png" mode="aspectFit"/><view class="tx"><text class="b">联系我们</text><text class="span">随队保障 · 组织方 · 救援联系</text></view><text class="ar">›</text></view>
+      <view class="li" bindtap="business"><image class="ic" src="/assets/icons/v2-cube.png" mode="aspectFit"/><view class="tx"><text class="b">商务合作</text><text class="span">品牌赞助 · 联名活动 · 装备测试</text></view><text class="ar">›</text></view>
+    </view>
+    <view class="logout"><button wx:if="{{member && identityVerified}}" class="a" bindtap="logout">退出登录</button><button wx:elif="{{!member}}" class="a" bindtap="edit">用微信登录</button><view class="reference-profile-version">OriginalRally · ADV 探险拉力俱乐部</view></view>
+
+    <view wx:if="{{member && identityVerified}}" class="profile-menu reference-extra-menu"><view class="profile-menu-row" bindtap="trips"><view><view class="profile-menu-title">我的同行</view><view class="profile-menu-caption">报名进度、集合准备与完成记录</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="points"><view><view class="profile-menu-title">积分明细</view><view class="profile-menu-caption">核对积分来源与更正记录</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="edit"><view><view class="profile-menu-title">头像与昵称</view><view class="profile-menu-caption">选择微信头像，修改自己的称呼</view></view><text class="profile-menu-arrow">›</text></view><view class="profile-menu-row" bindtap="privacySettings"><view><view class="profile-menu-title">隐私设置</view><view class="profile-menu-caption">分别管理公开展示的同意</view></view><text class="profile-menu-arrow">›</text></view><view wx:if="{{staff}}" class="profile-menu-row" bindtap="staff"><view><view class="profile-menu-title">员工工作台</view><view class="profile-menu-caption">活动发布、报名确认与核验结算</view></view><text class="profile-menu-arrow">›</text></view><view wx:if="{{isOwner}}" class="profile-menu-row" bindtap="members"><view><view class="profile-menu-title">成员与身份管理</view><view class="profile-menu-caption">核对成员身份，管理工作权限</view></view><text class="profile-menu-arrow">›</text></view></view>
   <view wx:if="{{identityVerified && avatarError && !showEdit}}" class="notice error">{{avatarError}}<button wx:if="{{member.hasAvatar}}" class="text-button" disabled="{{avatarLoading}}" bindtap="retryAvatar">重试</button></view>
   <view wx:if="{{identityVerified && (!member || showEdit)}}" id="profile-editor" class="card profile-panel">
     <view class="card-title">{{member ? '设置头像与昵称' : isMock ? '建立本地身份' : '用微信登录'}}</view>
@@ -68,4 +77,6 @@
 6. 更正、隐私与注销问题，请通过本页组织方联系办法反馈。</view><view class="notice">参加活动须满足本场资格、装备和安全要求。成员身份与积分都不替代技能或现场核验。</view><button wx:if="{{member && identityVerified}}" class="text-button full profile-delete" disabled="{{saving}}" bindtap="deletion">提交注销申请</button></view>
   <view wx:if="{{isMock}}" class="card profile-panel profile-demo-panel"><view class="profile-setting-head"><view class="card-title">切换身份</view><text class="profile-setting-status">本地</text></view><view class="small muted mt">人物和活动均为虚构，仅保存在当前设备。切换身份可查看不同成员的页面。</view><picker mode="selector" range="{{roles}}" bindchange="role"><view class="picker mt">当前：{{roleLabel}} <text>切换 ›</text></view></picker><button class="secondary full mt" bindtap="reset">重置数据</button><view class="profile-panel-note">恢复初始人物和活动，清除当前设备上的修改。</view></view>
   <view class="footer-note">ORIGINAL RALLY · 原始拉力</view>
+  </view>
+  <reference-overlay kind="{{refPanel}}" params="{{refParams}}" bindclose="closeReference"/>
 </view>

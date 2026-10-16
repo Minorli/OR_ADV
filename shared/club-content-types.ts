@@ -1,6 +1,9 @@
 export type ClubContentSection = 'handbook' | 'points' | 'core' | 'contacts' | 'business' | 'redemption' | 'partners';
 export interface ClubTextBlock { heading: string; body: string }
-export interface ClubCorePerson { name: string; duty: string; introduction: string; responsibilities: string[] }
+export interface ClubCorePerson {
+  name: string; duty: string; introduction: string; responsibilities: string[];
+  avatarText?: string; experience?: string; distanceKm?: number | null; serviceText?: string;
+}
 export interface ClubContactItem { label: string; name: string; method: 'phone' | 'wechat' | 'address'; value: string; hours: string; note: string }
 export interface ClubOffer { id: string; name: string; description: string }
 export interface ClubContentDraft {

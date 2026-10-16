@@ -1,17 +1,29 @@
-<view class="page archive-page">
-  <view class="archive-top"><view><view class="eyebrow">OR / ARCHIVE</view><view class="title">往期活动</view></view><text class="tag">{{year}}</text></view>
-  <view class="archive-intro">走过的路，都在这里。</view>
-  <view class="archive-tools">
-    <scroll-view scroll-x class="archive-months" show-scrollbar="{{false}}"><view class="archive-month-track"><button wx:for="{{months}}" wx:key="value" class="pill {{month === item.value ? 'active' : ''}}" data-month="{{item.value}}" bindtap="selectMonth">{{item.label}}</button></view></scroll-view>
-    <view class="archive-search"><view class="archive-search-icon"></view><input value="{{query}}" maxlength="60" bindinput="search" placeholder="搜索活动名称或区域" placeholder-class="archive-placeholder" aria-label="搜索往期活动"/></view>
+<view class="page reference-v2 history-reference" style="padding-top:{{v2Chrome.top}}px">
+  <view class="topbar" style="top:{{v2Chrome.top}}px;padding-right:{{v2Chrome.right}}px"><text class="h1">往期活动</text><view class="tb-actions"><text class="tag">{{year}}</text></view></view>
+  <view class="filterbar" style="top:{{v2Chrome.top + 49.5}}px">
+    <scroll-view scroll-x class="reference-month-scroll" show-scrollbar="{{false}}"><view class="months"><button wx:for="{{months}}" wx:key="value" class="{{month === item.value ? 'on' : ''}}" data-month="{{item.value}}" bindtap="selectMonth">{{item.label}}</button></view></scroll-view>
+    <view class="search"><view class="reference-search-icon"></view><input value="{{query}}" maxlength="60" bindinput="search" placeholder="搜索活动名称 / 地点" placeholder-class="reference-search-placeholder" aria-label="搜索往期活动"/></view>
   </view>
-  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
-  <view wx:for="{{visibleItems}}" wx:key="id" class="archive-card" data-id="{{item.id}}" bindtap="open">
-    <view class="archive-cover"><image wx:if="{{!coverErrors[item.id]}}" src="{{item.cover}}" mode="aspectFill" lazy-load class="archive-image" data-id="{{item.id}}" binderror="coverFailed"/><view class="archive-shade"></view><text class="archive-cover-label">场景配图</text><text class="archive-duration">{{item.durationText}}</text><view class="archive-cover-title">{{item.title}}</view></view>
-    <view class="archive-body"><view class="archive-location">{{item.location}}</view><view class="archive-date">{{item.dateText}}</view><view class="archive-facts"><view><text class="archive-fact-label">活动状态</text><text class="archive-fact-value">已完成结算</text></view><view><text class="archive-fact-label">成长奖励</text><text class="archive-fact-value">{{item.pointsRule.growth}} 分 / 完整参加</text></view></view><view class="archive-foot"><text>{{item.difficulty}} · {{item.durationText}}</text><text class="archive-open">查看本场记录 ›</text></view></view>
+  <view class="reference-history-body">
+    <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
+    <view wx:for="{{visibleItems}}" wx:key="id" class="card hist">
+      <view class="thumb reference-cover-fallback" data-id="{{item.id}}" bindtap="open"><image wx:if="{{!coverErrors[item.id]}}" class="reference-cover" src="{{item.cover}}" mode="aspectFill" lazy-load data-id="{{item.id}}" binderror="coverFailed"/><view class="reference-history-shade"></view><view class="dt">{{item.title}}</view><view class="km">🏍 {{item.distanceText}}</view></view>
+      <view class="bd">
+        <view class="h3" data-id="{{item.id}}" bindtap="open">{{item.title}}</view><view class="where">{{item.location}} · {{item.dateText}}</view>
+        <view class="honor"><view wx:for="{{item.honorSlots}}" wx:for-item="honor" wx:key="label" class="h"><view class="lb">{{index === 0 ? '🏆' : '🌱'}} {{honor.label}}</view><view class="who"><view class="av">{{honor.initial}}</view><text>{{honor.nickname}}</text></view></view><view class="h" data-id="{{item.id}}" bindtap="open"><view class="lb">💬 车手评价</view><view class="who reference-review-count">{{item.reviewCountText}}</view></view></view>
+        <view class="photo-row"><view wx:for="{{item.photoPreviews}}" wx:for-item="photo" wx:key="url" class="ph" data-id="{{item.id}}" data-url="{{photo.url}}" bindtap="previewPhoto"><image class="reference-cover" src="{{photo.url}}" mode="aspectFill" lazy-load/><text class="span">{{photo.albumLabel}}</text></view><view wx:if="{{!item.photos.length}}" class="ph reference-photo-empty">相册待整理</view></view>
+        <view class="video-card reference-cover-fallback" data-id="{{item.id}}" bindtap="playVideo">
+          <video wx:if="{{playingVideoId === item.id && item.documentary}}" class="reference-history-video" src="{{item.documentary.url}}" autoplay controls show-fullscreen-btn data-id="{{item.id}}" binderror="videoFailed"/>
+          <block wx:else><image class="reference-cover" src="{{item.photos.length ? item.photos[0].url : item.cover}}" mode="aspectFill" lazy-load/><view class="reference-video-shade"></view><view wx:if="{{item.documentary && !videoErrors[item.id]}}" class="ply"><view class="i"></view></view><view wx:else class="reference-video-empty">{{videoErrors[item.id] ? '影片暂时无法播放' : '纪录片待发布'}}</view><view class="vt">▶ {{item.documentary ? item.documentary.title : item.title + ' · 同行纪录'}}</view></block>
+        </view>
+        <view class="review"><view wx:for="{{item.reviewPreviews}}" wx:for-item="review" wx:key="publicId" class="rv"><view class="av">{{review.initial}}</view><view class="tx"><view class="hd"><text class="b">{{review.nickname}}</text><text class="star span">{{review.starsText}}</text></view><view class="p">{{review.comment}}</view></view></view><view wx:if="{{!item.reviewPreviews.length}}" class="reference-review-empty">暂无公开评价，期待你的同行感受。</view></view>
+        <button class="link a reference-story-link" data-id="{{item.id}}" bindtap="open">查看本场记录 / 留下评价 ›</button>
+      </view>
+    </view>
+    <view wx:if="{{loading}}" class="loading">正在加载往期活动…</view>
+    <view wx:if="{{!loading && !error && !visibleItems.length}}" class="empty">{{month !== 'all' || query ? '没有找到相关活动' : '第一段同行，等你一起出发。'}}<button wx:if="{{month === 'all' && !query}}" class="btn primary mt" bindtap="explore">查看近期活动</button></view>
+    <button wx:if="{{nextCursor && !loading}}" class="btn ghost mt" bindtap="more">继续查看往期活动</button>
+    <view wx:if="{{!loading && items.length}}" class="hist-foot">已加载 {{items.length}} 场活动 · 滑动查看往期档案</view>
   </view>
-  <view wx:if="{{loading}}" class="loading">正在整理往期活动…</view>
-  <view wx:if="{{!loading && !error && !visibleItems.length}}" class="empty">{{items.length ? '没有找到相关活动，可以换个关键词。' : '第一段同行，等你一起出发。'}}<button wx:if="{{!items.length}}" class="primary full mt" bindtap="explore">查看近期活动</button></view>
-  <view wx:if="{{nextCursor}}" class="notice">还有往期记录尚未加载。<button class="text-button" disabled="{{loading}}" bindtap="more">继续查看往期活动</button></view>
-  <view wx:if="{{!loading && items.length}}" class="archive-end">已载入 {{items.length}} 场 · 留下每一次同行的足迹</view>
+  <reference-overlay kind="{{refPanel}}" params="{{refParams}}" bindclose="closeReference"/>
 </view>

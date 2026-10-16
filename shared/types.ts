@@ -1,10 +1,11 @@
+import type { ActivityDisplayFields } from './activity-display';
 export const CLUB_ID = 'oradv';
 export type ActivityState = 'draft' | 'published' | 'closed' | 'in_progress' | 'ended' | 'settled' | 'cancelled';
 export type RegistrationState = 'pending_review' | 'waitlisted' | 'pending_confirmation' | 'confirmed' | 'checked_in' | 'pending_settlement' | 'completed' | 'safe_exit' | 'no_show' | 'cancelled' | 'rejected';
 export type Role = 'owner' | 'operator' | 'leader' | 'checkin' | 'content_admin';
 export type MemberKind = 'founder' | 'regular';
 export type ContactMethod = 'phone' | 'wechat' | 'other';
-export interface Activity {
+export interface Activity extends ActivityDisplayFields {
   id: string; clubId: string; title: string; description: string; location: string;
   difficulty: string; state: ActivityState; startAt: string; endAt: string;
   applicationClosesAt: string; capacity: number; reservedSeats: number;
@@ -92,6 +93,7 @@ export interface PointsResult {
 export interface RpcRequest {
   action: string; requestId: string; clubId: string;
   payload: Record<string, unknown>; expectedRevision?: number;
+  viewerMode?: 'guest';
 }
 export type RpcResponse<T = unknown> =
   | { ok: true; data: T; traceId: string }

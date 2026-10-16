@@ -1,0 +1,3 @@
+<view wx:if="{{!hidden}}" class="reference-tabbar">
+  <button wx:for="{{tabs}}" wx:key="path" class="reference-tab {{selected === index ? 'on' : ''}}" data-index="{{index}}" bindtap="choose"><image src="/assets/tabs/v2-{{item.icon}}{{selected === index ? '-active' : ''}}.png" mode="aspectFit"/><text>{{item.text}}</text></button>
+</view>

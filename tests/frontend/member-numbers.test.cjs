@@ -1,3 +1,4 @@
+const { freshPageModule } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -8,7 +9,7 @@ const storeKey = 'oradv-beta-store-v3';
 function reopenApi() { delete require.cache[require.resolve(apiPath)]; return require(apiPath); }
 function page(name) {
   let definition; global.Page = value => { definition = value; };
-  const file = path.join(root, 'pages', name + '.js'); delete require.cache[require.resolve(file)]; require(file);
+  const file = path.join(root, 'pages', name + '.js'); freshPageModule(file);
   const instance = { ...definition, data: structuredClone(definition.data) };
   instance.setData = values => {
     for (const [key, value] of Object.entries(values)) {

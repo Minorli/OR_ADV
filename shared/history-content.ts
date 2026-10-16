@@ -51,11 +51,12 @@ function cursor(ctx: Context): { value: string; id: string } | undefined {
   return { value: decoded, id: '~' };
 }
 
-export async function historyDetail(ctx: Context): Promise<PublicHistoryDetail> {
+export async function historyDetail(ctx: Context, reviewPageSize = PUBLIC_REVIEW_PAGE_SIZE): Promise<PublicHistoryDetail> {
+  requireThat(reviewPageSize === 2 || reviewPageSize === PUBLIC_REVIEW_PAGE_SIZE, 'INVALID_INPUT', '评价分页不正确');
   fields(ctx, ['activityId', 'cursor']);
   const initial = await ctx.store.transaction(async tx => { const a = await activity(ctx, tx); return { activity: a, story: await tx.get<ActivityStory>('activity_stories', storyId(ctx, a.id)) }; });
-  const candidates = await ctx.store.query<ActivityReview>('activity_reviews', { clubId: ctx.clubId, activityId: initial.activity.id, status: 'approved', publishConsent: true, nicknameConsent: true }, { orderBy: 'publicSort', direction: 'desc', after: cursor(ctx), limit: PUBLIC_REVIEW_PAGE_SIZE + 1 });
-  const page = candidates.slice(0, PUBLIC_REVIEW_PAGE_SIZE), honorRows = initial.story?.published ? await Promise.all(initial.story.honors.map(honor => findPublicReview(ctx, initial.activity.id, honor.reviewPublicId))) : [];
+  const candidates = await ctx.store.query<ActivityReview>('activity_reviews', { clubId: ctx.clubId, activityId: initial.activity.id, status: 'approved', publishConsent: true, nicknameConsent: true }, { orderBy: 'publicSort', direction: 'desc', after: cursor(ctx), limit: reviewPageSize + 1 });
+  const page = candidates.slice(0, reviewPageSize), honorRows = initial.story?.published ? await Promise.all(initial.story.honors.map(honor => findPublicReview(ctx, initial.activity.id, honor.reviewPublicId))) : [];
   const photoRows = initial.story?.published ? await ctx.store.transaction(async tx => {
     const rows: MemberMediaAsset[] = [];
     for (const id of initial.story!.photoAssetIds) {
@@ -94,8 +95,9 @@ export async function historyDetail(ctx: Context): Promise<PublicHistoryDetail> 
       }
       story = { intro: current.intro, photos, photoCount: photos.length, documentary: current.documentaryUrl && current.videoRightsAcknowledged ? { url: validateHistoryDocumentaryUrl(current.documentaryUrl), title: current.documentaryTitle } : null, honors };
     }
-    return { activity: { id: a.id, title: a.title, description: a.description, location: a.location, difficulty: a.difficulty, startAt: a.startAt, endAt: a.endAt, fixtureOnly: a.fixtureOnly ?? false }, story,
-      reviews: { items: reviews, nextCursor: candidates.length > PUBLIC_REVIEW_PAGE_SIZE && page.length ? page[page.length - 1].publicSort : null } };
+    return { activity: { id: a.id, title: a.title, description: a.description, location: a.location, difficulty: a.difficulty, startAt: a.startAt, endAt: a.endAt, actualCompletedAt: a.actualCompletedAt,
+      ...(a.coverKey !== undefined ? { coverKey: a.coverKey } : {}), ...(a.distanceKm !== undefined ? { distanceKm: a.distanceKm } : {}), ...(a.itinerary !== undefined ? { itinerary: a.itinerary } : {}), fixtureOnly: a.fixtureOnly ?? false }, story,
+      reviews: { items: reviews, nextCursor: candidates.length > reviewPageSize && page.length ? page[page.length - 1].publicSort : null } };
   });
 }
 

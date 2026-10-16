@@ -11,7 +11,9 @@ export interface OwnRanking {
 }
 
 /** A private summary of the same public list; never a second scoring algorithm. */
-async function ownRanking(ctx: Context): Promise<OwnRanking> {
+export async function ownRanking(ctx: Context, options: { deadlineMs?: number } = {}): Promise<OwnRanking> {
+  const withinBudget = () => requireThat(options.deadlineMs === undefined || Date.now() <= options.deadlineMs,
+    'TEMPORARY_FAILURE', '排名暂时无法显示，请稍后刷新');
   const payload = ctx.request.payload;
   requireThat(Object.keys(payload).every(field => ['metric', 'year'].includes(field)), 'INVALID_INPUT', '榜单查询包含不支持的字段');
   const metric = payload.metric ?? 'growth';
@@ -28,9 +30,11 @@ async function ownRanking(ctx: Context): Promise<OwnRanking> {
   const entries: RankingEntry[] = [], seen = new Set<string>(), cursors = new Set<string>();
   let cursor: string | null = null;
   for (let page = 0; page < 12; page++) {
+    withinBudget();
     const request = { ...ctx.request, action: 'ranking.list', payload: { metric, year, cursor } };
     const child = new Context(ctx.store, { ...ctx.options, now: () => ctx.now }, request, ctx.identity, ctx.traceId);
     const result = await listRankings(child);
+    withinBudget();
     for (const entry of result.items) {
       requireThat(!seen.has(entry.memberPublicId), 'CONFLICT_REFRESH', '榜单正在变化，请刷新后重新核对');
       seen.add(entry.memberPublicId); entries.push(entry);
@@ -42,6 +46,7 @@ async function ownRanking(ctx: Context): Promise<OwnRanking> {
     cursors.add(cursor);
   }
   requireThat(!cursor, 'CONFLICT_REFRESH', '榜单记录正在更新，请刷新后重新核对');
+  withinBudget();
   await ctx.store.transaction(async tx => {
     const actor = await ctx.actor(tx);
     requireThat(actor.member.id === before.memberId && actor.user.id === before.userId && actor.member.publicId === before.publicId

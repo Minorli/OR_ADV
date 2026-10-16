@@ -17,7 +17,7 @@ export interface HandlerDependencies {
   log?: (entry: { traceId: string; action: string; code: string; serverBuild?: string; rejectedFields?: string[]; rejectedFieldCount?: number; stage?: string; backendCode?: string; backendHints?: string[]; runtimeAuth?: { credentials: string; sessionToken: boolean } }) => void;
 }
 
-const SERVER_BUILD = 'native-envelope-20261016.10';
+const SERVER_BUILD = 'native-envelope-20261016.11';
 class EnvelopeFieldError extends DomainError {
   readonly fields: string[];
   readonly fieldCount: number;
@@ -69,14 +69,15 @@ export function validateEnvelope(value: unknown): RpcRequest {
   if (!object(value)) reject('INVALID_INPUT', '请求格式不正确');
   // Native calls add userInfo and tcbContext (observed in real beta requests).
   // Discard both transport fields; validateRuntime only uses SDK context.
-  const allowed = ['action', 'requestId', 'clubId', 'payload', 'expectedRevision', 'userInfo', 'tcbContext'];
+  const allowed = ['action', 'requestId', 'clubId', 'payload', 'expectedRevision', 'viewerMode', 'userInfo', 'tcbContext'];
   const rejected = Object.keys(value).filter(key => !allowed.includes(key));
   if (rejected.length) throw new EnvelopeFieldError(rejected);
   let size: number;
   try { size = Buffer.byteLength(JSON.stringify(value)); } catch { reject('INVALID_INPUT', '请求格式不正确'); }
-  if (size! > (['profile.avatar.save','media.image.save'].includes(String(value.action)) ? AVATAR_REQUEST_LIMIT : value.action === 'staff.learning.catalog.save' ? 262144 : ['staff.club.content.save','staff.history.save'].includes(String(value.action)) ? 65536 : 16_384) || typeof value.action !== 'string' || !/^[a-z][a-zA-Z.]{1,79}$/.test(value.action)
+  if (size! > (['profile.avatar.save','media.image.save'].includes(String(value.action)) ? AVATAR_REQUEST_LIMIT : value.action === 'staff.learning.catalog.save' ? 262144 : ['staff.activity.save','staff.activity.content.save'].includes(String(value.action)) ? 98304 : ['staff.club.content.save','staff.history.save'].includes(String(value.action)) ? 65536 : 16_384) || typeof value.action !== 'string' || !/^[a-z][a-zA-Z.]{1,79}$/.test(value.action)
     || typeof value.requestId !== 'string' || !/^[a-zA-Z0-9_.:-]{1,100}$/.test(value.requestId)
     || value.clubId !== 'oradv' || !object(value.payload)
+    || (value.viewerMode !== undefined && value.viewerMode !== 'guest')
     || (value.expectedRevision !== undefined && (!Number.isSafeInteger(value.expectedRevision) || (value.expectedRevision as number) < 0))) {
     reject('INVALID_INPUT', '请求格式、俱乐部或版本不正确');
   }
@@ -86,6 +87,7 @@ export function validateEnvelope(value: unknown): RpcRequest {
     clubId: 'oradv',
     payload: value.payload,
     ...(value.expectedRevision === undefined ? {} : { expectedRevision: value.expectedRevision as number }),
+    ...(value.viewerMode === undefined ? {} : { viewerMode: 'guest' as const }),
   };
 }
 

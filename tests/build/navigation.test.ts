@@ -32,6 +32,18 @@ test('native page navigation respects tab and non-tab route boundaries', () => {
             const value = property.initializer;
             const text = ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value) ? value.text
               : ts.isTemplateExpression(value) ? value.head.text : '';
+            if (!text && relative(root, file) === 'custom-tab-bar/index.ts' && value.getText(source) === 'tabs[index].path') {
+              const declaration = source.statements.filter(ts.isVariableStatement).flatMap(statement => [...statement.declarationList.declarations]).find(item => item.name.getText(source) === 'tabs');
+              assert(declaration?.initializer && ts.isArrayLiteralExpression(declaration.initializer), 'custom tab routes must be a literal allowlist');
+              const routes = declaration.initializer.elements.map(item => {
+                assert(ts.isObjectLiteralExpression(item));
+                const route = item.properties.find(field => ts.isPropertyAssignment(field) && field.name.getText(source) === 'path');
+                assert(route && ts.isPropertyAssignment(route) && ts.isStringLiteral(route.initializer));
+                return route.initializer.text;
+              });
+              assert.deepEqual(routes, manifest.tabBar.list.map(item => '/' + item.pagePath));
+              assert.equal(method, 'switchTab'); checked += routes.length; return;
+            }
             assert.ok(text.startsWith('/pages/'), `${relative(root, file)}: navigation needs a registered page path`);
             const route = text.split('?')[0];
             assert.ok(pages.has(route), `${relative(root, file)}: unknown route ${route}`);

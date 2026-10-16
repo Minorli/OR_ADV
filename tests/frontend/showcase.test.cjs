@@ -42,8 +42,10 @@ test('native modules open with populated local demonstrations and reset without 
   assert.equal(await api.currentMember(), null);
   const activities = page('activities/index'); await activities.load();
   assert.equal(activities.data.error, '');
-  assert.equal(activities.data.filter, 'published');
-  assert(activities.data.items.every(item => item.state === 'published'), 'home opens on current recruitment');
+  assert.equal(activities.data.filter, 'all', 'reference home includes the public upcoming and recent activity cards');
+  assert(activities.data.items.every(item => item.state !== 'draft'), 'the default public view never includes drafts');
+  activities.setData({ filter: 'published' }); await activities.load();
+  assert(activities.data.items.length > 0 && activities.data.items.every(item => item.state === 'published'), 'recruitment filtering remains a functioning public control');
   activities.setData({ filter: 'all' }); await activities.load();
   for (const id of ['intro-ride', 'day-trip', 'ongoing-ride', 'history-ride', 'full-ride']) {
     assert(activities.data.items.some(item => item.id === id), `${id} has an activity card`);

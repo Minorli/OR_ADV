@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "往期活动",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "navigationStyle": "custom"
 }

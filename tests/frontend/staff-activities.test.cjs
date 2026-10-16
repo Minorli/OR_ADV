@@ -5,10 +5,10 @@ const root = path.resolve(__dirname, '../../app/miniprogram'), apiPath = path.jo
 const event = (field, value) => ({ currentTarget: { dataset: { field } }, detail: { value } });
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 function environment() {
-  const storage = new Map(), calls = [], routes = [], scroll = []; let onConfirm, intercept, identity = member => member;
+  const storage = new Map(), calls = [], routes = [], scroll = [], toasts = []; let onConfirm, intercept, identity = member => member;
   global.wx = { getStorageSync: key => structuredClone(storage.get(key)), setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
     getStorageInfoSync: () => ({ keys: [...storage.keys()] }), removeStorageSync: key => storage.delete(key),
-    showToast() {}, showModal: async value => ({ confirm: await onConfirm?.(value) !== false }), pageScrollTo: value => scroll.push(value.selector),
+    showToast(value) { toasts.push(value.title); }, showModal: async value => ({ confirm: await onConfirm?.(value) !== false }), pageScrollTo: value => scroll.push(value.selector),
     navigateTo: value => routes.push(value.url), switchTab: value => routes.push(value.url), stopPullDownRefresh() {},
   };
   delete require.cache[require.resolve(apiPath)]; const real = require(apiPath); real.resetMock('empty'); real.switchMockRole('owner');
@@ -21,7 +21,7 @@ function environment() {
   const p = { ...definition, data: structuredClone(definition.data), setData(values, callback) {
     for (const [key, value] of Object.entries(values)) { const parts = key.split('.'); let target = this.data; for (const part of parts.slice(0, -1)) target = target[part]; target[parts.at(-1)] = value; } callback?.();
   } };
-  return { api: real, p, calls, routes, scroll, runtime, onConfirm(value) { onConfirm = value; }, intercept(value) { intercept = value; }, setIdentity(value) { identity = value; }, restore() { module.exports = real; } };
+  return { api: real, p, calls, routes, scroll, toasts, runtime, onConfirm(value) { onConfirm = value; }, intercept(value) { intercept = value; }, setIdentity(value) { identity = value; }, restore() { module.exports = real; } };
 }
 function fill(p) {
   for (const [field, value] of Object.entries({ title: '周末林道同行', description: '按本场准备说明集合，完成出发与回场核对。', location: '北京周边公开区域', safetyNotice: '活动中遇到状况及时联系现场负责人。', equipment: '请按本场核定的装备要求准备。' })) p.field(event(field, value));
@@ -55,7 +55,7 @@ test('owner can create, find the publish action, preview, publish, and correct w
     assert.equal(corrected.title, '周末林道同行 · 集合提示已补充'); assert.equal(corrected.state, 'published'); assert.equal(corrected.ruleVersion, frozen.ruleVersion);
     assert.deepEqual({ ...corrected, title: frozen.title, description: frozen.description, revision: frozen.revision }, frozen);
     const request = env.calls.find(row => row.action === 'staff.activity.content.save');
-    assert.deepEqual(Object.keys(request.payload).sort(), ['activityId', 'description', 'reason', 'title']); assert.equal(request.revision, frozen.revision);
+    assert.deepEqual(Object.keys(request.payload).sort(), ['activityId', 'coverKey', 'description', 'distanceKm', 'itinerary', 'reason', 'title']); assert.equal(request.revision, frozen.revision);
   } finally { env.restore(); }
 });
 
@@ -150,5 +150,41 @@ test('existing registration, briefing, check-in and settlement controls keep the
     assert.equal(p.data.error, ''); assert.equal(p.data.preview.eligibleCount, 1); await p.settle();
     assert.equal(p.data.error, ''); assert.equal(p.data.settlement.successCount, 1);
     env.api.switchMockRole('member'); const member = await env.api.currentMember(); assert.equal(member.completedCount, 1); assert.equal(member.growthPoints, 100);
+  } finally { env.restore(); }
+});
+
+
+test('activity display form saves cover, route distance and stages, including published corrections without changing enrollment rules', async () => {
+  const env = environment(), p = env.p;
+  try {
+    await p.load(); await p.newActivity(); fill(p);
+    p.cover({ detail: { value: '4' } }); p.field(event('distanceKm', '360')); p.addStage();
+    const stageField = (field, value) => p.itineraryField({ currentTarget: { dataset: { index: 0, field } }, detail: { value } });
+    stageField('title', '山麓至营地'); stageField('description', '按天气调整途中休息，不公开精确集合点。');
+    await p.save(); assert.equal(p.data.error, '');
+    const id = p.data.selected.id, draft = await env.api.call('activity.get', { activityId: id });
+    assert.equal(draft.coverKey, 'v2-1'); assert.equal(draft.distanceKm, 360); assert.equal(draft.itinerary[0].title, '山麓至营地');
+    await p.lifecycle({ currentTarget: { dataset: { action: 'publish' } } });
+    const frozen = await env.api.call('activity.get', { activityId: id }); await p.edit();
+    p.field(event('distanceKm', '380')); stageField('description', '公开路线介绍已核实。'); p.field(event('reason', '核实公开路线里程与描述'));
+    p.field(event('capacity', '200')); assert.equal(p.data.form.capacity, String(frozen.capacity));
+    await p.save(); const revised = await env.api.call('activity.get', { activityId: id });
+    assert.equal(revised.distanceKm, 380); assert.equal(revised.itinerary[0].description, '公开路线介绍已核实。');
+    assert.equal(revised.capacity, frozen.capacity); assert.deepEqual(revised.pointsRule, frozen.pointsRule); assert.equal(revised.ruleVersion, frozen.ruleVersion);
+  } finally { env.restore(); }
+});
+
+test('invalid display edits never write; switching identity discards route drafts', async () => {
+  const env = environment(), p = env.p;
+  try {
+    await p.load(); await p.newActivity(); fill(p); p.field(event('distanceKm', '1.5'));
+    env.calls.length = 0; await p.save(); assert(!env.calls.some(row => row.action === 'staff.activity.save')); assert.equal(p.data.editor, true); assert.match(env.toasts.at(-1), /整数/);
+    p.field(event('distanceKm', '10')); p.addStage(); await p.save();
+    assert(!env.calls.some(row => row.action === 'staff.activity.save'), 'empty stage title is invalid'); assert.match(env.toasts.at(-1), /路线分段/);
+    p.itineraryField({ currentTarget: { dataset: { index: 0, field: 'title' } }, detail: { value: '公开路线' } });
+    p.field(event('itinerary', 'crafted')); assert(Array.isArray(p.data.form.itinerary));
+    p.cover({ detail: { value: '999' } }); assert.equal(p.data.form.coverKey, '');
+    env.api.switchMockRole('operator'); env.calls.length = 0; await p.save();
+    assert(!env.calls.some(row => row.action === 'staff.activity.save')); assert.deepEqual(p.data.form.itinerary, []); assert.equal(p.data.editor, false);
   } finally { env.restore(); }
 });

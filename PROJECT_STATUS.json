@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.4.0-test.2",
+  "version": "0.5.0-test.1",
   "asOf": "2026-10-16",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -36,7 +36,7 @@
     "M5": "pending",
     "M6": "pending"
   },
-  "nextMilestone": "M2-real-test-cloud-identity-and-transaction-validation",
+  "nextMilestone": "V2-candidate-experience-release-and-phone-acceptance",
   "limits": {
     "activityCapacity": 30,
     "annualSnapshotMembers": 30,
@@ -67,27 +67,27 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.4.0-test.2",
+    "sourceVersion": "0.5.0-test.1",
     "typecheck": "passed",
-    "domainTests": 165,
-    "cloudTests": 77,
-    "buildAndTemplateTests": 12,
-    "typescriptTests": 254,
-    "nativePageTests": 102,
+    "domainTests": "included_in_typescriptTests",
+    "cloudTests": "included_in_typescriptTests",
+    "buildAndTemplateTests": "included_in_typescriptTests",
+    "typescriptTests": 280,
+    "nativePageTests": 136,
     "pythonToolTests": 14,
-    "totalTests": 370,
+    "totalTests": 430,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
   },
   "previewUpload": {
-    "status": "success",
-    "version": "0.4.0-test.2",
+    "status": "official_cloud_preview_and_development_upload_success",
+    "version": "0.5.0-test.1",
     "mode": "cloud",
     "sdkVersion": "2.1.31",
     "qrGenerated": true,
     "uploadIpWhitelistDisabledByUser": true,
-    "localQrArtifact": "dist/OR_ADV-cloud-preview-0.4.0-test.2.png"
+    "localQrArtifact": "dist/OR_ADV-cloud-preview-0.5.0-test.1.png"
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": true,
@@ -216,7 +216,7 @@
     "developerHandlesPayments": false,
     "readonlyInspectionTests": 7,
     "collectionsVerified": 32,
-    "indexDefinitionsVerified": 35,
+    "indexDefinitionsVerified": 36,
     "deployedFunctions": 1,
     "storageAcl": "CUSTOM_deny_read_write",
     "storageRuleBlocker": null,
@@ -234,7 +234,7 @@
     "functionTimeoutSeconds": 30,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "82540f7580542554a797bd7a391e6da96b54bbd857bdcc5f841f6235625304da",
+    "functionBackendSha256": "5a90d4919770065e2109ace615079bbee13db62fd478022e29b8050f0edbda7e",
     "nativeEventCompatibility": {
       "fixed": "discard_observed_userInfo_and_tcbContext_before_domain",
       "trustedIdentity": "SDK_context_only",
@@ -273,12 +273,12 @@
     "businessRecordsPresent": true
   },
   "developmentUpload": {
-    "status": "success",
-    "version": "0.4.0-test.2",
+    "status": "officially_compiled_and_uploaded",
+    "version": "0.5.0-test.1",
     "mode": "cloud",
     "formalReviewSubmitted": false,
     "published": false,
-    "experienceSelectionByVersionManager": "new_development_upload_experience_version_not_reverified"
+    "experienceSelectionByVersionManager": "pending_fresh_official_login_readback"
   },
   "newPrototypeIteration": {
     "allFourTabsAndLeafFlowsImplemented": true,
@@ -346,17 +346,17 @@
     "businessRecordsWritten": 0
   },
   "experienceRelease": {
-    "status": "last_officially_verified_experience_version",
-    "version": "0.3.0-test.3",
+    "status": "officially_verified_current_experience",
+    "version": "0.4.0-test.2",
     "appNameMatched": true,
     "appIdMatched": true,
     "descriptionMatched": true,
     "officialTrialBadgeVisible": true,
     "localQrArtifact": "OR_ADV体验版二维码.png",
-    "qrValidBeforePlatformDate": "2026-10-23",
     "formalReviewSubmitted": false,
-    "phoneRetest": "pending_after_test3_frontend_changes",
-    "temporaryConsoleSessionLoggedOut": true
+    "phoneRetest": "pending_after_avatar_patch",
+    "temporaryConsoleSessionLoggedOut": true,
+    "verifiedOn": "2026-10-16"
   },
   "ownerBootstrap": {
     "status": "executed_and_read_back",
@@ -496,5 +496,80 @@
     "backendRedeployed": false,
     "githubCiPassed": true,
     "fullGithubTests": 370
+  },
+  "releasePolicy": {
+    "stage": "experience",
+    "publishAfterEveryIteration": true,
+    "productionAfterOfficialLaunch": true,
+    "userAuthorization": "explicit_persistent_2026-10-16",
+    "requireActualVersionReadback": true,
+    "mustReportEffectiveVersion": true,
+    "developmentUploadIsNotExperienceRelease": true,
+    "sourceVersion": "0.5.0-test.1",
+    "developmentVersion": "0.5.0-test.1"
+  },
+  "visualParityV2": {
+    "status": "implemented_cloud_deployed_officially_compiled_and_development_uploaded_experience_readback_pending",
+    "canonicalLocalFile": "OR小程序原型_v2.html",
+    "sha256": "a9d6a3f4ac58dee61fda88c3f481683d7c8c907d12b0247ef85ee552abfb6d80",
+    "bytes": 94777,
+    "remoteMatchesUploadedFile": true,
+    "referenceScopes": [
+      "4_tabs",
+      "2_sheets",
+      "6_modals",
+      "all_nested_states"
+    ],
+    "appearanceRequirement": "one_to_one",
+    "featuresMayBeAddedNotRemoved": true,
+    "state": "implemented_validation_in_progress",
+    "referenceScenarios": 129,
+    "referenceStates": 146,
+    "referenceScreenshots": 498,
+    "currentBrowserTabGeometryChecks": 46,
+    "nativePhoneVisualAcceptance": "pending",
+    "canonicalFileKeptLocal": true,
+    "publicCloudReadback": {
+      "scope": "actual_SDK_service_CloudStore_readonly_not_WeChat_phone",
+      "historyCards": 3,
+      "historyMs": 1589,
+      "guestProfileMs": 169,
+      "writes": 0
+    },
+    "backendIndependentReview": "passed_no_high_or_critical",
+    "backendBuildCandidate": "native-envelope-20261016.11",
+    "componentBrowserStates": 39,
+    "componentBrowserUiEvents": 52,
+    "componentBrowserScreenshots": 95,
+    "componentGeometryChecks": 471,
+    "componentGeometryPassed": 471,
+    "backendSourceDownloadedAndMatched": true,
+    "rawPackageBytesAfterDeduplication": 1636757,
+    "rawPackageFiles": 177,
+    "duplicateCoversReuseSameBytes": true,
+    "officialCompilerPassed": true,
+    "remainingAcceptance": "native_WeChat_device_fonts_safe_areas_media_and_business_flow",
+    "officialCloudPreviewGenerated": true
+  },
+  "onlineRelease": {
+    "status": "officially_verified_no_online_version",
+    "version": null,
+    "verifiedOn": "2026-10-16"
+  },
+  "historyIndexUpgrade": {
+    "target": "test",
+    "version": 5,
+    "planHash": "127f6b9c0dea989ad64511523d7ce8e72b28f1d98314ba3ed1629e203bc07663",
+    "baselineCollections": 32,
+    "baselineIndexes": 35,
+    "addedCollections": 0,
+    "addedIndexes": 1,
+    "indexAlreadyPresent": false,
+    "finalPlannedIndexes": 36,
+    "denyRulesVerified": true,
+    "storageDenyVerified": true,
+    "businessRecordsWritten": 0,
+    "rulesWritten": 0,
+    "billingChanged": false
   }
 }

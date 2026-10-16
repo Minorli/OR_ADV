@@ -1,5 +1,5 @@
 import { Context, encodeCursor, parseCursor } from './context';
-import { requireThat, text } from './errors';
+import { integer, requireThat, text } from './errors';
 import { key } from './models';
 import { sha256 } from './hash';
 import { PUBLIC_CONTENT_ROLES } from './permissions';
@@ -35,8 +35,14 @@ export function validateClubContent(value: unknown, selected: ClubContentSection
     return { heading: text(row.heading, '段落标题', 50), body: text(row.body, '段落内容', 600) };
   });
   const people = array(p.people, 8, value => {
-    const row = object(value); fields(row, ['name', 'duty', 'introduction', 'responsibilities']);
-    return { name: text(row.name, '公开称呼', 30), duty: text(row.duty, '职责称谓', 40), introduction: optional(row.introduction, '介绍', 200), responsibilities: array(row.responsibilities, 6, item => text(item, '职责说明', 150)) };
+    const row = object(value); fields(row, ['name', 'duty', 'introduction', 'responsibilities', 'avatarText', 'experience', 'distanceKm', 'serviceText']);
+    const distanceKm = row.distanceKm === undefined || row.distanceKm === null ? null : integer(row.distanceKm, '公开累计里程');
+    requireThat(distanceKm === null || distanceKm <= 10000000, 'INVALID_INPUT', '公开累计里程不正确');
+    return { name: text(row.name, '公开称呼', 30), duty: text(row.duty, '职责称谓', 40), introduction: optional(row.introduction, '介绍', 200), responsibilities: array(row.responsibilities, 6, item => text(item, '职责说明', 150)),
+      ...(row.avatarText !== undefined ? { avatarText: optional(row.avatarText, '头像文字', 2) } : {}),
+      ...(row.experience !== undefined ? { experience: optional(row.experience, '公开经历', 200) } : {}),
+      ...(row.distanceKm !== undefined ? { distanceKm } : {}),
+      ...(row.serviceText !== undefined ? { serviceText: optional(row.serviceText, '公开服务记录', 60) } : {}) };
   });
   const contacts = array(p.contacts, 10, value => {
     const row = object(value); fields(row, ['label', 'name', 'method', 'value', 'hours', 'note']);

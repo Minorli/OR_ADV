@@ -1,0 +1,14 @@
+<view wx:if="{{mounts.length}}" class="reference-layer">
+  <view class="reference-mask" bindtap="requestClose" catchtouchmove="stop"></view>
+  <view class="reference-panel {{isSheet ? 'reference-panel--sheet' : 'reference-panel--modal'}}" catchtap="stop">
+    <block wx:for="{{mounts}}" wx:key="key">
+      <reference-activity wx:if="{{item.kind === 'activity'}}" id="reference-leaf" params="{{item.params}}" bindrequestclose="requestClose"/>
+      <reference-dossier wx:elif="{{item.kind === 'dossier'}}" id="reference-leaf" params="{{item.params}}" bindrequestclose="requestClose"/>
+      <reference-learning wx:elif="{{item.kind === 'learning'}}" id="reference-leaf" params="{{item.params}}" bindrequestclose="requestClose"/>
+      <reference-skills wx:elif="{{item.kind === 'skills'}}" id="reference-leaf" params="{{item.params}}" bindrequestclose="requestClose"/>
+      <reference-history-detail wx:elif="{{item.kind === 'history-detail'}}" id="reference-leaf" params="{{item.params}}" bindrequestclose="requestClose"/>
+      <reference-redemption wx:elif="{{item.kind === 'redemption'}}" id="reference-leaf" params="{{item.params}}" bindrequestclose="requestClose"/>
+      <reference-club-content wx:else id="reference-leaf" params="{{item.params}}" bindrequestclose="requestClose"/>
+    </block>
+  </view>
+</view>

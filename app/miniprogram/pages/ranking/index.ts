@@ -3,19 +3,22 @@ import { emptyContact, contactPerson } from '../../services/member';
 import type { ClubContact, Recommendation } from '../../services/member';
 import type { MemberSummary, PageResult, RankingEntry } from '../../../../shared/types';
 import type { OwnRanking } from '../../../../shared/club-overview';
+import type { ClubContentView } from '../../../../shared/club-content-types';
+import { readReferenceChrome, syncReferenceTab, openReferencePanel, closeReferencePanel } from '../../services/reference-ui';
 const currentYear = () => new Date(Date.now() + 8 * 60 * 60 * 1000).getUTCFullYear();
 type PublicMember = Recommendation & { initial: string; hasPublicPoints: boolean };
 type PublicRank = RankingEntry & { initial: string };
 const initial = (nickname: string) => Array.from(nickname.trim())[0] || 'OR';
 Page({
-  data: { isMock, member: null as MemberSummary | null, ownRanking: null as OwnRanking | null, ownRankingError: '', contact: emptyContact, year: currentYear(), mode: 'recommended', metric: 'growth', filters: [{ value: 'growth', label: '成长积分' }, { value: 'annual', label: '年度积分' }, { value: 'completed_count', label: '完成次数' }], recommendations: [] as PublicMember[], founderRail: [] as PublicMember[], items: [] as PublicRank[], recommendationCursor: null as string | null, nextCursor: null as string | null, requestVersion: 0, loading: false, saving: false, error: '' },
-  onShow() { void this.load(); },
+  data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, corePeople: [] as (ClubContentView['people'][number] & { initial: string })[], coreError: '', member: null as MemberSummary | null, ownRanking: null as OwnRanking | null, ownRankingError: '', contact: emptyContact, year: currentYear(), mode: 'recommended', metric: 'growth', filters: [{ value: 'growth', label: '成长积分' }, { value: 'annual', label: '年度积分' }, { value: 'completed_count', label: '完成次数' }], recommendations: [] as PublicMember[], founderRail: [] as PublicMember[], items: [] as PublicRank[], recommendationCursor: null as string | null, nextCursor: null as string | null, requestVersion: 0, loading: false, saving: false, error: '' },
+  onShow() { syncReferenceTab(this, 1); void this.load(); },
   onUnload() { this.setData({ requestVersion: this.data.requestVersion + 1, member: null, ownRanking: null }); },
   async onPullDownRefresh() { await this.load(); wx.stopPullDownRefresh(); },
   async load(append = false) {
     if (append && this.data.loading) return;
     const requestVersion = this.data.requestVersion + 1, role = mockRole(), year = currentYear(), metric = this.data.metric;
     this.setData({ loading: true, error: '', ownRankingError: '', member: null, ownRanking: null, requestVersion, year, ...(append ? {} : { recommendations: [], founderRail: [], items: [], saving: false }) });
+    if (!append) void this.loadCore(requestVersion, role);
     try {
       const [ranking, recommendations, member, contact] = await Promise.all([
         call<PageResult<RankingEntry>>('ranking.list', { metric: this.data.metric, year, cursor: append && this.data.mode === 'points' ? this.data.nextCursor : undefined }),
@@ -29,6 +32,13 @@ Page({
       if (member) await this.loadOwnRanking(member.id, requestVersion, role, metric, year);
     } catch (error) { if (this.data.requestVersion === requestVersion && (!isMock || mockRole() === role)) this.setData({ error: errorMessage(error) }); }
     finally { if (this.data.requestVersion === requestVersion && (!isMock || mockRole() === role)) this.setData({ loading: false }); }
+  },
+  async loadCore(version: number, role: string) {
+    try {
+      const content = await call<ClubContentView>('club.content.get', { section: 'core' });
+      if (version !== this.data.requestVersion || isMock && mockRole() !== role) return;
+      this.setData({ corePeople: content.configured && content.status === 'published' ? content.people.map(person => ({ ...person, initial: initial(person.name) })) : [], coreError: '' });
+    } catch (error) { if (version === this.data.requestVersion && (!isMock || mockRole() === role)) this.setData({ corePeople: [], coreError: errorMessage(error) }); }
   },
   async loadOwnRanking(memberId: string, version: number, role: string, metric: string, year: number) {
     try {
@@ -50,8 +60,9 @@ Page({
   more() { void this.load(true); },
   profile() { wx.switchTab({ url: '/pages/profile/index' }); },
   points() { wx.navigateTo({ url: '/pages/points/index' }); },
-  duties() { wx.navigateTo({ url: '/pages/club-content/index?section=core' }); },
-  rules() { wx.navigateTo({ url: '/pages/club-content/index?section=points' }); },
+  duties() { openReferencePanel(this, 'core'); },
+  rules() { openReferencePanel(this, 'rules'); },
+  closeReference() { closeReferencePanel(this); },
   contact() { void contactPerson(this.data.contact.contactMethod, this.data.contact.contactValue); },
   async optIn() {
     const member = this.data.member, role = mockRole(), version = this.data.requestVersion;

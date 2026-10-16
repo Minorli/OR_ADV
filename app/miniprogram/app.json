@@ -26,7 +26,7 @@
     "backgroundTextStyle": "light"
   },
   "tabBar": {
-    "color": "#a8a8a8",
+    "color": "#6e6e6e",
     "selectedColor": "#ff6b00",
     "backgroundColor": "#0a0a0a",
     "borderStyle": "black",
@@ -34,30 +34,34 @@
       {
         "pagePath": "pages/activities/index",
         "text": "首页",
-        "iconPath": "assets/tabs/home.png",
-        "selectedIconPath": "assets/tabs/home-active.png"
+        "iconPath": "assets/tabs/v2-home.png",
+        "selectedIconPath": "assets/tabs/v2-home-active.png"
       },
       {
         "pagePath": "pages/ranking/index",
         "text": "排行",
-        "iconPath": "assets/tabs/rank.png",
-        "selectedIconPath": "assets/tabs/rank-active.png"
+        "iconPath": "assets/tabs/v2-rank.png",
+        "selectedIconPath": "assets/tabs/v2-rank-active.png"
       },
       {
         "pagePath": "pages/history/index",
         "text": "历史",
-        "iconPath": "assets/tabs/history.png",
-        "selectedIconPath": "assets/tabs/history-active.png"
+        "iconPath": "assets/tabs/v2-history.png",
+        "selectedIconPath": "assets/tabs/v2-history-active.png"
       },
       {
         "pagePath": "pages/profile/index",
         "text": "我的",
-        "iconPath": "assets/tabs/profile.png",
-        "selectedIconPath": "assets/tabs/profile-active.png"
+        "iconPath": "assets/tabs/v2-profile.png",
+        "selectedIconPath": "assets/tabs/v2-profile-active.png"
       }
-    ]
+    ],
+    "custom": true
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents"
+  "lazyCodeLoading": "requiredComponents",
+  "usingComponents": {
+    "reference-overlay": "/components/reference-overlay/index"
+  }
 }

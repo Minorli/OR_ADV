@@ -20,6 +20,7 @@ import { CLUB_CONTENT_ACTIONS, dispatchClubContent } from './club-content';
 import { HISTORY_CONTENT_ACTIONS, dispatchHistoryContent } from './history-content';
 import { OVERVIEW_ACTIONS, dispatchClubOverview } from './club-overview';
 import { profileOverview } from './profile-overview';
+import { HISTORY_FEED_ACTIONS, historyFeed } from './history-feed';
 import { WALLET_ACTIONS, dispatchWallet } from './points-wallet';
 import { REDEMPTION_ACTIONS, dispatchRedemptions } from './redemptions';
 
@@ -31,11 +32,14 @@ export function createService(store: Store, options: ServiceOptions = {}) {
         requireThat(request && typeof request === 'object' && typeof request.action === 'string' && request.action.length <= 80, 'INVALID_INPUT', '请求格式不正确');
         requireThat(typeof request.requestId === 'string' && request.requestId.length > 0 && request.requestId.length <= 100, 'INVALID_INPUT', '缺少请求标识');
         requireThat(request.payload && typeof request.payload === 'object' && !Array.isArray(request.payload), 'INVALID_INPUT', '参数格式不正确');
-        requireThat(JSON.stringify(request).length <= (['profile.avatar.save','media.image.save'].includes(request.action) ? AVATAR_REQUEST_LIMIT : request.action === 'staff.learning.catalog.save' ? 262144 : ['staff.club.content.save','staff.history.save'].includes(request.action) ? 65536 : 20000), 'INVALID_INPUT', '请求内容过大');
-        ctx = new Context(store, options, request, identity, traceId);
+        requireThat(request.viewerMode === undefined || request.viewerMode === 'guest', 'INVALID_INPUT', '浏览身份不正确');
+        requireThat(JSON.stringify(request).length <= (['profile.avatar.save','media.image.save'].includes(request.action) ? AVATAR_REQUEST_LIMIT : request.action === 'staff.learning.catalog.save' ? 262144 : ['staff.activity.save','staff.activity.content.save'].includes(request.action) ? 98304 : ['staff.club.content.save','staff.history.save'].includes(request.action) ? 65536 : 20000), 'INVALID_INPUT', '请求内容过大');
+        // A client may opt into a public view; it can never supply or increase identity.
+        ctx = new Context(store, options, request, request.viewerMode === 'guest' ? null : identity, traceId);
         requireThat(request.clubId === ctx.clubId, 'FORBIDDEN', '没有此俱乐部访问权限');
         let data: unknown;
-        if (WALLET_ACTIONS.some(action => action === request.action)) data = await dispatchWallet(ctx);
+        if (HISTORY_FEED_ACTIONS.some(action => action === request.action)) data = await historyFeed(ctx);
+        else if (WALLET_ACTIONS.some(action => action === request.action)) data = await dispatchWallet(ctx);
         else if (REDEMPTION_ACTIONS.some(action => action === request.action)) data = await dispatchRedemptions(ctx);
         else if (LEARNING_ACTIONS.some(action => action === request.action)) data = await dispatchLearning(ctx);
         else if (CLUB_CONTENT_ACTIONS.some(action => action === request.action)) data = await dispatchClubContent(ctx);

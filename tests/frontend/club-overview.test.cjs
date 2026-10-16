@@ -1,3 +1,4 @@
+const { freshPageModule } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -16,7 +17,7 @@ function environment() {
 }
 function page(name) {
   let definition; global.Page = value => { definition = value; };
-  const file = path.join(app, 'pages', name + '.js'); delete require.cache[require.resolve(file)]; require(file);
+  const file = path.join(app, 'pages', name + '.js'); freshPageModule(file);
   const instance = { ...definition, data: structuredClone(definition.data) };
   instance.setData = values => Object.assign(instance.data, values);
   return instance;
@@ -40,9 +41,8 @@ test('home shows only published partner content and ranking uses its real own pu
   assert.equal(home.data.error, ''); assert.equal(home.data.partnersConfigured, true);
   assert.equal(home.data.partners[0].heading, '演示装备伙伴'); assert.equal(home.data.nextTrip.activityId, activity.id);
   assert.equal(home.data.heroSlides.length, 4);
-  home.partners(); home.learning(); home.trip();
-  assert(routes.includes('/pages/club-content/index?section=partners'));
-  assert(routes.includes('/pages/learning/index'));
+  home.partners(); assert.equal(home.data.refPanel, 'partners');
+  home.learning(); assert.equal(home.data.refPanel, 'learning'); home.trip();
   assert(routes.some(route => route.startsWith('/pages/trip/detail?id=')));
   const ranking = page('ranking/index'); await ranking.load();
   assert.equal(ranking.data.error, ''); assert.equal(ranking.data.ownRanking.rankingOptIn, false);
@@ -51,7 +51,7 @@ test('home shows only published partner content and ranking uses its real own pu
   await ranking.optIn();
   assert.equal(ranking.data.ownRanking.rankingOptIn, true); assert.equal(ranking.data.ownRanking.rank, 1); assert.equal(ranking.data.ownRanking.publicCount, 1);
   assert.equal(ranking.data.member.growthPoints, pointsBefore);
-  ranking.duties(); ranking.rules(); assert(routes.includes('/pages/club-content/index?section=core')); assert(routes.includes('/pages/club-content/index?section=points'));
+  ranking.duties(); assert.equal(ranking.data.refPanel, 'core'); ranking.rules(); assert.equal(ranking.data.refPanel, 'rules');
   await ranking.optIn(); assert.equal(ranking.data.ownRanking.rank, null); assert.equal(ranking.data.ownRanking.publicCount, null);
   api.switchMockRole('owner');
   await api.call('staff.club.content.save', { section: 'partners', content, status: 'draft' }, published.revision);

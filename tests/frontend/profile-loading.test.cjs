@@ -1,3 +1,4 @@
+const { freshPageModule } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -7,7 +8,7 @@ const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwM
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 function profile() {
   let definition; global.Page = value => { definition = value; };
-  delete require.cache[require.resolve(profilePath)]; require(profilePath);
+  freshPageModule(profilePath);
   const instance = { ...definition, data: structuredClone(definition.data) };
   instance.setData = (values, callback) => { Object.assign(instance.data, values); callback?.(); };
   return instance;

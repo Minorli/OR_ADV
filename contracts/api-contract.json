@@ -1,12 +1,13 @@
 {
   "transport": "wx.cloud.callFunction RPC",
-  "status": "v0.4_candidate_in_implementation_real_acceptance_pending",
+  "status": "v0.5_candidate_visual_parity_and_history_feed",
   "requestEnvelope": [
     "action",
     "requestId",
     "clubId",
     "payload",
-    "expectedRevision_optional"
+    "expectedRevision_optional",
+    "viewerMode_optional_guest"
   ],
   "responseEnvelope": {
     "success": [
@@ -175,12 +176,16 @@
       "authorization": "operator_or_owner",
       "input": [
         "activity",
-        "expectedRevision"
+        "expectedRevision",
+        "coverKey_optional_null_or_fixed_asset_key",
+        "distanceKm_optional_null_or_integer_1_100000",
+        "itinerary_optional_max30_dayLabel_title_description"
       ],
       "output": [
         "activityRevision"
       ],
-      "businessIdempotency": false
+      "businessIdempotency": false,
+      "displayFields": "Public presentation only; no private meeting details. Published enrollment, safety, capacity and reward rules remain immutable. Content correction requires bound revision and reason."
     },
     {
       "action": "staff.activity.publish",
@@ -957,7 +962,13 @@
       "output": [
         "content"
       ],
-      "businessIdempotency": false
+      "businessIdempotency": false,
+      "corePersonDisplayFields": [
+        "avatarText_optional_max2",
+        "experience_optional_max200",
+        "distanceKm_optional_null_or_integer",
+        "serviceText_optional"
+      ]
     },
     {
       "action": "club.inquiry.submit",
@@ -1150,9 +1161,12 @@
         "clubPublic",
         "dossierProgress_without_contacts_or_assetIDs",
         "private_avatarUrl_or_section_error",
-        "member.adminDesignation_optional"
+        "member.adminDesignation_optional",
+        "statistics_optional_joinedAt_rank_rankedMembers_distanceKm_distanceStatus",
+        "statisticsError"
       ],
-      "businessIdempotency": false
+      "businessIdempotency": false,
+      "statistics": "Same visibility and ranking as the public opt-in list. Optional ranking work has a two-second between-page budget and drains in-flight reads; failure does not fail member/dossier/avatar. Actual distance stays null until an authoritative source exists."
     },
     {
       "action": "staff.activity.content.save",
@@ -1162,13 +1176,17 @@
         "title",
         "description",
         "reason",
-        "expectedRevision"
+        "expectedRevision",
+        "coverKey_optional_null_or_fixed_asset_key",
+        "distanceKm_optional_null_or_integer_1_100000",
+        "itinerary_optional_max30_dayLabel_title_description"
       ],
       "output": [
         "publicActivity"
       ],
       "businessIdempotency": false,
-      "constraint": "Non-draft activity wording corrections only; preserves operational fields and frozen ruleVersion; appends bounded before/after audit."
+      "constraint": "Non-draft activity wording corrections only; preserves operational fields and frozen ruleVersion; appends bounded before/after audit.",
+      "displayFields": "Public presentation only; no private meeting details. Published enrollment, safety, capacity and reward rules remain immutable. Content correction requires bound revision and reason."
     },
     {
       "action": "points.wallet",
@@ -1431,6 +1449,22 @@
         "account"
       ],
       "businessIdempotency": false
+    },
+    {
+      "action": "history.feed",
+      "authorization": "public",
+      "input": [
+        "cursor_optional",
+        "month_optional_YYYY-MM",
+        "query_optional_max60"
+      ],
+      "output": [
+        "items_max5_public_history_detail_cards_with_2_review_previews",
+        "nextCursor",
+        "months_observed_YYYY-MM"
+      ],
+      "businessIdempotency": false,
+      "bounds": "At most 100 settled activity metadata rows per request, two content readers, cursor bound to club/month/query. No unpublished story, private media, unconsented honor or inactive author. reviews.total=null when more candidates remain."
     }
   ],
   "errors": [
@@ -1487,5 +1521,16 @@
   "nativeTransportMetadata": {
     "userInfo": "WeChat native callFunction may append this top-level metadata. Cloud entry discards it before dispatch, never derives actor/role from it, and counts it in the original event size. Other unknown fields remain rejected.",
     "tcbContext": "Observed on actual native beta calls on 2026-10-16. Ignore this top-level platform context before strict domain dispatch, never derive identity, environment or roles from it; include it in total event byte limits."
+  },
+  "viewerMode": "Only guest is accepted; reduces a verified WeChat actor to public access, never grants identity or bypasses target validation.",
+  "envelopeLimits": {
+    "defaultUtf8Bytes": 16384,
+    "activityDisplayWritesUtf8Bytes": 98304,
+    "largeActions": [
+      "staff.activity.save",
+      "staff.activity.content.save"
+    ],
+    "otherExistingExceptions": "profile.avatar.save/media.image.save use the bounded image envelope; staff.learning.catalog.save 262144 bytes; staff.club.content.save/staff.history.save 65536 bytes. Field validation still applies.",
+    "unknownFields": "rejected_except_verified_WeChat_runtime_envelope_metadata"
   }
 }

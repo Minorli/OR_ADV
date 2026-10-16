@@ -1,3 +1,4 @@
+const { freshPageModule } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -5,7 +6,7 @@ const root = path.resolve(__dirname, '../../app/miniprogram'), apiPath = path.jo
 const event = (dataset, value) => ({ currentTarget: { dataset }, detail: { value } });
 function page(mode = '') {
   let definition; global.Page = value => { definition = value; };
-  const file = path.join(root, 'pages/history-detail/index.js'); delete require.cache[require.resolve(file)]; require(file);
+  const file = path.join(root, 'pages/history-detail/index.js'); freshPageModule(file);
   const p = { ...definition, data: structuredClone(definition.data), setData(values) { Object.assign(this.data, values); } };
   p.onLoad({ activityId: 'history-ride', mode }); return p;
 }

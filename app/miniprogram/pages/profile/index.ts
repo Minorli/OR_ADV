@@ -1,4 +1,4 @@
-import { call, currentMember, errorMessage, isMock, mockRole, switchMockRole, resetMock, confirm, toast, runtime } from '../../services/api';
+import { call, currentMember, errorMessage, isMock, mockRole, switchMockRole, resetMock, confirm, toast, runtime, signOut } from '../../services/api';
 import { mockRoleLabels, mockRoles, dateText } from '../../services/presentation';
 import { emptyContact, contactPerson, memberKindText } from '../../services/member';
 import type { MemberSummary } from '../../../../shared/types';
@@ -7,7 +7,8 @@ import { AvatarError, prepareAvatar } from '../../services/profile-avatar';
 import { memberNumberText } from '../../services/member-number';
 import type { MemberDossier } from '../../../../shared/dossier-types';
 import { profileDossierProgress } from '../../../../shared/profile-overview-types';
-import type { ProfileOverview } from '../../../../shared/profile-overview-types';
+import type { ProfileOverview, ProfileStatistics, ProfileDossierProgress } from '../../../../shared/profile-overview-types';
+import { readReferenceChrome, syncReferenceTab, openReferencePanel, closeReferencePanel } from '../../services/reference-ui';
 const profileEnvironment = () => JSON.stringify([runtime.mode, runtime.appId, runtime.envId]);
 const activeLoads = new WeakMap<object, { role: string; version: number; lifecycle: number; environment: string; promise: Promise<void> }>();
 const identityReads = new WeakMap<object, { role: string; version: number; lifecycle: number; environment: string; memberId: string | null; promise: Promise<MemberSummary | null> }>();
@@ -21,17 +22,28 @@ function freshIdentity(page: object, role: string, version: number, lifecycle: n
 }
 interface ProfileReadSnapshot { member: MemberSummary; profileVersion: number; loadVersion: number; role: string; lifecycle: number; environment: string }
 const accessFor = (member: MemberSummary | null) => ({ staff: canOperateActivities(member), isOwner: !!member?.roles.includes('owner'), canManageContent: canManagePublicContent(member), adminTitle: businessAdminTitle(member) });
+function dossierVisual(progress: ProfileDossierProgress | null) {
+  const approved = !!progress?.status.includes('已通过');
+  return { dossierPercent: progress?.total ? Math.min(100, Math.round(progress.ready / progress.total * 100)) : 0,
+    dossierApproved: approved, dossierBadge: approved ? '✓ 已核对' : progress?.status.includes('等待审核') ? '审核中' : progress?.status.includes('需补充') ? '需补充' : '待完善' };
+}
+function joinedDays(statistics: ProfileStatistics | null) {
+  const since = Date.parse(statistics?.joinedAt || '');
+  return Number.isFinite(since) ? Math.max(0, Math.floor((Date.now() - since) / 86400000)) : null;
+}
 Page({
   data: {
-    isMock, member: null as MemberSummary | null, contact: emptyContact, kindLabel: '游客', memberNumber: '', kindExpiresText: '',
-    nickname: '', nicknameStatus: 'unchanged', nicknameError: '', consent: false, kindReason: '', roles: mockRoleLabels, roleLabel: '',
-    staff: false, isOwner: false, canManageContent: false, adminTitle: '', showPrivacy: false, showEdit: false, loading: false, saving: false, error: '', notice: '',
+    isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, statistics: null as ProfileStatistics | null, statisticsError: '', joinedDays: null as number | null,
+    member: null as MemberSummary | null, contact: emptyContact, kindLabel: '游客', memberNumber: '', kindExpiresText: '',
+    nickname: '', nicknameInitial: 'OR', nicknameStatus: 'unchanged', nicknameError: '', consent: false, kindReason: '', roles: mockRoleLabels, roleLabel: '',
+    staff: false, isOwner: false, canManageContent: false, adminTitle: '', showPrivacy: false, showEdit: false, loading: false, saving: false, error: '', notice: '', logoutError: '',
     avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false,
     loadVersion: 0, profileVersion: 0, lifecycleVersion: 0, loadedScope: '', avatarVersion: 0, avatarReadVersion: 0, loadedRole: '',
     identityVerified: false, dossierReadVersion: 0, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。',
-    dossierCount: '0 / 11', dossierParts: [] as { name: string; ready: boolean }[],
+    dossierCount: '0 / 11', dossierParts: [] as { name: string; ready: boolean }[], ...dossierVisual(null),
   },
   onShow() {
+    syncReferenceTab(this, 3);
     if (wx.getStorageSync('oradv-open-privacy')) { this.setData({ showPrivacy: true }); wx.setStorageSync('oradv-open-privacy', false); }
     return this.resume();
   },
@@ -50,8 +62,8 @@ Page({
     return this.data.lifecycleVersion === snapshot.lifecycle && this.data.loadedScope === snapshot.environment && this.data.loadVersion === snapshot.loadVersion && this.identityMatches(snapshot.profileVersion, snapshot.member.id, snapshot.role);
   },
   clearIdentity() {
-    this.setData({ member: null, memberNumber: '', nickname: '', nicknameStatus: 'unchanged', nicknameError: '', avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false, saving: false, kindReason: '', consent: false, kindExpiresText: '', showEdit: false,
-      staff: false, isOwner: false, canManageContent: false, adminTitle: '', identityVerified: false, dossierReadVersion: this.data.dossierReadVersion + 1, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。', dossierCount: '0 / 11', dossierParts: [],
+    this.setData({ member: null, memberNumber: '', nickname: '', nicknameInitial: 'OR', nicknameStatus: 'unchanged', nicknameError: '', avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false, saving: false, kindReason: '', consent: false, kindExpiresText: '', showEdit: false, logoutError: '',
+      staff: false, isOwner: false, canManageContent: false, adminTitle: '', identityVerified: false, statistics: null, statisticsError: '', joinedDays: null, ...dossierVisual(null), dossierReadVersion: this.data.dossierReadVersion + 1, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。', dossierCount: '0 / 11', dossierParts: [],
       profileVersion: this.data.profileVersion + 1, avatarVersion: this.data.avatarVersion + 1, avatarReadVersion: this.data.avatarReadVersion + 1 });
   },
   async verifyIdentity() {
@@ -88,11 +100,12 @@ Page({
       if (isMock && mockRole() !== role) { this.clearIdentity(); await this.load(); return; }
       const member = result.member, changed = (member?.id || null) !== (this.data.member?.id || null);
       if (changed) this.clearIdentity();
-      this.setData({ member, contact: result.contact, error: result.contactError, kindLabel: memberKindText(member), memberNumber: member ? memberNumberText(member.memberNumber) : '',
+      this.setData({ member, nicknameInitial: Array.from(member?.nickname || 'OR')[0], contact: result.contact, error: result.contactError, kindLabel: memberKindText(member), memberNumber: member ? memberNumberText(member.memberNumber) : '',
         kindExpiresText: member?.memberKindExpiresAt ? dateText(member.memberKindExpiresAt) : '',
         ...(!this.data.showEdit || changed ? { nickname: member?.nickname || '', nicknameStatus: 'unchanged', nicknameError: '' } : {}),
         ...accessFor(member), identityVerified: true,
         avatarUrl: result.avatarUrl, avatarError: result.avatarError, dossierError: '', loading: false,
+        statistics: result.statistics, statisticsError: result.statisticsError, joinedDays: joinedDays(result.statistics), ...dossierVisual(result.dossier),
         dossierStatus: result.dossier?.status || '尚未提交骑手资料', dossierNote: result.dossier?.note || '分次准备，保存后可继续填写。',
         dossierCount: result.dossier ? `${result.dossier.ready} / ${result.dossier.total}` : '0 / 11', dossierParts: result.dossier?.parts || [] });
     } catch (error) {
@@ -115,7 +128,7 @@ Page({
       if (!this.readMatches(snapshot) || readVersion !== this.data.dossierReadVersion) return;
       if (dossier.memberId !== snapshot.member.id) { this.clearIdentity(); this.setData({ error: '当前成员资料已变化，请重新加载' }); return; }
       const progress = profileDossierProgress(dossier);
-      this.setData({ dossierStatus: progress.status, dossierNote: progress.note, dossierCount: `${progress.ready} / ${progress.total}`, dossierParts: progress.parts });
+      this.setData({ dossierStatus: progress.status, dossierNote: progress.note, dossierCount: `${progress.ready} / ${progress.total}`, dossierParts: progress.parts, ...dossierVisual(progress) });
     } catch (error) { if (this.readMatches(snapshot) && readVersion === this.data.dossierReadVersion) this.setData({ dossierError: errorMessage(error) }); }
     finally { if (this.readMatches(snapshot) && readVersion === this.data.dossierReadVersion) this.setData({ dossierLoading: false }); }
   },
@@ -205,7 +218,7 @@ Page({
           : await call<MemberSummary>('profile.update', { nickname }, original.revision)
         : await call<MemberSummary>('identity.ensure', { consentVersions: { privacy: 1, terms: 1 } });
       if (!this.identityMatches(version, original?.id || null, resultRole)) return;
-      this.setData({ member, nickname: original ? member.nickname : '', nicknameStatus: 'unchanged', nicknameError: '', kindLabel: memberKindText(member), memberNumber: memberNumberText(member.memberNumber), ...accessFor(member), showEdit: !original,
+      this.setData({ member, nicknameInitial: Array.from(member.nickname)[0] || 'OR', nickname: original ? member.nickname : '', nicknameStatus: 'unchanged', nicknameError: '', kindLabel: memberKindText(member), memberNumber: memberNumberText(member.memberNumber), ...accessFor(member), showEdit: !original,
         avatarBase64: '', avatarDraftUrl: '', draftPreviewFailed: false, avatarUrl: '', loadedRole: resultRole });
       toast(original ? '个人资料已保存' : isMock ? '本地身份已建立' : '已用微信登录');
       const snapshot: ProfileReadSnapshot = { member, profileVersion: version, loadVersion: this.data.loadVersion, role: resultRole, lifecycle: this.data.lifecycleVersion, environment: profileEnvironment() };
@@ -228,18 +241,34 @@ Page({
   members() { wx.navigateTo({ url: '/pages/staff-members/index' }); },
   ranking() { wx.switchTab({ url: '/pages/ranking/index' }); },
   contact() { void contactPerson(this.data.contact.contactMethod, this.data.contact.contactValue); },
-  dossier() { if (this.data.member) wx.navigateTo({ url: '/pages/dossier/index' }); else { this.setData({ showEdit: true }); wx.pageScrollTo({ selector: '#profile-editor', duration: 180 }); } },
+  dossier() { if (this.data.member) openReferencePanel(this, 'dossier'); else { this.setData({ showEdit: true }); wx.pageScrollTo({ selector: '#profile-editor', duration: 180 }); } },
   dossierQueue() { if (this.data.isOwner) wx.navigateTo({ url: '/pages/dossier/index?mode=queue' }); },
-  safety() { wx.navigateTo({ url: '/pages/learning/index' }); },
-  basicSkills() { wx.navigateTo({ url: '/pages/skills/index?level=basic' }); },
-  advancedSkills() { wx.navigateTo({ url: '/pages/skills/index?level=advanced' }); },
+  safety() { openReferencePanel(this, 'learning'); },
+  basicSkills() { openReferencePanel(this, 'skills', { level: 'basic' }); },
+  advancedSkills() { openReferencePanel(this, 'skills', { level: 'advanced' }); },
   practice() { this.activities(); },
   redemption() { wx.navigateTo({ url: '/pages/redemption/index' }); },
-  handbook() { wx.navigateTo({ url: '/pages/club-content/index?section=handbook' }); },
-  core() { wx.navigateTo({ url: '/pages/club-content/index?section=core' }); },
-  rules() { wx.navigateTo({ url: '/pages/club-content/index?section=points' }); },
-  contacts() { wx.navigateTo({ url: '/pages/club-content/index?section=contacts' }); },
-  business() { wx.navigateTo({ url: '/pages/club-content/index?section=business' }); },
+  handbook() { openReferencePanel(this, 'handbook'); },
+  core() { openReferencePanel(this, 'core'); },
+  rules() { openReferencePanel(this, 'rules'); },
+  contacts() { openReferencePanel(this, 'contact'); },
+  closeReference(event: WechatMiniprogram.CustomEvent<{ changed?: boolean }>) { closeReferencePanel(this); if (event.detail?.changed) void this.load(); },
+  async logout() {
+    if (this.data.saving || !await this.verifyIdentity()) return;
+    const member = this.data.member, version = this.data.profileVersion, role = mockRole();
+    if (!member || !await confirm('退出登录', '退出当前设备上的小程序登录状态。资料与活动记录会保留，再次登录后可继续查看。') || !this.identityMatches(version, member.id, role)) return;
+    await this.finishLogout();
+  },
+  retryLogout() { if (this.data.logoutError) void this.finishLogout(); },
+  async finishLogout() {
+    let persistenceFailed = false;
+    try { await signOut(); } catch { persistenceFailed = true; }
+    // The API restricts the current session even if device persistence fails.
+    this.clearIdentity(); closeReferencePanel(this);
+    this.setData({ consent: false, showEdit: false, notice: '', logoutError: '' }); await this.load();
+    if (!this.data.member) this.setData({ logoutError: persistenceFailed ? '当前会话已退出，但设备未能保存退出设置。请重试保存；重新打开时可能仍显示登录状态。' : '' });
+  },
+  business() { openReferencePanel(this, 'business'); },
   clubManagement() { if (this.data.canManageContent) wx.navigateTo({ url: '/pages/club-content/index?mode=manage' }); },
   async requestKind() {
     if (this.data.saving || !await this.verifyIdentity()) return;

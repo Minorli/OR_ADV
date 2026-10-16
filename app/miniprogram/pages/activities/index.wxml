@@ -1,42 +1,49 @@
-<view class="home">
-  <view class="home-hero">
-    <swiper class="ride-swiper" autoplay circular interval="6000" duration="450" bindchange="heroChange" current="{{heroCurrent}}">
-      <swiper-item wx:for="{{heroSlides}}" wx:key="id">
-        <view class="hero-slide cover-fallback">
-          <image wx:if="{{!coverErrors[item.cover]}}" class="hero-photo" src="{{item.cover}}" mode="aspectFill" data-src="{{item.cover}}" binderror="coverError"/>
-          <view class="hero-shade"></view>
-          <view class="hero-copy"><view class="hero-kicker">{{item.kicker}}</view><view class="hero-headline">{{item.title}}</view><view class="hero-caption">{{item.caption}}</view><button wx:if="{{item.id === 'practice'}}" class="hero-practice-link" bindtap="learning">打开知识练习 <text>↗</text></button></view>
-        </view>
-      </swiper-item>
-    </swiper>
-    <view class="hero-topbar"><view class="hero-brand"><view class="or-logo">OR</view><view><view class="brand-cn">原始拉力</view><view class="brand-en">ADV MOTORCYCLE CLUB</view></view></view><button class="hero-profile" bindtap="profile">{{member ? kindLabel : '我的'}} ↗</button></view>
-    <view class="hero-bottom"><view class="hero-dots"><view wx:for="{{heroSlides}}" wx:key="id" class="hero-dot {{heroCurrent === index ? 'selected' : ''}}"></view></view><text class="cover-note">示意封面</text></view>
+<view class="page reference-v2 home-reference" style="padding-top:{{v2Chrome.top}}px">
+  <view class="hero" style="margin-top:-{{v2Chrome.top}}px">
+    <view wx:for="{{heroSlides}}" wx:key="id" class="slide {{heroCurrent === index ? 'on' : ''}}">
+          <view class="img reference-cover-fallback"><image wx:if="{{!coverErrors[item.cover]}}" class="reference-cover" src="{{item.cover}}" mode="aspectFill" data-src="{{item.cover}}" binderror="coverError"/><view class="reference-hero-shade"></view></view>
+          <view class="cap"><view class="kicker">{{item.kicker}}</view><view class="h2">{{item.title}}</view><view class="p">{{item.caption}}</view></view>
+    </view>
+    <view class="bar" style="top:{{v2Chrome.top + 16}}px"><view class="logo i">OR</view></view>
+    <view class="dots"><view wx:for="{{heroSlides}}" wx:key="id" class="i {{heroCurrent === index ? 'on' : ''}}"></view></view>
   </view>
 
-  <view class="home-content">
-    <view class="ride-principles"><view class="principle"><view class="principle-name">准备好，再出发</view><view class="principle-caption">资格与装备，逐场核对</view></view><view class="principle"><view class="principle-name">每次完成，都记得</view><view class="principle-caption">经历与积分，按记录结算</view></view></view>
-    <view wx:if="{{nextTrip}}" class="home-next">
-      <view class="next-top"><text class="next-kicker">我的本场同行</text><text class="next-status">{{nextTrip.stateText}}</text></view>
-      <view class="next-title">{{nextTrip.title}}</view><view wx:if="{{nextTrip.dateText}}" class="next-date">{{nextTrip.dateText}}</view>
-      <view class="next-copy">{{nextTrip.nextAction}}</view><button class="next-button" bindtap="trip">{{nextTrip.buttonLabel}}<text>→</text></button>
-    </view>
-    <view wx:elif="{{member}}" class="home-welcome"><text class="welcome-dot"></text><view><view class="welcome-title">{{member.nickname}}，下一场见</view><view class="welcome-copy">{{member.memberKind === 'founder' ? '选一场合适的活动，核对条件后出发。' : '查看近期活动，提交意向后等待工作人员确认。'}}</view></view></view>
-    <view wx:if="{{personalError}}" class="notice error">个人记录暂时无法显示：{{personalError}}<button class="text-button" bindtap="retry">重试</button></view>
+  <scroll-view scroll-x class="reference-slogans" show-scrollbar="{{false}}"><view class="slogan-strip">
+    <view class="mini"><text class="b">一起出发</text><text class="span">成员与新车友 / 名额以活动为准</text></view>
+    <view class="mini"><text class="b">参加与费用</text><text class="span">具体安排，请向组织方确认</text></view>
+    <view class="mini"><text class="b">每一公里</text><text class="span">按实际完成的路线累计</text></view>
+    <view class="mini"><text class="b">随队保障</text><text class="span">人员与装备详见行前安排</text></view>
+  </view></scroll-view>
 
-    <view class="activity-heading"><view><view class="section-kicker">FIND YOUR NEXT RIDE</view><view class="activity-section-title">近期活动</view></view><button class="history-link" bindtap="history">查看往期 ›</button></view>
-    <scroll-view scroll-x class="activity-filters" enhanced show-scrollbar="{{false}}"><view class="filter-track"><button wx:for="{{filters}}" wx:key="value" class="activity-filter {{filter === item.value ? 'selected' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view></scroll-view>
+  <view class="reference-home-body">
+    <view class="card-h"><text class="h3">近期活动</text><button class="link a" bindtap="history">查看往期 ›</button></view>
     <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
-    <view wx:for="{{displayItems}}" wx:key="id" class="ride-card" data-id="{{item.id}}" bindtap="open">
-      <view class="ride-thumb cover-fallback"><image wx:if="{{!coverErrors[item.cover]}}" class="ride-photo" src="{{item.cover}}" mode="aspectFill" data-src="{{item.cover}}" binderror="coverError"/><view class="ride-photo-shade"></view>
-        <view class="ride-level"><view class="level-bars"><view wx:for="{{item.difficultyBars}}" wx:for-item="bar" wx:key="id" class="level-bar {{bar.active ? 'on' : ''}}"></view></view><text>{{item.difficulty}}</text></view><view class="ride-duration">{{item.durationText}}</view>
-        <view class="ride-thumb-title">{{item.title}}</view>
+    <view wx:for="{{displayItems}}" wx:key="id" class="act" data-id="{{item.id}}" bindtap="open">
+      <view class="thumb reference-cover-fallback">
+        <image wx:if="{{!coverErrors[item.cover]}}" class="reference-cover" src="{{item.cover}}" mode="aspectFill" data-src="{{item.cover}}" binderror="coverError"/>
+        <view class="reference-act-shade"></view>
+        <view class="lvl"><view wx:for="{{item.difficultyBars}}" wx:for-item="bar" wx:key="id" class="i {{bar.active ? 'on' : ''}}"></view></view>
+        <view class="days">{{item.durationText}}</view><view class="nm">{{item.title}}</view>
       </view>
-      <view class="ride-meta"><view class="ride-calendar"><text class="calendar-month">{{item.monthText}}月</text><text class="calendar-day">{{item.dayText}}</text></view><view class="ride-meta-copy"><view class="ride-date">{{item.dateText}} <text>{{item.weekdayText}}</text></view><view class="ride-location">{{item.location}}</view></view></view>
-      <view class="ride-footer"><view class="ride-seats">{{item.seatText}}</view><view class="ride-state {{item.statusTone}}">{{item.stateText}}<text>›</text></view></view>
+      <view class="meta"><text class="span">📍 {{item.location}}</text><text class="span">🗓 {{item.shortDateText}}</text><text class="span">🏍 <text class="b">{{item.distanceText || '里程待定'}}</text></text></view>
+      <view class="ft"><text class="slot" wx:if="{{item.minGrowthPoints}}">⭐ 需积分≥<text class="b">{{item.minGrowthPoints}}</text></text><text class="slot" wx:else>本场 <text class="b">{{item.capacity}}</text> 位 · 余 <text class="b">{{item.slots}}</text> 位</text><text class="tag {{item.statusTone === 'active' ? 'o' : ''}}">{{item.stateText}}</text></view>
     </view>
-    <view wx:if="{{loading}}" class="loading">正在加载活动…</view><view wx:if="{{!loading && !error && !items.length}}" class="empty">暂无符合筛选的活动。<text>{{'\n'}}</text>可以切换筛选，或稍后再来看看。</view><button wx:if="{{nextCursor && !loading}}" class="secondary full more-activities" bindtap="more">查看更多活动 ↓</button>
-    <view wx:if="{{partnersConfigured}}" class="home-partners"><view class="partners-heading"><view><view class="section-kicker">CLUB PARTNERS</view><view class="activity-section-title">{{partnersTitle}}</view></view><button class="history-link" bindtap="partners">了解合作 ›</button></view><view wx:if="{{partnersIntroduction}}" class="partners-introduction">{{partnersIntroduction}}</view><scroll-view wx:if="{{partners.length}}" scroll-x class="partners-scroll" show-scrollbar="{{false}}"><view class="partners-track"><view wx:for="{{partners}}" wx:key="heading" class="partner-card" bindtap="partners"><view class="partner-name">{{item.heading}}</view><view class="partner-introduction">{{item.introduction}}</view><text class="partner-arrow">↗</text></view></view></scroll-view></view>
-    <view wx:if="{{partnersError}}" class="notice">合作信息暂时无法显示。<button class="text-button" bindtap="retryPartners">重试</button></view>
-    <view class="home-footer"><view class="footer-wordmark">ORIGINAL RALLY</view><view>按能力参与 · 按规则同行 · 平安返回</view><view class="footer-small">成员身份与积分不替代技能和现场安全核验。</view></view>
+    <view wx:if="{{loading}}" class="loading">正在加载活动…</view>
+    <view wx:if="{{!loading && !error && !items.length}}" class="empty">活动安排即将更新，下一场一起出发。</view>
+    <button wx:if="{{nextCursor && !loading}}" class="btn ghost reference-more" bindtap="more">查看更多活动</button>
   </view>
+
+  <view class="sponsor-band">
+    <view class="lb"><text class="span">{{partnersTitle || '官方合作伙伴'}}</text><view class="i"></view><button wx:if="{{partnersConfigured}}" class="link a" bindtap="partners">了解合作 ›</button></view>
+    <scroll-view wx:if="{{partners.length}}" scroll-x class="reference-partner-scroll" show-scrollbar="{{false}}"><view class="marquee"><view wx:for="{{partnerLoop}}" wx:key="id" class="sp {{index % 2 === 0 ? 'o' : ''}}" bindtap="partners">{{item.heading}}</view></view></scroll-view>
+    <view wx:else class="reference-partners-empty">{{partnersError ? '合作信息暂时无法显示' : '合作伙伴信息待公布'}}<button wx:if="{{partnersError}}" class="link a" bindtap="retryPartners">重试</button></view>
+  </view>
+
+  <view class="reference-home-extra">
+    <view wx:if="{{nextTrip}}" class="card reference-next-trip"><view class="between"><text class="h3">我的本场同行</text><text class="tag o">{{nextTrip.stateText}}</text></view><view class="reference-next-title">{{nextTrip.title}}</view><view class="muted">{{nextTrip.dateText}}</view><view class="muted mt">{{nextTrip.nextAction}}</view><button class="btn primary mt" bindtap="trip">{{nextTrip.buttonLabel}}</button></view>
+    <view wx:elif="{{member}}" class="reference-welcome">{{member.nickname}}，下一场见。<button class="link a" bindtap="profile">我的记录 ›</button></view>
+    <view wx:if="{{personalError}}" class="notice error">{{personalError}}<button class="text-button" bindtap="retry">重试</button></view>
+    <scroll-view scroll-x class="reference-activity-filters" show-scrollbar="{{false}}"><view class="months"><button wx:for="{{filters}}" wx:key="value" class="{{filter === item.value ? 'on' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view></scroll-view>
+  </view>
+  <reference-overlay kind="{{refPanel}}" params="{{refParams}}" bindclose="closeReference"/>
 </view>

@@ -6,9 +6,15 @@ export interface ProfileDossierProgress {
   status: string; note: string; ready: number; total: number;
   parts: { name: string; ready: boolean }[];
 }
+export interface ProfileStatistics {
+  joinedAt: string | null; rank: number | null; rankedMembers: number | null;
+  /** Actual completed distance has no authoritative source yet. Never sum route estimates or odometers. */
+  distanceKm: number | null; distanceStatus: 'unrecorded' | 'recorded';
+}
 export interface ProfileOverview {
   member: MemberSummary | null; contact: ClubPublic; contactError: string;
   dossier: ProfileDossierProgress | null; avatarUrl: string; avatarError: string;
+  statistics: ProfileStatistics | null; statisticsError: string;
 }
 /** Only progress is needed on the profile page; contacts and asset IDs stay out. */
 export function profileDossierProgress(dossier: MemberDossier | null): ProfileDossierProgress {

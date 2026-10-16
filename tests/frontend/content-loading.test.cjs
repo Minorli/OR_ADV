@@ -1,3 +1,4 @@
+const { freshPageModule } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -6,7 +7,7 @@ const gate = () => { let release; const promise = new Promise(resolve => { relea
 const event = (field, value) => ({ currentTarget: { dataset: { field } }, detail: { value } });
 function page(name, options = {}) {
   let definition; global.Page = value => { definition = value; };
-  const file = path.join(root, 'pages', name, 'index.js'); delete require.cache[require.resolve(file)]; require(file);
+  const file = path.join(root, 'pages', name, 'index.js'); freshPageModule(file);
   const result = { ...definition, data: structuredClone(definition.data), setData(values) { Object.assign(this.data, values); } };
   result.onLoad?.(options); return result;
 }

@@ -1,7 +1,13 @@
 import { activityCard } from './presentation';
 import type { Activity } from '../../../shared/types';
 
+const coverAliases: Record<string, string> = { 'v2-2': 'dunes', 'v2-5': 'dunes', 'v2-7': 'ridge' };
 const covers = ['/assets/covers/dunes.jpg', '/assets/covers/forest.jpg', '/assets/covers/ridge.jpg'];
+export function coverForKey(coverKey?: string | null, activityId = ''): string {
+  if (coverKey && ['dunes', 'forest', 'ridge'].includes(coverKey)) return `/assets/covers/${coverKey}.jpg`;
+  if (coverKey && /^v2-[1-8]$/.test(coverKey)) return `/assets/covers/${coverAliases[coverKey] || coverKey}.jpg`;
+  return coverForActivity(activityId);
+}
 export function coverForActivity(activityId: string): string {
   const hash = Array.from(activityId).reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 0);
   return covers[hash % covers.length];
@@ -14,7 +20,8 @@ export function activityVisual(activity: Activity) {
   const durationText = !Number.isFinite(hours) || hours <= 0 ? '时长待定' : hours >= 24 ? `约${Math.ceil(hours / 24)}天` : `约${Number(hours.toFixed(1))}小时`;
   const difficulty = /进阶|高阶/.test(activity.difficulty) ? 3 : /基础|中级/.test(activity.difficulty) ? 2 : /入门|初级/.test(activity.difficulty) ? 1 : 0;
   const qualificationNames: Record<string, string> = { advanced_offroad: '进阶非铺装技能', basic_control: '基础控车技能', basic_offroad: '基础非铺装技能' };
-  return { ...card, cover: coverForActivity(activity.id), durationText,
+  return { ...card, cover: coverForKey(activity.coverKey, activity.id), durationText,
+    distanceText: activity.distanceKm === undefined || activity.distanceKm === null ? '里程待确认' : `${activity.distanceKm}km`,
     monthText: valid ? String(start.getUTCMonth() + 1).padStart(2, '0') : '--',
     dayText: valid ? String(start.getUTCDate()).padStart(2, '0') : '--',
     weekdayText: valid ? ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][start.getUTCDay()] : '',

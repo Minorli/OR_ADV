@@ -71,7 +71,10 @@ export function publicActivity(activity: Activity) {
     minGrowthPoints: activity.minGrowthPoints, requiredQualifications: activity.requiredQualifications, requiresReview: activity.requiresReview,
     ruleVersion: activity.ruleVersion, revision: activity.revision, pointsRule: activity.pointsRule,
     actualCompletedAt: activity.actualCompletedAt, actualStartedAt: activity.actualStartedAt ?? null, safetyNotice: activity.safetyNotice, equipment: activity.equipment,
-    fixtureOnly: activity.fixtureOnly ?? false };
+    fixtureOnly: activity.fixtureOnly ?? false,
+    ...(activity.coverKey !== undefined ? { coverKey: activity.coverKey } : {}),
+    ...(activity.distanceKm !== undefined ? { distanceKm: activity.distanceKm } : {}),
+    ...(activity.itinerary !== undefined ? { itinerary: activity.itinerary } : {}) };
 }
 
 export async function refreshRankings(ctx: Context, tx: Transaction, member: Membership, year: number) {

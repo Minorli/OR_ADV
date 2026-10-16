@@ -117,10 +117,10 @@ async function activeMember(id: string) {
   if ((await currentMember())?.id !== id) throw new MemberMediaError('STALE_IDENTITY', '当前身份已改变，请重新打开资料页面');
 }
 export const resolveMemberMedia = (assetId: string) => call<{ asset: MemberMediaSummary; url: string }>('media.get', { assetId });
-export async function chooseAndUploadMemberImage(purpose: MemberMediaPurpose, label: string, rightsAcknowledged = false): Promise<{ assetId: string; previewUrl: string }> {
+export async function chooseAndUploadMemberImage(purpose: MemberMediaPurpose, label: string, rightsAcknowledged = false, sourceType: ('album' | 'camera')[] = ['album', 'camera']): Promise<{ assetId: string; previewUrl: string }> {
   const member = await currentMember();
   if (!member) throw new MemberMediaError('UNAUTHENTICATED', '请先登录后选择图片');
-  const choice = await wx.chooseMedia({ count: 1, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'] });
+  const choice = await wx.chooseMedia({ count: 1, mediaType: ['image'], sourceType, sizeType: ['compressed'] });
   const original = choice.tempFiles[0]?.tempFilePath;
   if (!original) throw new MemberMediaError('CANCELLED', '未选择图片');
   const info = await wx.getImageInfo({ src: original });

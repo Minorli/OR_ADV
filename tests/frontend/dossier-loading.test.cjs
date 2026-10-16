@@ -1,3 +1,4 @@
+const { freshPageModule } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -7,7 +8,7 @@ const dossierPath = path.join(app, 'pages/dossier/index.js');
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 function dossier(mode = 'own', memberId = '') {
   let definition; global.Page = value => { definition = value; };
-  delete require.cache[require.resolve(dossierPath)]; require(dossierPath);
+  freshPageModule(dossierPath);
   const instance = { ...definition, data: structuredClone(definition.data) };
   instance.setData = values => Object.assign(instance.data, values); instance.onLoad({ mode, memberId });
   return instance;

@@ -1,3 +1,4 @@
+const { freshPageModule } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -5,7 +6,7 @@ const root = path.resolve(__dirname, '../../app/miniprogram');
 const apiPath = path.join(root, 'services/api.js');
 function page(mode = 'own', memberId = '') {
   let definition; global.Page = value => { definition = value; };
-  const file = path.join(root, 'pages/dossier/index.js'); delete require.cache[require.resolve(file)]; require(file);
+  const file = path.join(root, 'pages/dossier/index.js'); freshPageModule(file);
   const instance = { ...definition, data: structuredClone(definition.data) };
   instance.setData = values => Object.assign(instance.data, values);
   instance.onLoad({ mode, memberId });

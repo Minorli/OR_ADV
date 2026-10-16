@@ -4,6 +4,7 @@ import type { Activity } from './types';
 import { BETA_MAX_CAPACITY } from './limits';
 import { publicClub } from './club';
 import { activityWalletReward, validateActivityWalletReward } from './points-wallet';
+import { activityDisplayFields } from './activity-display';
 
 const publicStates = ['published','closed','in_progress','ended','settled','cancelled'];
 export async function listActivities(ctx: Context, staff = false) {
@@ -54,7 +55,7 @@ function timestamp(value: unknown, name: string) {
 export async function saveActivity(ctx: Context) {
   const p = (ctx.request.payload.activity ?? ctx.request.payload) as Record<string, unknown>;
   requireThat(p && typeof p === 'object' && !Array.isArray(p), 'INVALID_INPUT', '活动资料不正确');
-  const allowed = ['id','title','description','location','difficulty','startAt','endAt','applicationClosesAt','capacity','minGrowthPoints','requiredQualifications','requiresReview','pointsRule','safetyNotice','equipment','revision','expectedRevision'];
+  const allowed = ['id','title','description','location','difficulty','startAt','endAt','applicationClosesAt','capacity','minGrowthPoints','requiredQualifications','requiresReview','pointsRule','safetyNotice','equipment','revision','expectedRevision','coverKey','distanceKm','itinerary'];
   requireThat(Object.keys(p).every((field) => allowed.includes(field)), 'INVALID_INPUT', '含不允许编辑的活动字段');
   return ctx.store.transaction(async (tx) => {
     const actor = await ctx.staff(tx, ['owner','operator']);
@@ -83,7 +84,8 @@ export async function saveActivity(ctx: Context) {
       minGrowthPoints: integer(value.minGrowthPoints ?? 0, '成长门槛'), requiredQualifications: qualifications as string[], requiresReview: value.requiresReview !== false,
       ruleVersion: existing?.ruleVersion ?? 1, revision: (existing?.revision ?? 0) + 1,
       pointsRule: { growth, annual, ...walletRule },
-      nextQueueSeq: 0, actualCompletedAt: null, safetyNotice: text(value.safetyNotice, '风险说明', 2000), equipment: text(value.equipment, '装备要求', 1000) };
+      nextQueueSeq: 0, actualCompletedAt: null, safetyNotice: text(value.safetyNotice, '风险说明', 2000), equipment: text(value.equipment, '装备要求', 1000),
+      ...activityDisplayFields(value, existing ?? {}) };
     await tx.set('activities', id, activity);
     await ctx.audit(tx, actor, 'activity', id, { state: activity.state, revision: activity.revision });
     return publicActivity(activity);
@@ -92,19 +94,22 @@ export async function saveActivity(ctx: Context) {
 
 export async function saveActivityContent(ctx: Context) {
   const p = ctx.request.payload;
-  requireThat(Object.keys(p).every(field => ['activityId', 'title', 'description', 'reason'].includes(field)), 'INVALID_INPUT', '只可修改活动标题与介绍');
+  requireThat(Object.keys(p).every(field => ['activityId', 'title', 'description', 'reason', 'coverKey', 'distanceKm', 'itinerary'].includes(field)), 'INVALID_INPUT', '只可修改活动公开介绍与路线展示');
   const title = text(p.title, '标题', 80), description = text(p.description, '活动介绍', 4000), reason = text(p.reason, '修改原因', 500);
   return ctx.store.transaction(async tx => {
     const actor = await ctx.staff(tx, ['owner', 'operator'], text(p.activityId, 'activityId', 100));
     const activity = await ctx.activity(tx, p.activityId);
     ctx.revision(activity);
     requireThat(publicStates.includes(activity.state), 'STATE_CONFLICT', '草稿请使用完整活动编辑');
-    const next: Activity = { ...activity, title, description, revision: activity.revision + 1 };
+    const display = activityDisplayFields(p, activity);
+    const patch = Object.fromEntries(Object.entries(display).filter(([name]) => p[name] !== undefined));
+    const next: Activity = { ...activity, title, description, ...patch, revision: activity.revision + 1 };
     await tx.set('activities', next.id, next);
     await ctx.audit(tx, actor, 'activity', next.id, {
       state: next.state, ruleVersion: next.ruleVersion, revision: next.revision, contentOnly: true,
       before: { title: activity.title.slice(0, 80), description: activity.description.slice(0, 4000) },
       after: { title, description },
+      ...(Object.keys(patch).length ? { displayBefore: { coverKey: activity.coverKey ?? null, distanceKm: activity.distanceKm ?? null, itinerary: activity.itinerary ?? [] }, displayAfter: display } : {}),
     }, reason);
     return publicActivity(next);
   });

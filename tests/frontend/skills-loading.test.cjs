@@ -1,3 +1,4 @@
+const { freshPageModule } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -8,7 +9,7 @@ const DRAFTS_KEY = 'oradv-member-media-drafts-v1';
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 function skills() {
   let definition; global.Page = value => { definition = value; };
-  delete require.cache[require.resolve(skillsPath)]; require(skillsPath);
+  freshPageModule(skillsPath);
   const instance = { ...definition, data: structuredClone(definition.data) };
   instance.setData = values => Object.assign(instance.data, values);
   return instance;

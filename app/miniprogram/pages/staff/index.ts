@@ -1,5 +1,8 @@
 import { call, currentMember, errorMessage, isMock, mockRole, runtime, confirm, toast } from '../../services/api';
 import { activityCard, registrationCard } from '../../services/presentation';
+import { coverForKey } from '../../services/visual';
+import { DomainError } from '../../../../shared/errors';
+import { ACTIVITY_COVER_KEYS, activityDisplayFields, type ActivityItineraryStage } from '../../../../shared/activity-display';
 import { BETA_MAX_CAPACITY } from '../../../../shared/limits';
 import { rosterPresentation, type StaffRegistration } from './roster';
 import type { Activity, MemberSummary, PageResult, Registration } from '../../../../shared/types';
@@ -9,25 +12,27 @@ interface ActivityForm {
   startDate: string; startTime: string; endDate: string; endTime: string;
   deadlineDate: string; deadlineTime: string; capacity: string; minGrowthPoints: string;
   growth: string; annual: string; redeemable: string; requiredQualifications: string; requiresReview: boolean;
-  safetyNotice: string; equipment: string;
+  safetyNotice: string; equipment: string; coverKey: string; distanceKm: string; itinerary: ActivityItineraryStage[];
 }
 interface SettlementPreview { activityId: string; ruleVersion: number; eligibleCount: number; unresolvedCount: number; items: Registration[] }
 interface SettlementResult { activityId: string; status: string; successCount: number; failureCount: number; failures: { registrationId?: string; code?: string; message?: string }[] }
 interface Briefing { activityId: string; meetingPoint: string; meetingTime: string; contactName: string; contactMethod: string; contactValue: string; checklist: string[]; notes: string; revision: number }
 interface StaffFence { version: number; memberId: string; role: string; environment: string }
+const coverChoices = [{ key: '', label: '自动选择封面', cover: coverForKey('') }, ...ACTIVITY_COVER_KEYS.map((key, index) => ({ key, label: index < 3 ? ['沙地', '林道', '山脊'][index] : `封面 ${index - 2}`, cover: coverForKey(key) }))];
 const environmentScope = () => JSON.stringify([runtime.mode, runtime.appId, runtime.envId]);
 const canManageActivity = (member: MemberSummary | null) => !!member?.roles.some(role => ['owner', 'operator'].includes(role));
 function emptyBriefing(): Briefing { return { activityId: '', meetingPoint: '', meetingTime: '', contactName: '', contactMethod: 'wechat', contactValue: '', checklist: [], notes: '', revision: 0 }; }
 function chinaDate(value: string) { return new Date(Date.parse(value) + 8 * 3600000).toISOString().slice(0, 10); }
 function chinaTime(value: string) { return new Date(Date.parse(value) + 8 * 3600000).toISOString().slice(11, 16); }
+function structuredStages(stages: ActivityItineraryStage[] = []) { return stages.map(stage => ({ ...stage })); }
 function emptyForm(): ActivityForm {
   const start = new Date(Date.now() + 7 * 86400000).toISOString();
   const deadline = new Date(Date.now() + 6 * 86400000).toISOString();
-  return { id: '', revision: 0, reason: '', title: '', description: '', location: '', difficulty: '入门', startDate: chinaDate(start), startTime: '09:00', endDate: chinaDate(start), endTime: '16:00', deadlineDate: chinaDate(deadline), deadlineTime: '18:00', capacity: '12', minGrowthPoints: '0', growth: '100', annual: '100', redeemable: '', requiredQualifications: '', requiresReview: false, safetyNotice: '', equipment: '' };
+  return { id: '', revision: 0, reason: '', title: '', description: '', location: '', difficulty: '入门', startDate: chinaDate(start), startTime: '09:00', endDate: chinaDate(start), endTime: '16:00', deadlineDate: chinaDate(deadline), deadlineTime: '18:00', capacity: '12', minGrowthPoints: '0', growth: '100', annual: '100', redeemable: '', requiredQualifications: '', requiresReview: false, safetyNotice: '', equipment: '', coverKey: '', distanceKm: '', itinerary: [] };
 }
 Page({
   data: {
-    isMock, maxCapacity: BETA_MAX_CAPACITY, member: null as MemberSummary | null, authorized: false, canManage: false, isOwner: false, adminTitle: '',
+    isMock, coverChoices, coverIndex: 0, maxCapacity: BETA_MAX_CAPACITY, member: null as MemberSummary | null, authorized: false, canManage: false, isOwner: false, adminTitle: '',
     items: [] as ReturnType<typeof activityCard>[], selected: null as ReturnType<typeof activityCard> | null,
     registrations: [] as ReturnType<typeof registrationCard>[], preview: null as SettlementPreview | null, previewRows: [] as ReturnType<typeof registrationCard>[],
     settlement: null as SettlementResult | null, form: emptyForm(), editor: false, editorKind: 'draft', formDirty: false, formMemberId: '', formEnvironment: '',
@@ -141,7 +146,7 @@ Page({
     if (this.data.busy || !await this.verifyIdentity(true)) return;
     const fence = this.fence();
     if (this.data.editor && this.data.formDirty && (!await confirm('创建另一场活动', '当前草稿尚未保存，是否放弃本页修改？') || !this.matches(fence))) return;
-    this.setData({ form: emptyForm(), editor: true, editorKind: 'draft', formDirty: false, formMemberId: fence.memberId, formEnvironment: fence.environment, pane: 'activities', notice: '', error: '' }, () => wx.pageScrollTo({ selector: '#activity-editor', duration: 180 }));
+    this.setData({ form: emptyForm(), coverIndex: 0, editor: true, editorKind: 'draft', formDirty: false, formMemberId: fence.memberId, formEnvironment: fence.environment, pane: 'activities', notice: '', error: '' }, () => wx.pageScrollTo({ selector: '#activity-editor', duration: 180 }));
   },
   async edit() {
     if (this.data.busy || !await this.verifyIdentity(true)) return;
@@ -157,16 +162,30 @@ Page({
     if (activity) { this.setData({ selected: activity }); this.openEditor(activity); }
   },
   openEditor(activity: ReturnType<typeof activityCard>) {
-    this.setData({ editor: true, editorKind: activity.state === 'draft' ? 'draft' : 'content', formDirty: false, formMemberId: this.data.member!.id, formEnvironment: environmentScope(), pane: 'activities', error: '',
-      form: { id: activity.id, revision: activity.revision, reason: '', title: activity.title, description: activity.description, location: activity.location, difficulty: activity.difficulty, startDate: chinaDate(activity.startAt), startTime: chinaTime(activity.startAt), endDate: chinaDate(activity.endAt), endTime: chinaTime(activity.endAt), deadlineDate: chinaDate(activity.applicationClosesAt), deadlineTime: chinaTime(activity.applicationClosesAt), capacity: String(activity.capacity), minGrowthPoints: String(activity.minGrowthPoints), growth: String(activity.pointsRule.growth), annual: String(activity.pointsRule.annual), redeemable: String(activity.pointsRule.redeemable ?? 0), requiredQualifications: activity.requiredQualifications.join('，'), requiresReview: activity.requiresReview, safetyNotice: activity.safetyNotice, equipment: activity.equipment },
+    this.setData({ coverIndex: Math.max(0, coverChoices.findIndex(item => item.key === activity.coverKey)), editor: true, editorKind: activity.state === 'draft' ? 'draft' : 'content', formDirty: false, formMemberId: this.data.member!.id, formEnvironment: environmentScope(), pane: 'activities', error: '',
+      form: { id: activity.id, revision: activity.revision, reason: '', title: activity.title, description: activity.description, location: activity.location, difficulty: activity.difficulty, startDate: chinaDate(activity.startAt), startTime: chinaTime(activity.startAt), endDate: chinaDate(activity.endAt), endTime: chinaTime(activity.endAt), deadlineDate: chinaDate(activity.applicationClosesAt), deadlineTime: chinaTime(activity.applicationClosesAt), capacity: String(activity.capacity), minGrowthPoints: String(activity.minGrowthPoints), growth: String(activity.pointsRule.growth), annual: String(activity.pointsRule.annual), redeemable: String(activity.pointsRule.redeemable ?? 0), requiredQualifications: activity.requiredQualifications.join('，'), requiresReview: activity.requiresReview, safetyNotice: activity.safetyNotice, equipment: activity.equipment, coverKey: activity.coverKey || '', distanceKm: activity.distanceKm == null ? '' : String(activity.distanceKm), itinerary: structuredStages(activity.itinerary) },
     }, () => wx.pageScrollTo({ selector: '#activity-editor', duration: 180 }));
   },
   async closeEditor() { const fence = this.fence(); if (this.data.formDirty && !await confirm('收起编辑', '本页修改尚未保存，是否放弃？') || !this.matches(fence)) return; this.setData({ editor: false, formDirty: false }); },
   formMatches() { return this.data.editor && this.data.canManage && this.matches(this.fence()) && this.data.formMemberId === this.data.member?.id && this.data.formEnvironment === environmentScope() && (!this.data.form.id || this.data.form.id === this.data.selected?.id); },
   field(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const field = String(event.currentTarget.dataset.field);
-    const editable = this.data.editorKind === 'content' ? ['title', 'description', 'reason'] : Object.keys(emptyForm()).filter(key => !['id', 'revision'].includes(key));
+    const editable = this.data.editorKind === 'content' ? ['title', 'description', 'reason', 'distanceKm'] : Object.keys(emptyForm()).filter(key => !['id', 'revision', 'itinerary', 'coverKey', 'requiresReview'].includes(key));
     if (this.formMatches() && !this.data.busy && editable.includes(field)) this.setData({ [`form.${field}`]: event.detail.value, formDirty: true });
+  },
+  cover(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    const index = Number(event.detail.value);
+    if (this.formMatches() && !this.data.busy && Number.isSafeInteger(index) && coverChoices[index]) this.setData({ coverIndex: index, 'form.coverKey': coverChoices[index].key, formDirty: true });
+  },
+  itineraryField(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    const { index, field } = event.currentTarget.dataset;
+    if (!this.formMatches() || this.data.busy || !Number.isSafeInteger(Number(index)) || !this.data.form.itinerary[Number(index)] || !['dayLabel', 'title', 'description'].includes(field)) return;
+    this.setData({ 'form.itinerary': this.data.form.itinerary.map((stage, i) => i === Number(index) ? { ...stage, [field]: event.detail.value } : stage), formDirty: true });
+  },
+  addStage() { if (this.formMatches() && !this.data.busy && this.data.form.itinerary.length < 30) this.setData({ 'form.itinerary': [...this.data.form.itinerary, { dayLabel: 'D' + (this.data.form.itinerary.length + 1), title: '', description: '' }], formDirty: true }); },
+  removeStage(event: WechatMiniprogram.TouchEvent) {
+    const index = Number(event.currentTarget.dataset.index);
+    if (this.formMatches() && !this.data.busy && Number.isSafeInteger(index) && index >= 0 && index < this.data.form.itinerary.length) this.setData({ 'form.itinerary': this.data.form.itinerary.filter((_, i) => i !== index), formDirty: true });
   },
   reviewSwitch(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) { if (this.formMatches() && this.data.editorKind === 'draft' && !this.data.busy) this.setData({ 'form.requiresReview': event.detail.value, formDirty: true }); },
   previewActivity() { if (this.data.selected && this.matches(this.fence())) wx.navigateTo({ url: `/pages/activity/detail?id=${encodeURIComponent(this.data.selected.id)}` }); },
@@ -214,13 +233,17 @@ Page({
     if (!contentOnly && (![capacity, minGrowthPoints, growth, annual, ...(redeemable === undefined ? [] : [redeemable])].every(value => Number.isSafeInteger(value) && value >= 0) || capacity < 1 || capacity > BETA_MAX_CAPACITY)) { toast(`请输入有效整数，名额为 1–${BETA_MAX_CAPACITY}`); return; }
     const start = new Date(`${form.startDate}T${form.startTime}:00+08:00`), end = new Date(`${form.endDate}T${form.endTime}:00+08:00`), deadline = new Date(`${form.deadlineDate}T${form.deadlineTime}:00+08:00`);
     if (!contentOnly && (![start, end, deadline].every(value => Number.isFinite(value.getTime())) || end <= start || deadline > start)) { toast('请检查开始、结束与报名截止时间'); return; }
+    const distanceKm = form.distanceKm.trim() ? Number(form.distanceKm) : null;
+    if (distanceKm !== null && (!Number.isSafeInteger(distanceKm) || distanceKm < 1 || distanceKm > 100000)) { toast('路线里程请填写1–100000的整数，或留空'); return; }
+    let display;
+    try { display = activityDisplayFields({ coverKey: form.coverKey || null, distanceKm, itinerary: form.itinerary }); } catch (error) { toast(error instanceof DomainError ? error.message : errorMessage(error)); return; }
     this.setData({ busy: 'save', error: '' });
     try {
       const activity = contentOnly
-        ? await call<Activity>('staff.activity.content.save', { activityId: form.id, title: form.title.trim(), description: form.description.trim(), reason: form.reason.trim() }, form.revision)
-        : await call<Activity>('staff.activity.save', { ...(form.id ? { id: form.id } : {}), title: form.title.trim(), description: form.description.trim(), location: form.location.trim(), difficulty: form.difficulty.trim(), startAt: start.toISOString(), endAt: end.toISOString(), applicationClosesAt: deadline.toISOString(), capacity, minGrowthPoints, pointsRule: { growth, annual, ...(redeemable === undefined ? {} : { redeemable }) }, requiredQualifications: form.requiredQualifications.split(/[,，]/).map(value => value.trim()).filter(Boolean), requiresReview: form.requiresReview, equipment: form.equipment.trim(), safetyNotice: form.safetyNotice.trim() }, form.id ? form.revision : undefined);
+        ? await call<Activity>('staff.activity.content.save', { activityId: form.id, title: form.title.trim(), description: form.description.trim(), reason: form.reason.trim(), ...display }, form.revision)
+        : await call<Activity>('staff.activity.save', { ...(form.id ? { id: form.id } : {}), ...display, title: form.title.trim(), description: form.description.trim(), location: form.location.trim(), difficulty: form.difficulty.trim(), startAt: start.toISOString(), endAt: end.toISOString(), applicationClosesAt: deadline.toISOString(), capacity, minGrowthPoints, pointsRule: { growth, annual, ...(redeemable === undefined ? {} : { redeemable }) }, requiredQualifications: form.requiredQualifications.split(/[,，]/).map(value => value.trim()).filter(Boolean), requiresReview: form.requiresReview, equipment: form.equipment.trim(), safetyNotice: form.safetyNotice.trim() }, form.id ? form.revision : undefined);
       if (!this.matches(fence)) return;
-      this.setData({ selected: activityCard(activity), editor: false, formDirty: false, busy: '', pane: 'roster', notice: contentOnly ? '活动文字已更新，修改原因已记录。' : '草稿已保存。可先预览，再发布招募。' }); await this.load();
+      this.setData({ selected: activityCard(activity), editor: false, formDirty: false, busy: '', pane: 'roster', notice: contentOnly ? '活动内容已更新，修改原因已记录。' : '草稿已保存。可先预览，再发布招募。' }); await this.load();
     } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
