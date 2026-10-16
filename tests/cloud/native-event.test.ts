@@ -169,3 +169,18 @@ test('wrapped SDK errors produce fixed technical hints without retaining source 
   assert(!JSON.stringify(logs).includes('private-value'));
   assert(!JSON.stringify(logs).includes('permission denied in'));
 });
+
+test('captured raw database code takes precedence over a generic SDK wrapper code only in server logs', async () => {
+  const logs: any[] = [];
+  const failure = Object.assign(new Error('private-wrapper-details'), { errCode: -501001 });
+  Object.defineProperty(failure, 'backendCode', { value: 'SIGN_PARAM_INVALID' });
+  const handler = createCloudHandler({ config: () => config, context: () => context,
+    store: () => new MemoryStore(),
+    invoke: async () => { throw failure; }, log: entry => logs.push(entry),
+  });
+  const result = await handler(request);
+  assert.equal(logs[0].backendCode, 'SIGN_PARAM_INVALID');
+  assert.equal(result.ok, false);
+  assert(!JSON.stringify(result).includes('SIGN_PARAM_INVALID'));
+  assert(!JSON.stringify(logs).includes('private-wrapper-details'));
+});

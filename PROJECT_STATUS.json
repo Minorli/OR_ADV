@@ -23,7 +23,7 @@
   "nativeAppImplemented": true,
   "backendImplemented": true,
   "backendDeployed": true,
-  "realWeChatTested": false,
+  "realWeChatTested": true,
   "cloudProvisioned": true,
   "published": false,
   "wechatPreviewGenerated": true,
@@ -59,7 +59,7 @@
     "new business rules owner promised to specify individually",
     "bounded cloud video upload capability and real acceptance",
     "trusted owner initialization and actual contact approval",
-    "real WeChat identity, concurrent database transactions and client rules evidence",
+    "real WeChat identity, business concurrency and client rule evidence; technical concurrency passed",
     "real iOS/Android, weak-network and recovery acceptance",
     "0.2b full-club cumulative reporting and historical points migration",
     "annual snapshot batching beyond 30 members",
@@ -71,12 +71,12 @@
     "sourceVersion": "0.3.0-test.2",
     "typecheck": "passed",
     "domainTests": 115,
-    "cloudTests": 44,
+    "cloudTests": 58,
     "buildAndTemplateTests": 10,
-    "typescriptTests": 169,
+    "typescriptTests": 183,
     "nativePageTests": 40,
     "pythonToolTests": 14,
-    "totalTests": 223,
+    "totalTests": 237,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
@@ -92,7 +92,7 @@
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": true,
-  "wechatValidationScope": "official_cloud_build_compile_preview_upload_and_function_readbacks_not_phone_or_native_login",
+  "wechatValidationScope": "official_build_deploy_real_DB_technical_concurrency_and_user_confirmed_four_tabs_and_registration_not_full_acceptance",
   "confirmedProductContext": {
     "clubCount": 1,
     "memberCountUpperBound": 200,
@@ -158,15 +158,16 @@
     "cloudImportImplemented": false
   },
   "loginAndProfile": {
-    "status": "implemented_locally_real_cloud_and_phone_acceptance_pending",
+    "status": "phone_registration_user_confirmed_avatar_and_two_account_acceptance_pending",
     "identitySource": "trusted_WeChat_native_cloud_context",
     "nickname": "optional_native_nickname_input",
     "avatar": "optional_private_self_only",
     "avatarMaxBytes": 65536,
     "clientCloudStorageAccess": "actual_CUSTOM_deny_rule_read_back_native_client_denial_not_tested",
     "mockAvatarPersistence": "app_owned_local_files",
-    "realWeChatLoginVerified": false,
-    "realCloudAvatarStorageVerified": false
+    "realWeChatLoginVerified": true,
+    "realCloudAvatarStorageVerified": false,
+    "realLoginEvidence": "user_confirmed_registration_received_member_number_1_after_transaction_fix"
   },
   "visualIteration": {
     "reference": "https://yuanbao.tencent.com/sc/5UClRnU5SgSusS1",
@@ -233,14 +234,14 @@
     "functionTimeoutSeconds": 30,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "a7e8bccc00a1fbea9a0ab52f0da802a83e59447091310fdbe04bc71bee60da17",
+    "functionBackendSha256": "9cde7a896a9390dcf9ef0b4190cd87f039ced962fa23b425f8b057ee95c9518f",
     "nativeEventCompatibility": {
       "fixed": "discard_observed_userInfo_and_tcbContext_before_domain",
       "trustedIdentity": "SDK_context_only",
       "rawEventSizeLimitPreserved": true,
       "remoteMalformedProbesPassed": 2,
-      "realPhoneRetest": "field_rejection_resolved_new_rate_limit_runtime_failure",
-      "diagnosticBuild": "native-envelope-20261016.4",
+      "realPhoneRetest": "four_tabs_and_registration_user_confirmed",
+      "diagnosticBuild": "native-envelope-20261016.6",
       "actualDeployedSourceVerifiedByDownload": true,
       "diagnosticLoggingVerifiedByRemoteReadback": true
     },
@@ -251,6 +252,22 @@
       "technicalCollection": "rpc_limits",
       "technicalRecordsWritten": 1,
       "businessRecordsWritten": 0
+    },
+    "transactionConcurrencyRegression": {
+      "sameCounterCalls": 8,
+      "successfulCalls": 8,
+      "finalCounter": 8,
+      "singleTransactionParallelReads": 8,
+      "parallelReadsPassed": true,
+      "readonlyRpcCalls": 8,
+      "readonlyRpcPassed": 8,
+      "readonlyRpcDurationMs": 2457,
+      "identity": "synthetic_context_with_authorized_CLI_temporary_credentials_not_native_WeChat",
+      "businessRecordsWritten": 0,
+      "maxFreshAttempts": 8,
+      "maxAggregateBackoffMsExclusive": 7100,
+      "wholeInvocationDurationGuaranteed": false,
+      "temporaryProbeDeleted": true
     }
   },
   "developmentUpload": {
@@ -276,12 +293,12 @@
   "userReportedBetaFailure": {
     "message": "请求包含不支持的字段",
     "scope": "multiple_native_pages",
-    "rootCause": "observed_extra_native_tcbContext",
+    "rootCause": "native_metadata_rejection_then_SDK_transaction_concurrency_and_lost_conflict_codes",
     "backendFixDeployed": true,
     "independentSecurityReview": "passed",
-    "newRegressionTests": 9,
-    "phoneRetest": "different_error_after_transport_fix",
-    "resolution": "transport_fixed_runtime_database_failure_under_investigation",
+    "newRegressionTests": 23,
+    "phoneRetest": "user_confirmed_four_tabs_normal_and_registration_number_1",
+    "resolution": "transport_and_transaction_failure_resolved_by_user_retest_page_latency_under_investigation",
     "priorFix": "partial_userInfo_compatibility_insufficient",
     "userInfoCompatibilityDeployed": true,
     "diagnosticDeployed": true,
@@ -289,8 +306,16 @@
     "runtimeIssue": {
       "stage": "rate_limit",
       "sdkErrorCode": "-501001",
-      "status": "awaiting_native_error_classification",
-      "diagnosticBuild": "native-envelope-20261016.4"
-    }
+      "status": "deployed_source_verified_real_cloud_and_phone_retest_passed",
+      "diagnosticBuild": "native-envelope-20261016.6",
+      "backendCode": "DATABASE_TRANSACTION_CONFLICT",
+      "runtimeCredentials": "present",
+      "singleTransactionErrors": [
+        "TransactionBusy",
+        "TransactionNotExist"
+      ],
+      "quotaExhaustionObserved": false
+    },
+    "performanceFollowup": "user_reports_slow_reads_investigating"
   }
 }

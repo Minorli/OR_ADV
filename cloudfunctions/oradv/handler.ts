@@ -17,7 +17,7 @@ export interface HandlerDependencies {
   log?: (entry: { traceId: string; action: string; code: string; serverBuild?: string; rejectedFields?: string[]; rejectedFieldCount?: number; stage?: string; backendCode?: string; backendHints?: string[]; runtimeAuth?: { credentials: string; sessionToken: boolean } }) => void;
 }
 
-const SERVER_BUILD = 'native-envelope-20261016.4';
+const SERVER_BUILD = 'native-envelope-20261016.6';
 class EnvelopeFieldError extends DomainError {
   readonly fields: string[];
   readonly fieldCount: number;
@@ -34,7 +34,7 @@ function object(value: unknown): value is Record<string, unknown> {
 }
 function backendCode(error: unknown): string | undefined {
   if (!object(error)) return;
-  const code = error.code ?? error.errCode;
+  const code = error.backendCode ?? error.code ?? error.errCode;
   if (typeof code === 'number' && Number.isSafeInteger(code)) return String(code);
   if (typeof code === 'string' && code.length <= 80 && /^(?:-?\d{1,10}|[A-Z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*)$/.test(code)) return code;
 }
