@@ -24,9 +24,9 @@
         <view class="field"><text class="field-label">展示优先级（0–999，越大越优先）</text><input type="number" value="{{priority}}" data-field="priority" bindinput="field"/></view><button class="secondary full" disabled="{{!!busy}}" bindtap="savePriority">保存推荐顺序</button>
         <view class="divider"></view><view class="section-title">员工授权</view><view class="small muted mt">运营与主理人为本俱乐部权限；领队、现场核验员须指定活动。</view>
         <picker range="{{roleLabels}}" value="{{roleIndex}}" bindchange="role"><view class="picker mt">{{roleLabels[roleIndex]}} ▾</view></picker>
-        <view class="switch-row field"><text>启用该角色</text><switch checked="{{roleEnabled}}" color="#31543e" bindchange="roleEnabled"/></view>
+        <view class="switch-row field"><text>启用该角色</text><switch checked="{{roleEnabled}}" color="#ff6b00" bindchange="roleEnabled"/></view>
         <view class="row field"><picker mode="date" value="{{roleExpiryDate}}" data-field="roleExpiryDate" bindchange="field"><view class="picker">{{roleExpiryDate || '员工授权到期日（选填）'}} ▾</view></picker><button class="text-button" bindtap="clearRoleExpiry">不设到期日</button></view>
-        <checkbox-group wx:if="{{roleIndex === 1 || roleIndex === 2}}" bindchange="scopes"><label wx:for="{{scopeOptions}}" wx:key="id" class="check-line"><checkbox value="{{item.id}}" checked="{{item.checked}}" color="#31543e"/><text>{{item.title}}</text></label></checkbox-group>
+        <checkbox-group wx:if="{{roleIndex === 1 || roleIndex === 2}}" bindchange="scopes"><label wx:for="{{scopeOptions}}" wx:key="id" class="check-line"><checkbox value="{{item.id}}" checked="{{item.checked}}" color="#ff6b00"/><text>{{item.title}}</text></label></checkbox-group>
         <view class="small muted" wx:if="{{roleIndex === 1 || roleIndex === 2}}">只勾选本次需要授权的场次，当前选择 {{scopeIds.length}} 场。</view><button class="secondary full mt" disabled="{{!!busy}}" bindtap="saveRole">保存员工授权</button>
         <view class="divider"></view><view class="section-title">技能资格核验</view><view class="small muted mt">只记录实际核验结论；参加次数和积分不代表掌握技能。</view>
         <view wx:for="{{qualifications}}" wx:key="id" class="list-link" data-id="{{item.id}}" bindtap="qualification"><text>{{item.type}}</text><text class="tag">{{item.decision === 'approved' ? '已核验' : item.decision === 'rejected' ? '未通过' : '待核验'}}</text></view>

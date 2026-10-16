@@ -75,7 +75,7 @@ function pageHandlers(source: string): Set<string> {
 
 test('all routed native templates have valid expressions, components, and event handlers', () => {
   const native = new Set(['view', 'text', 'button', 'block', 'picker', 'input', 'textarea',
-    'switch', 'checkbox-group', 'label', 'checkbox', 'scroll-view', 'image', 'navigator', 'form', 'rich-text']);
+    'switch', 'checkbox-group', 'label', 'checkbox', 'scroll-view', 'image', 'navigator', 'form', 'rich-text', 'swiper', 'swiper-item']);
   assert.ok(config.pages.length > 0);
   for (const page of config.pages) {
     const markup = readFileSync(resolve(appRoot, page + '.wxml'), 'utf8');

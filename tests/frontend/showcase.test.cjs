@@ -42,6 +42,9 @@ test('native modules open with populated local demonstrations and reset without 
   assert.equal(await api.currentMember(), null);
   const activities = page('activities/index'); await activities.load();
   assert.equal(activities.data.error, '');
+  assert.equal(activities.data.filter, 'published');
+  assert(activities.data.items.every(item => item.state === 'published'), 'home opens on current recruitment');
+  activities.setData({ filter: 'all' }); await activities.load();
   for (const id of ['intro-ride', 'day-trip', 'ongoing-ride', 'history-ride', 'full-ride']) {
     assert(activities.data.items.some(item => item.id === id), `${id} has an activity card`);
   }

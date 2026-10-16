@@ -77,7 +77,10 @@ Page({
     if (!/cancel/i.test(event.detail.errMsg || '')) this.setData({ avatarError: '头像选择未完成，请重试。' });
   },
   retry() { void this.load(); },
-  edit() { this.setData({ showEdit: !this.data.showEdit }); },
+  edit() {
+    const showEdit = !this.data.showEdit;
+    this.setData({ showEdit }, () => { if (showEdit) wx.pageScrollTo({ selector: '#profile-editor', duration: 180 }); });
+  },
   privacy() { this.setData({ showPrivacy: !this.data.showPrivacy }); },
   nickname(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const nickname = event.detail.value;
@@ -130,6 +133,10 @@ Page({
     catch (error) { toast(errorMessage(error)); }
   },
   points() { wx.navigateTo({ url: '/pages/points/index' }); },
+  trips() { wx.navigateTo({ url: '/pages/mine/index' }); },
+  activities() { wx.switchTab({ url: '/pages/activities/index' }); },
+  quickMembers() { if (this.data.isOwner) this.members(); else this.ranking(); },
+  privacySettings() { this.setData({ showPrivacy: true }); wx.pageScrollTo({ selector: '#profile-privacy', duration: 180 }); },
   staff() { wx.navigateTo({ url: '/pages/staff/index' }); },
   members() { wx.navigateTo({ url: '/pages/staff-members/index' }); },
   ranking() { wx.switchTab({ url: '/pages/ranking/index' }); },

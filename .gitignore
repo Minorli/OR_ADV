@@ -13,6 +13,7 @@ private.*.key
 __pycache__/
 *.pyc
 work/
+.playwright-mcp/
 backups/
 real-data/
 .DS_Store

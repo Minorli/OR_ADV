@@ -9,36 +9,45 @@
     "pages/profile/index",
     "pages/staff/index",
     "pages/trip/detail",
-    "pages/staff-members/index"
+    "pages/staff-members/index",
+    "pages/history/index"
   ],
   "window": {
-    "navigationBarTitleText": "原始拉力 OR ADV",
-    "navigationBarBackgroundColor": "#f6f7f4",
-    "navigationBarTextStyle": "black",
-    "backgroundColor": "#f6f7f4",
-    "backgroundTextStyle": "dark"
+    "navigationBarTitleText": "OriginalRally原始拉力",
+    "navigationBarBackgroundColor": "#0a0a0a",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0a0a0a",
+    "backgroundTextStyle": "light"
   },
   "tabBar": {
-    "color": "#81877b",
-    "selectedColor": "#31543e",
-    "backgroundColor": "#f6f7f4",
-    "borderStyle": "white",
+    "color": "#a8a8a8",
+    "selectedColor": "#ff6b00",
+    "backgroundColor": "#0a0a0a",
+    "borderStyle": "black",
     "list": [
       {
         "pagePath": "pages/activities/index",
-        "text": "活动"
-      },
-      {
-        "pagePath": "pages/mine/index",
-        "text": "同行"
+        "text": "首页",
+        "iconPath": "assets/tabs/home.png",
+        "selectedIconPath": "assets/tabs/home-active.png"
       },
       {
         "pagePath": "pages/ranking/index",
-        "text": "俱乐部"
+        "text": "排行",
+        "iconPath": "assets/tabs/rank.png",
+        "selectedIconPath": "assets/tabs/rank-active.png"
+      },
+      {
+        "pagePath": "pages/history/index",
+        "text": "历史",
+        "iconPath": "assets/tabs/history.png",
+        "selectedIconPath": "assets/tabs/history-active.png"
       },
       {
         "pagePath": "pages/profile/index",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "assets/tabs/profile.png",
+        "selectedIconPath": "assets/tabs/profile-active.png"
       }
     ]
   },

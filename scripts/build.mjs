@@ -32,7 +32,7 @@ try {
   await writeJson('runtime-config.json', selected);
   await writeJson('project.config.json', {
     appid: selected.appId || 'touristappid',
-    projectname: 'OR ADV', compileType: 'miniprogram', miniprogramRoot: './',
+    projectname: 'OriginalRally原始拉力', compileType: 'miniprogram', miniprogramRoot: './',
     setting: { es6: true, minified: true, urlCheck: true },
     packOptions: { ignore: [{ type: 'suffix', value: '.ts' }] },
   });

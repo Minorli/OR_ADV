@@ -22,8 +22,12 @@ function fixture() {
 test('successful-build hashes reject tampered/stale compiled assets and added files', () => {
   const f = fixture();
   try {
+    writeFileSync(join(f.app, 'cover.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
     const meta = { artifactHashes: assets.hashes(f.app) };
+    assert(meta.artifactHashes['cover.jpg'], 'photographic covers are part of the successful build');
     assert.doesNotThrow(() => assets.verify(f.app, meta));
+    writeFileSync(join(f.app, 'cover.jpg'), Buffer.from([0xff, 0xd8, 0x00, 0xff, 0xd9]));
+    assert.throws(() => assets.verify(f.app, meta), /Compiled assets differ/);
     writeFileSync(join(f.app, 'app.js'), 'App({staleCloudEnv:"test"})');
     assert.throws(() => assets.verify(f.app, meta), /Compiled assets differ/);
     assert.throws(() => assets.verify(f.app, {}), /no artifact hashes/);

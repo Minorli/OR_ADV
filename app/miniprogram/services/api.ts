@@ -79,6 +79,6 @@ export async function currentMember(): Promise<MemberSummary | null> {
 export function errorMessage(error: unknown): string { return error instanceof ApiError ? error.message : '操作暂未完成，请稍后重试'; }
 export function toast(message: string): void { wx.showToast({ title: message, icon: 'none', duration: 2400 }); }
 export async function confirm(title: string, content: string): Promise<boolean> {
-  const result = await wx.showModal({ title, content, confirmText: '确认', confirmColor: '#31543e' });
+  const result = await wx.showModal({ title, content, confirmText: '确认', confirmColor: '#b54700' });
   return result.confirm;
 }

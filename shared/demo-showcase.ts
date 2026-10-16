@@ -52,7 +52,7 @@ export function showcaseSnapshot(referenceNow = new Date().toISOString()): Store
   }
   const base = seed.activities['intro-ride'] as Activity;
   function activity(id: string, title: string, state: Activity['state'], days: number, capacity: number, growth = 100): Activity {
-    const start = today + days * DAY + HOUR;
+    const start = today + days * DAY + 9 * HOUR;
     const value = put<Activity>('activities', { ...base, id, title: `${title} · 演示`, state,
       description: '本机虚构活动，用于体验报名、同行与成长记录。真实活动线下收费，具体安排由组织方说明；食宿交通自理。',
       location: '虚构训练区域（演示，请勿前往）', startAt: iso(start), endAt: iso(start + 5 * HOUR),

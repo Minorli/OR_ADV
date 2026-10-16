@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 
-const ASSETS = new Set(['.js', '.json', '.wxml', '.wxss', '.svg', '.png']);
+const ASSETS = new Set(['.js', '.json', '.wxml', '.wxss', '.svg', '.png', '.jpg', '.jpeg']);
 const IGNORED = new Set(['project.private.config.json', '.DS_Store']);
 const SDK_IGNORES = ['**/node_modules/**/*', '**/.git/**/*', '**/*.ts', '**/*.map', '**/project.private.config.json', '**/.DS_Store'];
 function fail(message) { throw new Error('Asset inventory: ' + message); }

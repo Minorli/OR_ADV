@@ -1,16 +1,18 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.2.0-test.3",
+  "version": "0.2.0-test.4",
   "asOf": "2026-10-16",
-  "product": "OR ADV",
+  "product": "OriginalRally原始拉力",
   "repository": {
     "url": "https://github.com/Minorli/OR_ADV",
     "visibility": "public",
     "authorization": "explicit_user_request"
   },
   "registration": {
-    "stage": "user_reports_review_pending_unspecified",
-    "verifiedInConsole": false
+    "stage": "user_reports_review_approved_and_name_assigned",
+    "verifiedInConsole": false,
+    "reviewType": "not_reverified_in_console",
+    "formalName": "OriginalRally原始拉力"
   },
   "membership": {
     "stage": "developer_confirmed_by_user",
@@ -67,27 +69,27 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.2.0-test.3",
+    "sourceVersion": "0.2.0-test.4",
     "typecheck": "passed",
     "domainTests": 57,
     "cloudTests": 13,
     "buildAndTemplateTests": 10,
     "typescriptTests": 80,
-    "nativePageTests": 7,
+    "nativePageTests": 8,
     "pythonToolTests": 14,
-    "totalTests": 101,
+    "totalTests": 102,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
   },
   "previewUpload": {
     "status": "success",
-    "version": "0.2.0-test.3",
+    "version": "0.2.0-test.4",
     "mode": "mock",
     "sdkVersion": "2.1.31",
     "qrGenerated": true,
     "uploadIpWhitelistDisabledByUser": true,
-    "localQrArtifact": "dist/OR_ADV-preview-0.2.0-test.3.png"
+    "localQrArtifact": "dist/OR_ADV-preview-0.2.0-test.4.png"
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": false,
@@ -129,7 +131,7 @@
     "nextCandidate": "0.2b after real 0.2a acceptance",
     "realAcceptancePassed": false
   },
-  "nativePageCount": 10,
+  "nativePageCount": 11,
   "implementedV02a": [
     "owner-verified member kinds and recognition requests",
     "founder first application, reapplication and FIFO promotion confirmation",
@@ -166,5 +168,22 @@
     "mockAvatarPersistence": "app_owned_local_files",
     "realWeChatLoginVerified": false,
     "realCloudAvatarStorageVerified": false
+  },
+  "visualIteration": {
+    "reference": "https://yuanbao.tencent.com/sc/XWHhLfsyfPxsiS9",
+    "document": "docs/21-visual-reference.md",
+    "style": "black_and_orange",
+    "tabs": [
+      "首页",
+      "排行",
+      "历史",
+      "我的"
+    ],
+    "publicArchive": "settled_public_activity_projection_only",
+    "privateTrips": "non_tab_authenticated_member_records",
+    "localPhotographicCovers": 3,
+    "localOutlineIcons": 14,
+    "layoutInspection": "native_template_data_in_browser_not_real_device",
+    "referenceBusinessPoliciesApplied": false
   }
 }

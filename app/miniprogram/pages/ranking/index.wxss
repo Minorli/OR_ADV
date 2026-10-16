@@ -1,0 +1,68 @@
+.ranking-page{padding:34rpx 28rpx 54rpx;color:#fff;background:#0a0a0a}
+.ranking-heading{display:flex;align-items:center;justify-content:space-between;margin:2rpx 0 30rpx}
+.ranking-kicker{font-size:18rpx;font-weight:600;letter-spacing:3rpx;color:#a8a8a8}
+.ranking-title{font-size:42rpx;font-weight:700;line-height:1.3;margin-top:9rpx;letter-spacing:1rpx}
+.ranking-year{font-size:21rpx;line-height:1;padding:14rpx 17rpx;border:1rpx solid #393029;border-radius:7rpx;color:#ff8a3c;background:#21170f}
+.own-score-card{padding:29rpx 30rpx;background:#1a1a1a;border:1rpx solid #2a2a2a;border-radius:18rpx;overflow:hidden}
+.own-score-top{display:flex;justify-content:space-between;align-items:center;color:#d5d5d5;font-size:25rpx}
+.own-score-private{font-size:20rpx;color:#838383}
+.own-score-line{display:flex;justify-content:space-between;align-items:center;margin:13rpx 0 20rpx}
+.own-score-number{color:#ff6b00;font-size:78rpx;font-weight:750;line-height:1.1;letter-spacing:-2rpx}
+.own-score-number text{font-size:22rpx;font-weight:400;letter-spacing:0;color:#a8a8a8;margin-left:12rpx}
+.score-detail{background:transparent;padding:12rpx 0 12rpx 18rpx;margin:0;color:#d3d3d3;font-size:22rpx;font-weight:400}
+.score-detail text{margin-left:8rpx;color:#ff6b00;font-size:29rpx}
+.own-score-meta{display:flex;align-items:center;gap:24rpx;padding-top:23rpx;border-top:1rpx solid #2a2a2a;color:#969696;font-size:22rpx;line-height:1.5}
+.own-score-meta-value{color:#ececec;font-weight:600;margin-left:10rpx}
+.score-meta-divider{height:20rpx;width:1rpx;background:#393939}
+.ranking-section-head{display:flex;justify-content:space-between;align-items:center;margin:35rpx 0 22rpx;gap:12rpx}
+.ranking-section-title{display:flex;align-items:center;gap:12rpx;font-size:29rpx;font-weight:600}
+.orange-marker{width:6rpx;height:25rpx;border-radius:2rpx;background:#ff6b00}
+.ranking-section-note{color:#888;font-size:20rpx}
+.founder-scroll{width:100%;white-space:nowrap}
+.founder-track{display:flex;gap:18rpx;padding-bottom:8rpx}
+.founder-card{display:flex;flex-direction:column;align-items:center;flex:0 0 178rpx;min-width:0;box-sizing:border-box;border:1rpx solid #393029;border-radius:14rpx;background:#1a1a1a;padding:23rpx 12rpx 20rpx}
+.founder-initial{position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:76rpx;height:76rpx;border-radius:50%;border:1rpx solid #a54d18;background:#2c2018;color:#ffb17b;font-size:33rpx;font-weight:600;line-height:1}
+.founder-initial text{position:absolute;right:-7rpx;bottom:-3rpx;border:3rpx solid #1a1a1a;border-radius:5rpx;padding:3rpx;background:#ff6b00;color:#0a0a0a;font-size:12rpx;font-weight:800}
+.founder-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:24rpx;font-weight:600;margin-top:17rpx}
+.founder-label{color:#ff8a3c;font-size:18rpx;margin-top:7rpx}
+.founder-summary{color:#8d8d8d;font-size:18rpx;margin-top:12rpx}
+.ranking-switch{display:flex;gap:32rpx;border-bottom:1rpx solid #2a2a2a;margin-top:27rpx}
+.ranking-switch-item{position:relative;background:transparent;color:#8e8e8e;border-radius:0;font-weight:500;font-size:29rpx;padding:21rpx 0 23rpx;margin:0;line-height:1.4}
+.ranking-switch-item.is-active{color:#fff;font-weight:650}
+.ranking-switch-item.is-active::before{position:absolute;bottom:-1rpx;left:0;right:0;height:5rpx;border-radius:4rpx 4rpx 0 0;background:#ff6b00;content:""}
+.ranking-explainer{font-size:21rpx;color:#8c8c8c;line-height:1.7;padding:20rpx 0}
+.ranking-list{border:1rpx solid #2a2a2a;border-radius:14rpx;background:#1a1a1a;overflow:hidden}
+.ranking-list:empty{display:none}
+.ranking-member-row{display:flex;align-items:center;gap:18rpx;padding:23rpx 22rpx;min-height:112rpx;box-sizing:border-box;border-bottom:1rpx solid #2a2a2a}
+.ranking-member-row:last-child{border-bottom:0}
+.public-member-initial{display:flex;align-items:center;justify-content:center;flex:0 0 68rpx;height:68rpx;border-radius:50%;background:#2b2b2b;color:#c5c5c5;font-size:29rpx;font-weight:600;line-height:1}
+.public-member-initial.is-founder{color:#ff9e60;background:#302117}
+.public-member-body{flex:1;min-width:0}
+.public-member-name{font-size:27rpx;font-weight:550;line-height:1.45;word-break:break-all}
+.public-member-meta{display:flex;align-items:center;flex-wrap:wrap;gap:10rpx;color:#8f8f8f;font-size:20rpx;line-height:1.5;margin-top:9rpx}
+.member-kind-label{border-radius:4rpx;padding:2rpx 8rpx;background:#2b2b2b;color:#a8a8a8;font-size:18rpx}
+.member-kind-label.is-founder{background:#322115;color:#ff964e}
+.public-member-score{text-align:right;flex-shrink:0;color:#ff7d20;font-size:33rpx;font-weight:650;line-height:1.2}
+.public-member-score text{display:block;font-size:18rpx;font-weight:400;color:#888;margin-top:10rpx}
+.private-score-label{color:#a8a8a8;font-size:19rpx;flex-shrink:0}
+.actual-rank{width:31rpx;text-align:center;flex-shrink:0;font-size:27rpx;font-weight:650;color:#a8a8a8}
+.actual-rank.rank-1{color:#ff6b00}
+.actual-rank.rank-2{color:#d4d4d4}
+.actual-rank.rank-3{color:#bc8157}
+.rank-initial{flex-basis:58rpx;height:58rpx;font-size:25rpx}
+.ranking-filters{display:flex;gap:12rpx;padding-top:24rpx}
+.ranking-filter{flex:1;background:#1a1a1a;border:1rpx solid #2a2a2a;border-radius:8rpx;color:#929292;font-size:21rpx;padding:14rpx 6rpx;font-weight:400;line-height:1.4;white-space:nowrap}
+.ranking-filter.is-active{background:#2e1c10;border-color:#7e421a;color:#ff974f}
+.ranking-settings{display:flex;align-items:center;justify-content:space-between;width:100%;margin:20rpx 0 0;padding:21rpx 0;background:transparent;color:#aaa;font-size:22rpx;font-weight:400;text-align:left}
+.ranking-settings text{color:#ff6b00;font-size:29rpx}
+.ranking-more{margin-top:22rpx}
+.ranking-contact{display:flex;align-items:center;justify-content:space-between;gap:20rpx;padding:26rpx 0;margin-top:18rpx;border-top:1rpx solid #2a2a2a}
+.ranking-contact>view{min-width:0;flex:1}
+.ranking-contact-title{font-size:25rpx;color:#c4c4c4}
+.ranking-contact-note{font-size:21rpx;color:#828282;line-height:1.6;margin-top:7rpx}
+.ranking-contact>text{font-size:30rpx;color:#777}
+.ranking-page .footer-note{color:#727272;margin-top:23rpx}
+.ranking-page .notice{background:#211a14;color:#d0b49b;border-left-color:#ff6b00}
+.ranking-page .text-button{color:#ff8a3c}
+.ranking-page .empty{color:#929292}
+.ranking-page .loading{color:#a8a8a8}

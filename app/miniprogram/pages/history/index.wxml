@@ -1,0 +1,18 @@
+<view wx:if="{{isMock}}" class="demo">内测演示 · 数据仅保存在本机</view>
+<view class="page archive-page">
+  <view class="archive-top"><view><view class="eyebrow">OR / ARCHIVE</view><view class="title">往期活动</view></view><text class="tag">{{year}}</text></view>
+  <view class="archive-intro">走过的路，都在这里。</view>
+  <view class="archive-tools">
+    <scroll-view scroll-x class="archive-months" show-scrollbar="{{false}}"><view class="archive-month-track"><button wx:for="{{months}}" wx:key="value" class="pill {{month === item.value ? 'active' : ''}}" data-month="{{item.value}}" bindtap="selectMonth">{{item.label}}</button></view></scroll-view>
+    <view class="archive-search"><view class="archive-search-icon"></view><input value="{{query}}" maxlength="60" bindinput="search" placeholder="搜索活动名称或区域" placeholder-class="archive-placeholder" aria-label="搜索往期活动"/></view>
+  </view>
+  <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
+  <view wx:for="{{visibleItems}}" wx:key="id" class="archive-card" data-id="{{item.id}}" bindtap="open">
+    <view class="archive-cover"><image wx:if="{{!coverErrors[item.id]}}" src="{{item.cover}}" mode="aspectFill" lazy-load class="archive-image" data-id="{{item.id}}" binderror="coverFailed"/><view class="archive-shade"></view><text class="archive-cover-label">场景配图</text><text class="archive-duration">{{item.durationText}}</text><view class="archive-cover-title">{{item.title}}</view></view>
+    <view class="archive-body"><view class="archive-location">{{item.location}}</view><view class="archive-date">{{item.dateText}}</view><view class="archive-facts"><view><text class="archive-fact-label">活动状态</text><text class="archive-fact-value">已完成结算</text></view><view><text class="archive-fact-label">成长奖励</text><text class="archive-fact-value">{{item.pointsRule.growth}} 分 / 完整参加</text></view></view><view class="archive-foot"><text>{{item.difficulty}} · {{item.durationText}}</text><text class="archive-open">查看本场记录 ›</text></view></view>
+  </view>
+  <view wx:if="{{loading}}" class="loading">正在整理往期活动…</view>
+  <view wx:if="{{!loading && !error && !visibleItems.length}}" class="empty">{{items.length ? '没有找到相关活动，可以换个关键词。' : '第一段同行，等你一起出发。'}}<button wx:if="{{!items.length}}" class="primary full mt" bindtap="explore">查看近期活动</button></view>
+  <view wx:if="{{nextCursor}}" class="notice">还有往期记录尚未加载。<button class="text-button" disabled="{{loading}}" bindtap="more">继续查看往期活动</button></view>
+  <view wx:if="{{!loading && items.length}}" class="archive-end">已载入 {{items.length}} 场 · 留下每一次同行的足迹</view>
+</view>
