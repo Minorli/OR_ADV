@@ -1,7 +1,7 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.2.0-test.1",
-  "asOf": "2026-10-15",
+  "version": "0.2.0-test.2",
+  "asOf": "2026-10-16",
   "product": "OR ADV",
   "repository": {
     "url": "https://github.com/Minorli/OR_ADV",
@@ -67,27 +67,27 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.2.0-test.1",
+    "sourceVersion": "0.2.0-test.2",
     "typecheck": "passed",
-    "domainTests": 40,
+    "domainTests": 46,
     "cloudTests": 10,
     "buildAndTemplateTests": 10,
-    "typescriptTests": 60,
-    "nativePageTests": 5,
+    "typescriptTests": 66,
+    "nativePageTests": 6,
     "pythonToolTests": 14,
-    "totalTests": 79,
+    "totalTests": 86,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
   },
   "previewUpload": {
     "status": "success",
-    "version": "0.2.0-test.1",
+    "version": "0.2.0-test.2",
     "mode": "mock",
     "sdkVersion": "2.1.31",
     "qrGenerated": true,
     "uploadIpWhitelistDisabledByUser": true,
-    "localQrArtifact": "dist/OR_ADV-preview-0.2.0-test.1.png"
+    "localQrArtifact": "dist/OR_ADV-preview-0.2.0-test.2.png"
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": false,
@@ -141,5 +141,19 @@
     "actual field checkin timeline and private preparation checklist",
     "roster search/day filters and unreturned priority",
     "single-event settlement and activity-linked points ledger"
-  ]
+  ],
+  "demoDataset": {
+    "scope": "local_mock_only",
+    "storageVersion": 3,
+    "members": 24,
+    "activities": 11,
+    "registrations": 78,
+    "briefings": 6,
+    "checkinsAtNormalDate": 94,
+    "ledgerEntries": 39,
+    "qualifications": 6,
+    "dates": "relative_to_initialization_or_manual_reset_with_Shanghai_years",
+    "olderLocalSnapshotsPreserved": true,
+    "cloudImportImplemented": false
+  }
 }

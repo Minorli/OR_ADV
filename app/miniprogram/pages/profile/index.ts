@@ -88,7 +88,7 @@ Page({
     this.setData({ notice: '', consent: false, showEdit: false }); await this.load();
   },
   async reset() {
-    if (!isMock || !await confirm('重置本机演示', '所有本机申请、活动修改与核验记录会恢复为初始虚构数据。')) return;
+    if (!isMock || !await confirm('重置本机演示', '本机演示会恢复整套虚构活动、成员、核验与积分记录，并清空演示准备清单。只影响本机演示，不修改真实云端或旧版保存的数据。')) return;
     resetMock(); this.setData({ notice: '本机演示已重置', consent: false }); await this.load();
   },
   async deletion() {

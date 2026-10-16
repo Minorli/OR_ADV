@@ -10,6 +10,8 @@ test('native pages preserve consent and role/data state across navigation', asyn
   Object.assign(globalThis, {
     wx: {
       getStorageSync: (key) => storage.get(key),
+      getStorageInfoSync: () => ({ keys: [...storage.keys()] }),
+      removeStorageSync: key => storage.delete(key),
       setStorageSync: (key, value) => storage.set(key, value),
       showToast: () => { notices++; },
       showModal: async () => ({ confirm: true, cancel: false }),
@@ -27,7 +29,7 @@ test('native pages preserve consent and role/data state across navigation', asyn
     return instance;
   };
   const api = load('../../app/miniprogram/services/api.js');
-  api.resetMock();
+  api.resetMock('empty');
   assert.equal(await api.currentMember(), null);
   const result = await api.call('activity.list');
   const activity = result.items.find((item) => item.minGrowthPoints === 0);

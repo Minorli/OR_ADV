@@ -35,6 +35,6 @@
 5. 可以修改昵称、申请核对身份、更正记录或提交注销申请。因安全核验、争议处理或法定义务需要保留的记录，由组织方说明依据与期限。
 
 6. 更正、隐私与注销问题，请通过本页组织方联系办法反馈。真实内测前，组织方应完善微信隐私保护指引中的主体和有效联系方式。</view><view class="notice">参加活动须满足本场资格、装备和安全要求。成员身份与积分都不替代技能或现场核验。</view><button wx:if="{{member}}" class="text-button full" disabled="{{saving}}" bindtap="deletion">提交注销申请</button></view>
-  <view wx:if="{{isMock}}" class="card mt"><view class="tag tag-warm">本机演示</view><view class="card-title mt">切换演示身份</view><view class="small muted mt">人物和活动均为虚构。切换身份可体验普通申请、创始成员直接确认与员工处理。</view><picker mode="selector" range="{{roles}}" bindchange="role"><view class="picker mt">当前：{{roleLabel}}　切换 ▾</view></picker><button class="secondary full mt" bindtap="reset">重置本机演示数据</button></view>
+  <view wx:if="{{isMock}}" class="card mt"><view class="tag tag-warm">本机演示</view><view class="card-title mt">切换演示身份</view><view class="small muted mt">人物和活动均为虚构。普通车友可查看同行、行前准备与积分；主理人可处理待确认、待回场和待结算名单。入门活动留有空位，可体验一遍新申请。</view><picker mode="selector" range="{{roles}}" bindchange="role"><view class="picker mt">当前：{{roleLabel}}　切换 ▾</view></picker><view class="tiny muted mt">重置会恢复整套本机演示，并按当天日期重新生成现场记录。</view><button class="secondary full mt" bindtap="reset">重置本机演示数据</button></view>
   <view class="footer-note">ORIGINAL RALLY · 原始拉力</view>
 </view>

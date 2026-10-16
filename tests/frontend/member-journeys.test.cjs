@@ -7,6 +7,8 @@ test('member pages distinguish founder participation, manual confirmation, priva
   let clipboard = '';
   const dialed = [];
   global.wx = {
+    getStorageInfoSync: () => ({ keys: [...storage.keys()] }),
+    removeStorageSync: key => storage.delete(key),
     getStorageSync: key => storage.get(key),
     setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
     showToast: () => {}, showModal: async () => ({ confirm: true, cancel: false }),
@@ -38,7 +40,7 @@ test('member pages distinguish founder participation, manual confirmation, priva
   await contactPerson('phone', '+1 (202) 555-0100');
   assert.deepEqual(dialed, ['+12025550100'], 'approved formatted phone contacts use the native dialer with normalized digits');
   assert.equal(clipboard, '', 'a phone contact must not unexpectedly switch to clipboard mode');
-  api.resetMock();
+  api.resetMock('empty');
   api.switchMockRole('owner');
   const activity = await api.call('activity.get', { activityId: 'intro-ride' });
   await api.call('staff.briefing.save', {

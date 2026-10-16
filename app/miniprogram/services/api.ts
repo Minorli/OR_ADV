@@ -1,5 +1,6 @@
 import { createService } from '../../../shared/service';
 import { createDemoStore, DEMO_IDENTITIES } from '../../../shared/demo';
+import { createShowcaseStore } from '../../../shared/demo-showcase';
 import { MemoryStore } from '../../../shared/memory-store';
 import type { RpcResponse, MemberSummary } from '../../../shared/types';
 
@@ -8,9 +9,10 @@ export const runtime = require('../runtime-config.json') as RuntimeConfig;
 declare const __ORADV_MODE__: 'mock' | 'cloud';
 export const isMock = __ORADV_MODE__ === 'mock';
 export type MockRole = 'guest' | keyof typeof DEMO_IDENTITIES;
-const STORE_KEY = 'oradv-beta-store-v2';
-const IDENTITY_KEY = 'oradv-beta-identity-v2';
-let store: ReturnType<typeof createDemoStore> | undefined;
+const STORE_KEY = 'oradv-beta-store-v3';
+const IDENTITY_KEY = 'oradv-beta-identity-v3';
+export const MOCK_CHECKLIST_PREFIX = 'oradv-beta-checklist-v3-';
+let store: MemoryStore | undefined;
 let service: ReturnType<typeof createService> | undefined;
 let selectedRole: MockRole = 'guest';
 if (isMock) {
@@ -27,17 +29,20 @@ export function switchMockRole(role: MockRole): void {
   selectedRole = role;
   wx.setStorageSync(IDENTITY_KEY, role);
 }
-export function resetMock(): void {
+export function resetMock(dataset: 'showcase' | 'empty' = 'showcase'): void {
   if (!isMock) return;
-  store = createDemoStore();
+  store = dataset === 'empty' ? createDemoStore() : createShowcaseStore();
   service = createService(store);
   wx.setStorageSync(STORE_KEY, store.snapshot());
+  for (const key of wx.getStorageInfoSync().keys) {
+    if (key.startsWith(MOCK_CHECKLIST_PREFIX)) wx.removeStorageSync(key);
+  }
   switchMockRole('guest');
 }
 function getMockService(): ReturnType<typeof createService> {
   if (service) return service;
   const snapshot = wx.getStorageSync(STORE_KEY);
-  store = snapshot && typeof snapshot === 'object' ? new MemoryStore(snapshot) : createDemoStore();
+  store = snapshot && typeof snapshot === 'object' ? new MemoryStore(snapshot) : createShowcaseStore();
   service = createService(store);
   return service;
 }

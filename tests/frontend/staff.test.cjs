@@ -29,12 +29,14 @@ test('staff roster gives every unreturned rider equal safety priority and filter
 test('owner native member controls use revisions and cannot force public consent or grant a staff role through founder status', async () => {
   const storage = new Map();
   global.wx = {
+    getStorageInfoSync: () => ({ keys: [...storage.keys()] }),
+    removeStorageSync: key => storage.delete(key),
     getStorageSync: key => storage.get(key), setStorageSync: (key, value) => storage.set(key, value),
     showToast: () => {}, showModal: async () => ({ confirm: true, cancel: false }),
     navigateTo: () => {}, navigateBack: () => {}, switchTab: () => {}, stopPullDownRefresh: () => {},
   };
   const api = require(path.join(root, 'services/api.js'));
-  api.resetMock(); api.switchMockRole('member');
+  api.resetMock('empty'); api.switchMockRole('member');
   const member = await api.call('identity.ensure', { consentVersions: { privacy: 1, terms: 1 }, nickname: '成员管理验收' });
   api.switchMockRole('owner');
   let definition;

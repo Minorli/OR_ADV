@@ -1,10 +1,11 @@
-import { call, currentMember, errorMessage, isMock, confirm, toast } from '../../services/api';
+import { call, currentMember, errorMessage, isMock, confirm, toast, MOCK_CHECKLIST_PREFIX } from '../../services/api';
 import { activityCard, registrationCard, dateText } from '../../services/presentation';
 import { emptyContact, contactPerson, needsOfflineArrangement, tripNextAction } from '../../services/member';
 import type { ActivityBriefing, ClubContact, TimelineEntry } from '../../services/member';
 import type { Activity, MemberSummary, PageResult, Registration } from '../../../../shared/types';
 interface ChecklistItem { value: string; label: string; checked: boolean }
 interface DisplayRecord { id: string; title: string; dateText: string; reason: string }
+function checklistKey(registrationId: string, revision: number): string { return `${isMock ? MOCK_CHECKLIST_PREFIX : 'oradv-checklist-'}${registrationId}-${revision}`; }
 function record(entry: TimelineEntry): DisplayRecord {
   const result = entry.result === 'safe_exit' ? '安全退出' : entry.result === 'no_show' ? '未到' : entry.phase === 'departure' ? '出发已核验' : '结束已核验';
   return { id: entry.id, title: result, dateText: entry.verifiedAt ? dateText(entry.verifiedAt) : entry.createdAt ? dateText(entry.createdAt) : entry.day || '', reason: entry.reason || '' };
@@ -34,7 +35,7 @@ Page({
           const briefing = await call<ActivityBriefing | null>('activity.briefing.get', { activityId: activity.id });
           if (this.data.requestVersion !== requestVersion) return;
           if (!briefing) { this.setData({ briefingError: '行前安排尚未发布，请联系负责人' }); return; }
-          const saved = wx.getStorageSync(`oradv-checklist-${registration.id}-${briefing.revision}`);
+          const saved = wx.getStorageSync(checklistKey(registration.id, briefing.revision));
           const checked = Array.isArray(saved) ? saved as string[] : [];
           this.setData({ briefing, meetingText: Number.isFinite(Date.parse(briefing.meetingTime)) ? dateText(briefing.meetingTime) : briefing.meetingTime, checklist: briefing.checklist.map((label, index) => ({ label, value: String(index), checked: checked.includes(String(index)) })) });
         } catch (error) { if (this.data.requestVersion === requestVersion) this.setData({ briefingError: errorMessage(error) }); }
@@ -58,7 +59,7 @@ Page({
     if (!this.data.registration || !this.data.briefing) return;
     const checked = event.detail.value;
     this.setData({ checklist: this.data.checklist.map(item => ({ ...item, checked: checked.includes(item.value) })) });
-    wx.setStorageSync(`oradv-checklist-${this.data.registration.id}-${this.data.briefing.revision}`, checked);
+    wx.setStorageSync(checklistKey(this.data.registration.id, this.data.briefing.revision), checked);
   },
   contact() { void contactPerson(this.data.contact.contactMethod, this.data.contact.contactValue); },
   leader() { if (this.data.briefing) void contactPerson(this.data.briefing.contactMethod, this.data.briefing.contactValue); },

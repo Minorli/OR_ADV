@@ -6,6 +6,8 @@ test('built native pages complete the staff/member loop and reversible ranking c
   const storage = new Map();
   global.wx = {
     getStorageSync: (key) => storage.get(key),
+    getStorageInfoSync: () => ({ keys: [...storage.keys()] }),
+    removeStorageSync: key => storage.delete(key),
     setStorageSync: (key, value) => storage.set(key, value),
     showToast: () => {},
     showModal: async () => ({ confirm: true, cancel: false }),
@@ -29,7 +31,7 @@ test('built native pages complete the staff/member loop and reversible ranking c
     return instance;
   }
   const api = require(path.join(root, 'services/api.js'));
-  api.resetMock();
+  api.resetMock('empty');
   const form = capture('registration/apply');
   form.setData({ id: 'intro-ride' });
   await form.load();
