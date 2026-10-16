@@ -36,7 +36,7 @@
     "M5": "pending",
     "M6": "pending"
   },
-  "nextMilestone": "V2-candidate-experience-release-and-phone-acceptance",
+  "nextMilestone": "V2-native-phone-visual-and-business-acceptance",
   "limits": {
     "activityCapacity": 30,
     "annualSnapshotMembers": 30,
@@ -278,7 +278,7 @@
     "mode": "cloud",
     "formalReviewSubmitted": false,
     "published": false,
-    "experienceSelectionByVersionManager": "pending_fresh_official_login_readback"
+    "experienceSelectionByVersionManager": "officially_read_back_0.5.0-test.1"
   },
   "newPrototypeIteration": {
     "allFourTabsAndLeafFlowsImplemented": true,
@@ -347,7 +347,7 @@
   },
   "experienceRelease": {
     "status": "officially_verified_current_experience",
-    "version": "0.4.0-test.2",
+    "version": "0.5.0-test.1",
     "appNameMatched": true,
     "appIdMatched": true,
     "descriptionMatched": true,
@@ -356,7 +356,14 @@
     "formalReviewSubmitted": false,
     "phoneRetest": "pending_after_avatar_patch",
     "temporaryConsoleSessionLoggedOut": true,
-    "verifiedOn": "2026-10-16"
+    "verifiedOn": "2026-10-16",
+    "appIdMatches": true,
+    "descriptionMatches": true,
+    "experienceTagVisible": true,
+    "officialQrSaved": true,
+    "onlineVersion": null,
+    "auditVersion": null,
+    "temporarySessionLoggedOut": true
   },
   "ownerBootstrap": {
     "status": "executed_and_read_back",
@@ -466,8 +473,8 @@
     }
   },
   "githubChecks": {
-    "commit": "9647e93768b2fd4300766eea0f55b6859a7cb4bb",
-    "runId": 38916824429,
+    "commit": "5fda43f639b13caa978c601d446ff5daf2d8ef7c",
+    "runId": 38928465594,
     "conclusion": "success"
   },
   "profileAvatarLayoutFix": {
@@ -506,10 +513,12 @@
     "mustReportEffectiveVersion": true,
     "developmentUploadIsNotExperienceRelease": true,
     "sourceVersion": "0.5.0-test.1",
-    "developmentVersion": "0.5.0-test.1"
+    "developmentVersion": "0.5.0-test.1",
+    "effectiveExperienceVersion": "0.5.0-test.1",
+    "effectiveOnlineVersion": null
   },
   "visualParityV2": {
-    "status": "implemented_cloud_deployed_officially_compiled_and_development_uploaded_experience_readback_pending",
+    "status": "experience_released_officially_verified_phone_acceptance_pending",
     "canonicalLocalFile": "OR小程序原型_v2.html",
     "sha256": "a9d6a3f4ac58dee61fda88c3f481683d7c8c907d12b0247ef85ee552abfb6d80",
     "bytes": 94777,
