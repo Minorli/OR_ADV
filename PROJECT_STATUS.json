@@ -67,7 +67,7 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.4.0-test.1",
+    "sourceVersion": "0.4.0-test.2",
     "typecheck": "passed",
     "domainTests": 165,
     "cloudTests": 77,
@@ -466,8 +466,8 @@
     }
   },
   "githubChecks": {
-    "commit": "7bd37deefdf2df9b57c304ad5bfbd411376e7a8f",
-    "runId": 38914751286,
+    "commit": "9647e93768b2fd4300766eea0f55b6859a7cb4bb",
+    "runId": 38916824429,
     "conclusion": "success"
   },
   "profileAvatarLayoutFix": {
@@ -493,6 +493,8 @@
     "maxCenterOffsetBrowserPx": 0.0078125,
     "stressStylesAreSimulated": true,
     "backendChanged": false,
-    "backendRedeployed": false
+    "backendRedeployed": false,
+    "githubCiPassed": true,
+    "fullGithubTests": 370
   }
 }
