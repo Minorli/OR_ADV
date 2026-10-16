@@ -451,6 +451,23 @@
     "handlerErrors": 0,
     "physicalDeviceAcceptance": false,
     "wxmlConditionalAttributesFixed": 67,
-    "v04Acceptance": "in_progress"
+    "v04Acceptance": {
+      "scope": "fixed_mock_browser_native_handlers_not_phone",
+      "representativeRoutes": 4,
+      "interactions": 45,
+      "handlerErrors": 0,
+      "screenshots": 13,
+      "roles": [
+        "regular",
+        "primary_owner",
+        "manager_owner",
+        "content_admin"
+      ]
+    }
+  },
+  "githubChecks": {
+    "commit": "7bd37deefdf2df9b57c304ad5bfbd411376e7a8f",
+    "runId": 38914751286,
+    "conclusion": "success"
   }
 }
