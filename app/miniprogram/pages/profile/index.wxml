@@ -4,8 +4,11 @@
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
   <view wx:if="{{notice}}" class="notice">{{notice}}</view>
   <view wx:if="{{identityVerified || !member}}" class="profile-hero">
-    <button wx:if="{{member}}" class="profile-hero-avatar-button" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" binderror="avatarChoiceFailed" disabled="{{saving || avatarProcessing}}"><image wx:if="{{avatarUrl}}" class="profile-hero-avatar" src="{{avatarUrl}}" mode="aspectFill" data-scope="saved" data-src="{{avatarUrl}}" binderror="avatarFailed"/><view wx:else class="profile-hero-avatar profile-avatar-default">OR.</view><text class="profile-or-badge">OR</text></button>
-    <view wx:else class="profile-hero-avatar-button"><view class="profile-hero-avatar profile-avatar-default">OR.</view><text class="profile-or-badge">OR</text></view>
+    <view class="profile-avatar-frame">
+      <button wx:if="{{member}}" class="profile-hero-avatar-button" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" binderror="avatarChoiceFailed" disabled="{{saving || avatarProcessing}}"><image wx:if="{{avatarUrl}}" class="profile-hero-avatar" src="{{avatarUrl}}" mode="aspectFill" data-scope="saved" data-src="{{avatarUrl}}" binderror="avatarFailed"/><view wx:else class="profile-hero-avatar profile-avatar-default">OR.</view></button>
+      <view wx:else class="profile-hero-avatar profile-avatar-default">OR.</view>
+      <text class="profile-or-badge">OR</text>
+    </view>
     <view class="profile-hero-name">{{member ? member.nickname : '原始拉力车友'}}</view>
     <view class="profile-kind"><text class="profile-kind-dot"></text>{{adminTitle ? adminTitle + ' · ' : ''}}{{member ? kindLabel : '登录后查看个人记录'}}</view>
     <button wx:if="{{member}}" class="profile-member-number" bindtap="copyMemberNumber" disabled="{{memberNumber === '待分配'}}">成员编号 {{memberNumber}} <text wx:if="{{memberNumber !== '待分配'}}">复制</text></button>

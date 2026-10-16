@@ -3,8 +3,8 @@
   "clubId": "oradv",
   "projectPath": "app/miniprogram",
   "privateKeyPath": "",
-  "version": "0.4.0-test.1",
-  "description": "成员角色管理、积分兑换与页面修复",
+  "version": "0.4.0-test.2",
+  "description": "个人页头像与OR标记居中修复",
   "robot": 1,
   "environments": {
     "test": {

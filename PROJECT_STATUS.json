@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.4.0-test.1",
+  "version": "0.4.0-test.2",
   "asOf": "2026-10-16",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -82,12 +82,12 @@
   },
   "previewUpload": {
     "status": "success",
-    "version": "0.4.0-test.1",
+    "version": "0.4.0-test.2",
     "mode": "cloud",
     "sdkVersion": "2.1.31",
     "qrGenerated": true,
     "uploadIpWhitelistDisabledByUser": true,
-    "localQrArtifact": "dist/OR_ADV-cloud-preview-0.4.0-test.1.png"
+    "localQrArtifact": "dist/OR_ADV-cloud-preview-0.4.0-test.2.png"
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": true,
@@ -274,7 +274,7 @@
   },
   "developmentUpload": {
     "status": "success",
-    "version": "0.4.0-test.1",
+    "version": "0.4.0-test.2",
     "mode": "cloud",
     "formalReviewSubmitted": false,
     "published": false,
@@ -469,5 +469,30 @@
     "commit": "7bd37deefdf2df9b57c304ad5bfbd411376e7a8f",
     "runId": 38914751286,
     "conclusion": "success"
+  },
+  "profileAvatarLayoutFix": {
+    "version": "0.4.0-test.2",
+    "status": "implemented_officially_compiled_previewed_uploaded_phone_pending",
+    "independentReview": "passed",
+    "nativeProfileTests": 11,
+    "templateAndNavigationTests": 5,
+    "typecheck": "passed",
+    "browserLayoutCases": 32,
+    "viewports": [
+      320,
+      375,
+      390,
+      430
+    ],
+    "states": [
+      "guest",
+      "member_placeholder",
+      "member_avatar",
+      "saving_avatar"
+    ],
+    "maxCenterOffsetBrowserPx": 0.0078125,
+    "stressStylesAreSimulated": true,
+    "backendChanged": false,
+    "backendRedeployed": false
   }
 }

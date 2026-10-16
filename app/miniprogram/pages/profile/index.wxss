@@ -2,10 +2,12 @@
 .profile-page-heading{display:flex;align-items:center;justify-content:space-between;font-size:40rpx;font-weight:700;line-height:1.3}
 .profile-brand{font-size:18rpx;font-weight:500;letter-spacing:2rpx;color:#747474}
 .profile-hero{display:flex;flex-direction:column;align-items:center;padding:39rpx 10rpx 28rpx;text-align:center}
-.profile-hero-avatar-button{position:relative;background:transparent;padding:0;margin:0;width:154rpx;height:154rpx;overflow:visible;border-radius:50%;flex-shrink:0}
+.profile-avatar-frame{position:relative;display:flex;align-items:center;justify-content:center;width:154rpx;height:154rpx;margin:0 auto;flex-shrink:0;overflow:visible}
+.profile-page .profile-hero-avatar-button{display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0;min-height:0;padding:0;margin:0;border:0;border-radius:50%;background:transparent;overflow:hidden;line-height:1}
+.profile-hero-avatar-button::after{display:none;border:0}
 .profile-hero-avatar{display:block;width:154rpx;height:154rpx;box-sizing:border-box;border-radius:50%;border:3rpx solid #ff6b00;background:#232323}
 .profile-page .profile-avatar-default{display:flex;align-items:center;justify-content:center;background:#222;color:#ff8a3c;font-size:54rpx;font-weight:800;letter-spacing:-4rpx;line-height:1}
-.profile-or-badge{display:block;position:absolute;bottom:1rpx;right:-2rpx;padding:6rpx 9rpx;border:5rpx solid #0a0a0a;border-radius:9rpx;background:#ff6b00;color:#101010;font-size:19rpx;font-weight:800;line-height:1;letter-spacing:-1rpx}
+.profile-or-badge{display:block;position:absolute;bottom:1rpx;right:-2rpx;z-index:1;padding:6rpx 9rpx;border:5rpx solid #0a0a0a;border-radius:9rpx;background:#ff6b00;color:#101010;font-size:19rpx;font-weight:800;line-height:1;letter-spacing:-1rpx;pointer-events:none}
 .profile-hero-name{font-size:37rpx;font-weight:650;line-height:1.45;margin-top:22rpx;word-break:break-all}
 .profile-kind{display:flex;align-items:center;justify-content:center;gap:10rpx;margin-top:11rpx;color:#bcbcbc;font-size:23rpx}
 .profile-kind-dot{display:block;width:8rpx;height:8rpx;border-radius:50%;background:#ff6b00}
