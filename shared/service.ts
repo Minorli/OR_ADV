@@ -13,6 +13,12 @@ import { getBriefing, publicClub, saveBriefing, saveClub } from './club';
 import { listQualifications, reviewQualification } from './qualifications';
 import { ownAvatar, saveAvatar } from './profile-avatar';
 import { AVATAR_REQUEST_LIMIT } from './avatar-image';
+import { getDossier, saveDossier, submitDossier, reviewDossier, listDossiers } from './dossier';
+import { saveMemberMediaImage, saveMemberMediaVideo, getMemberMediaUrl, cancelMemberMedia } from './member-media';
+import { LEARNING_ACTIONS, dispatchLearning } from './learning';
+import { CLUB_CONTENT_ACTIONS, dispatchClubContent } from './club-content';
+import { HISTORY_CONTENT_ACTIONS, dispatchHistoryContent } from './history-content';
+import { OVERVIEW_ACTIONS, dispatchClubOverview } from './club-overview';
 
 export function createService(store: Store, options: ServiceOptions = {}) {
   return {
@@ -22,11 +28,25 @@ export function createService(store: Store, options: ServiceOptions = {}) {
         requireThat(request && typeof request === 'object' && typeof request.action === 'string' && request.action.length <= 80, 'INVALID_INPUT', '请求格式不正确');
         requireThat(typeof request.requestId === 'string' && request.requestId.length > 0 && request.requestId.length <= 100, 'INVALID_INPUT', '缺少请求标识');
         requireThat(request.payload && typeof request.payload === 'object' && !Array.isArray(request.payload), 'INVALID_INPUT', '参数格式不正确');
-        requireThat(JSON.stringify(request).length <= (request.action === 'profile.avatar.save' ? AVATAR_REQUEST_LIMIT : 20000), 'INVALID_INPUT', '请求内容过大');
+        requireThat(JSON.stringify(request).length <= (['profile.avatar.save','media.image.save'].includes(request.action) ? AVATAR_REQUEST_LIMIT : request.action === 'staff.learning.catalog.save' ? 262144 : ['staff.club.content.save','staff.history.save'].includes(request.action) ? 65536 : 20000), 'INVALID_INPUT', '请求内容过大');
         ctx = new Context(store, options, request, identity, traceId);
         requireThat(request.clubId === ctx.clubId, 'FORBIDDEN', '没有此俱乐部访问权限');
         let data: unknown;
-        switch (request.action) {
+        if (LEARNING_ACTIONS.some(action => action === request.action)) data = await dispatchLearning(ctx);
+        else if (CLUB_CONTENT_ACTIONS.some(action => action === request.action)) data = await dispatchClubContent(ctx);
+        else if (HISTORY_CONTENT_ACTIONS.some(action => action === request.action)) data = await dispatchHistoryContent(ctx);
+        else if (OVERVIEW_ACTIONS.some(action => action === request.action)) data = await dispatchClubOverview(ctx);
+        else switch (request.action) {
+          case 'media.image.save': data = await saveMemberMediaImage(ctx); break;
+          case 'media.video.save': data = await saveMemberMediaVideo(ctx); break;
+          case 'media.get': data = await getMemberMediaUrl(ctx); break;
+          case 'media.cancel': data = await cancelMemberMedia(ctx); break;
+          case 'dossier.mine': data = await getDossier(ctx); break;
+          case 'dossier.save': data = await saveDossier(ctx); break;
+          case 'dossier.submit': data = await submitDossier(ctx); break;
+          case 'staff.dossier.list': data = await listDossiers(ctx); break;
+          case 'staff.dossier.get': data = await getDossier(ctx, true); break;
+          case 'staff.dossier.review': data = await reviewDossier(ctx); break;
           case 'identity.ensure': data = await ensureIdentity(ctx); break;
           case 'identity.me': data = await currentIdentity(ctx); break;
           case 'identity.delete': data = await requestDeletion(ctx); break;

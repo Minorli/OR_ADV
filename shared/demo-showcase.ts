@@ -1,3 +1,5 @@
+import { seedClubContentDemo } from './club-content-demo';
+import { seedLearningDemo } from './learning-content';
 import { demoSnapshot, DEMO_IDENTITIES, upgradeDemoMemberNumbers } from './demo';
 import { MemoryStore } from './memory-store';
 import { completionIdFor, key, memberIdFor, registrationIdFor, shanghaiDay, shanghaiYear, statsIdFor, userIdFor, yearRevisionIdFor } from './models';
@@ -223,7 +225,7 @@ export function showcaseSnapshot(referenceNow = new Date().toISOString()): Store
       successCount: Object.values(seed.registrations).filter(row => (row as Registration).activityId === activityId && (row as Registration).state === 'completed').length,
       failureCount: 0, failures: [] });
   }
-  return upgradeDemoMemberNumbers(seed);
+  return seedClubContentDemo(seedLearningDemo(upgradeDemoMemberNumbers(seed)));
 }
 
 export function createShowcaseStore(referenceNow?: string): MemoryStore {

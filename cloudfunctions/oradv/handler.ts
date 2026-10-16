@@ -40,7 +40,7 @@ export function validateEnvelope(value: unknown): RpcRequest {
   if (Object.keys(value).some((key) => !allowed.includes(key))) reject('INVALID_INPUT', '请求包含不支持的字段');
   let size: number;
   try { size = Buffer.byteLength(JSON.stringify(value)); } catch { reject('INVALID_INPUT', '请求格式不正确'); }
-  if (size! > (value.action === 'profile.avatar.save' ? AVATAR_REQUEST_LIMIT : 16_384) || typeof value.action !== 'string' || !/^[a-z][a-zA-Z.]{1,79}$/.test(value.action)
+  if (size! > (['profile.avatar.save','media.image.save'].includes(String(value.action)) ? AVATAR_REQUEST_LIMIT : value.action === 'staff.learning.catalog.save' ? 262144 : ['staff.club.content.save','staff.history.save'].includes(String(value.action)) ? 65536 : 16_384) || typeof value.action !== 'string' || !/^[a-z][a-zA-Z.]{1,79}$/.test(value.action)
     || typeof value.requestId !== 'string' || !/^[a-zA-Z0-9_.:-]{1,100}$/.test(value.requestId)
     || value.clubId !== 'oradv' || !object(value.payload)
     || (value.expectedRevision !== undefined && (!Number.isSafeInteger(value.expectedRevision) || (value.expectedRevision as number) < 0))) {
@@ -74,6 +74,7 @@ export function createCloudHandler(dependencies: HandlerDependencies) {
       const identity = validateRuntime(dependencies.config(), dependencies.context());
       await rateLimit(dependencies.store(), identity, (dependencies.now ?? Date.now)());
       if (request.action === 'profile.avatar.save') await rateLimit(dependencies.store(), identity, (dependencies.now ?? Date.now)(), ':avatar', 5);
+      if (request.action === 'media.image.save') await rateLimit(dependencies.store(), identity, (dependencies.now ?? Date.now)(), ':member-media-image', 20);
       const result = await dependencies.invoke(request, identity, traceId);
       if (!result.ok) dependencies.log?.({ traceId: result.traceId, action, code: result.error.code });
       return result;

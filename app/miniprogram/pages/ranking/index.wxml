@@ -6,11 +6,13 @@
     <view class="own-score-line"><view class="own-score-number">{{member ? member.growthPoints : '—'}}<text wx:if="{{member}}">分</text></view><button wx:if="{{member}}" class="score-detail" bindtap="points">查看明细 <text>↗</text></button><button wx:else class="score-detail" bindtap="profile">登录查看 <text>↗</text></button></view>
     <view wx:if="{{member}}" class="own-score-meta"><text>年度积分 <text class="own-score-meta-value">{{member.annualPoints}}</text></text><view class="score-meta-divider"></view><text>完成同行 <text class="own-score-meta-value">{{member.completedCount}}</text> 次</text></view>
     <view wx:else class="own-score-meta">登录后查看自己的报名与成长记录</view>
+    <view wx:if="{{member}}" class="own-public-ranking"><view class="own-public-ranking-label">{{metric === 'annual' ? '年度积分' : metric === 'completed_count' ? '完成次数' : '成长积分'}}公开名次</view><view wx:if="{{ownRanking && ownRanking.rank !== null}}" class="own-public-ranking-value">{{ownRanking.rank}}<text> / {{ownRanking.publicCount}} 位公开成员</text></view><view wx:elif="{{ownRanking && !ownRanking.rankingOptIn}}" class="own-ranking-unlisted">未加入公开榜单</view><view wx:elif="{{ownRanking}}" class="own-ranking-unlisted">暂未列入 · 当前 {{ownRanking.publicCount}} 位公开成员</view><view wx:elif="{{ownRankingError}}" class="own-ranking-retry"><text>名次暂时未能核对</text><button class="text-button" bindtap="retryOwnRanking">重新核对</button></view><view wx:else class="own-ranking-unlisted">正在核对公开记录…</view></view>
   </view>
   <block wx:if="{{founderRail.length}}">
-    <view class="ranking-section-head"><view class="ranking-section-title"><view class="orange-marker"></view>创始成员</view><text class="ranking-section-note">已同意公开推荐</text></view>
+    <view class="ranking-section-head"><view class="ranking-section-title"><view class="orange-marker"></view>创始成员</view><button class="text-button" bindtap="duties">查看职责 ›</button></view>
     <scroll-view scroll-x class="founder-scroll" enhanced show-scrollbar="{{false}}"><view class="founder-track"><view wx:for="{{founderRail}}" wx:key="memberPublicId" class="founder-card"><view class="founder-initial">{{item.initial}}<text>OR</text></view><view class="founder-name">{{item.nickname}}</view><view class="founder-label">创始成员</view><view class="founder-summary">{{item.hasPublicPoints ? '完成 ' + item.completedCount + ' 次同行' : '积分未公开'}}</view></view></view></scroll-view>
   </block>
+  <view class="row mb"><text class="small muted">公开推荐与实际积分</text><button class="text-button" bindtap="rules">积分说明 ›</button></view>
   <view class="ranking-switch"><button class="ranking-switch-item {{mode === 'recommended' ? 'is-active' : ''}}" data-mode="recommended" bindtap="mode">俱乐部推荐</button><button class="ranking-switch-item {{mode === 'points' ? 'is-active' : ''}}" data-mode="points" bindtap="mode">实际积分榜</button></view>
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
   <block wx:if="{{mode === 'recommended'}}">

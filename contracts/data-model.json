@@ -1,5 +1,5 @@
 {
-  "status": "v0.2a_implemented_locally_not_deployed",
+  "status": "v0.3_candidate_implemented_locally_cloud_acceptance_pending",
   "commonFields": {
     "_id": "server generated or deterministic ID",
     "clubId": "string",
@@ -184,6 +184,86 @@
       "contactValue": "string(private event contact)",
       "checklist": "string[]",
       "notes": "string(private)",
+      "revision": "integer"
+    },
+    "member_dossiers": {
+      "kind": "dossier|dossier_submission",
+      "memberId": "private membership ID",
+      "draft": "optional rider/contact/emergency info, four gear images and at most three bikes; no ID or medical originals",
+      "submission": "consented immutable snapshot and revision",
+      "review": "owner decision bound to exact submissionRevision",
+      "revision": "integer"
+    },
+    "member_media": {
+      "memberId": "private owner",
+      "purpose": "dossier|skill|club_public",
+      "kind": "image|video",
+      "status": "uploading|ready|cancelled",
+      "fileId": "server private reference; never projected",
+      "bindings": "immutable submission/story reference IDs",
+      "requestDigest": "idempotency digest",
+      "rightsAcknowledged": "required for owner public photos",
+      "revision": "integer"
+    },
+    "learning_catalog": {
+      "questions": "owner-managed instructor-confirmed bank; answers never in public projection",
+      "published": "boolean",
+      "revision": "integer",
+      "fixtureOnly": "true only in isolated mock seed",
+      "recordVariants": "learning bank and skill_reference; verified public demonstration video reference by skill ID"
+    },
+    "learning_attempts": {
+      "kind": "attempt|current_pointer",
+      "memberId": "private owner",
+      "questions": "frozen randomly selected 20; answers server-only",
+      "answers": "locked per-question selections",
+      "status": "in_progress|completed; no qualification or point award",
+      "revision": "integer"
+    },
+    "skill_submissions": {
+      "kind": "current submission without kind|skill_revision",
+      "memberId": "private owner for submissions",
+      "skillId": "one of basic five or advanced seven",
+      "assetId": "bound actual skill video",
+      "state": "submitted|approved|changes_requested|withdrawn; archived for immutable snapshot wrapper",
+      "record": "frozen prior/current revision on every change",
+      "reviewReason": "owner manual review, no automatic qualification",
+      "revision": "integer"
+    },
+    "club_content": {
+      "section": "handbook|points|core|contacts|business|redemption|partners",
+      "status": "draft|published",
+      "content": "bounded structured plain text, core duties, authorized contact fields, informational offers",
+      "revision": "integer"
+    },
+    "club_inquiries": {
+      "rowKind": "inquiry|quota",
+      "memberId": "private author",
+      "submissionId": "stable per-submit deterministic ID and digest, not raw public key",
+      "contact": "private consented contact",
+      "state": "open|closed|withdrawn",
+      "reply": "owner manual response; no redemption debit, financial order or payment",
+      "revision": "integer"
+    },
+    "activity_stories": {
+      "activityId": "settled activity",
+      "photoAssetIds": "at most twelve owner-authorized club_public assets",
+      "documentaryUrl": "verified public HTTPS direct MP4 without credentials, query or fragment",
+      "honors": "at most two current consenting eligible review authors by publicId",
+      "published": "boolean",
+      "revision": "integer"
+    },
+    "activity_reviews": {
+      "activityId": "settled activity",
+      "memberId": "private completed nonvoided participant",
+      "publicId": "independent opaque hash, no internal member ID",
+      "stars": "1..5",
+      "comment": "bounded plain text",
+      "publishConsent": "boolean",
+      "nicknameConsent": "boolean",
+      "honorConsent": "boolean",
+      "status": "pending|approved|rejected|withdrawn",
+      "publicSort": "server timestamp for bounded public pagination",
       "revision": "integer"
     }
   },

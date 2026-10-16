@@ -1,3 +1,4 @@
+import { seedClubContentDemo } from '../../../shared/club-content-demo';
 import { createService } from '../../../shared/service';
 import { createDemoStore, DEMO_IDENTITIES, upgradeDemoMemberNumbers } from '../../../shared/demo';
 import { createShowcaseStore } from '../../../shared/demo-showcase';
@@ -5,6 +6,8 @@ import { MemoryStore } from '../../../shared/memory-store';
 import type { RpcResponse, MemberSummary } from '../../../shared/types';
 import type { StoreSnapshot } from '../../../shared/store';
 import { clearMockAvatarFiles, createMockAvatarStorage } from './profile-avatar';
+import { clearMockMemberMediaFiles, createLocalMemberMediaStorage, MemberMediaError } from './member-media';
+import { seedLearningDemo } from '../../../shared/learning-content';
 
 interface RuntimeConfig { mode: 'mock' | 'cloud'; envId: string; appId: string; version: string }
 export const runtime = require('../runtime-config.json') as RuntimeConfig;
@@ -34,8 +37,9 @@ export function switchMockRole(role: MockRole): void {
 export function resetMock(dataset: 'showcase' | 'empty' = 'showcase'): void {
   if (!isMock) return;
   clearMockAvatarFiles();
+  clearMockMemberMediaFiles();
   store = dataset === 'empty' ? createDemoStore() : createShowcaseStore();
-  service = createService(store, { avatarStorage: createMockAvatarStorage() });
+  service = createService(store, { avatarStorage: createMockAvatarStorage(), memberMediaStorage: createLocalMemberMediaStorage() });
   wx.setStorageSync(STORE_KEY, store.snapshot());
   for (const key of wx.getStorageInfoSync().keys) {
     if (key.startsWith(MOCK_CHECKLIST_PREFIX)) wx.removeStorageSync(key);
@@ -48,7 +52,7 @@ function getMockService(): ReturnType<typeof createService> {
   if (snapshot !== undefined && snapshot !== '') {
     try {
       if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new Error('Invalid local snapshot');
-      const upgraded = upgradeDemoMemberNumbers(snapshot as StoreSnapshot);
+      const upgraded = seedClubContentDemo(seedLearningDemo(upgradeDemoMemberNumbers(snapshot as StoreSnapshot)));
       const restored = new MemoryStore(upgraded);
       wx.setStorageSync(STORE_KEY, upgraded);
       store = restored;
@@ -56,7 +60,7 @@ function getMockService(): ReturnType<typeof createService> {
       throw new ApiError('LOCAL_DATA_UPGRADE_FAILED', '本机演示数据未能完成编号更新，请检查本机存储后重试。原有数据不会被重置。');
     }
   } else store = createShowcaseStore();
-  service = createService(store, { avatarStorage: createMockAvatarStorage() });
+  service = createService(store, { avatarStorage: createMockAvatarStorage(), memberMediaStorage: createLocalMemberMediaStorage() });
   return service;
 }
 export async function call<T>(action: string, payload: Record<string, unknown> = {}, expectedRevision?: number): Promise<T> {
@@ -87,7 +91,7 @@ export async function currentMember(): Promise<MemberSummary | null> {
     throw error;
   }
 }
-export function errorMessage(error: unknown): string { return error instanceof ApiError ? error.message : '操作暂未完成，请稍后重试'; }
+export function errorMessage(error: unknown): string { return error instanceof ApiError || error instanceof MemberMediaError ? error.message : '操作暂未完成，请稍后重试'; }
 export function toast(message: string): void { wx.showToast({ title: message, icon: 'none', duration: 2400 }); }
 export async function confirm(title: string, content: string): Promise<boolean> {
   const result = await wx.showModal({ title, content, confirmText: '确认', confirmColor: '#b54700' });

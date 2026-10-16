@@ -36,18 +36,24 @@ try {
     setting: { es6: true, minified: true, urlCheck: true },
     packOptions: { ignore: [{ type: 'suffix', value: '.ts' }] },
   });
+  const frontendSources = await sourceFiles(app);
+  const nativeModules = new Set(frontendSources);
   const appOptions = {
-    entryPoints: await sourceFiles(app), outdir: app, outbase: app,
+    entryPoints: frontendSources, outdir: app, outbase: app,
     bundle: true, platform: 'browser', format: 'cjs', target: 'es2017',
     minify: true, sourcemap: false, logLevel: 'warning',
     define: { __ORADV_MODE__: JSON.stringify(selected.mode) },
     plugins: [{
-      name: 'shared-native-api-module',
+      name: 'shared-native-modules',
       setup(build) {
-        const api = path.join(app, 'services/api.ts');
-        build.onResolve({ filter: /services\/api$/ }, (args) => {
-          if (!args.importer || path.resolve(path.dirname(args.importer), args.path + '.ts') !== api) return;
-          let relative = path.relative(path.dirname(args.importer), api).replaceAll(path.sep, '/').replace(/\.ts$/, '');
+        // Every native TS file has its own output. Preserve those module paths
+        // so nested helpers share the same API/session and resolve requires
+        // relative to their own compiled file, rather than a parent page bundle.
+        build.onResolve({ filter: /^\.{1,2}\// }, (args) => {
+          if (!args.importer) return;
+          const candidate = path.resolve(path.dirname(args.importer), args.path.endsWith('.ts') ? args.path : args.path + '.ts');
+          if (!nativeModules.has(candidate)) return;
+          let relative = path.relative(path.dirname(args.importer), candidate).replaceAll(path.sep, '/').replace(/\.ts$/, '');
           if (!relative.startsWith('.')) relative = './' + relative;
           return { path: relative, external: true };
         });

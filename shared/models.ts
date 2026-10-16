@@ -1,3 +1,4 @@
+import type { MemberMediaStorage } from './member-media-types';
 import type { Activity, LedgerEntry, MemberKind, Registration, Role, TrustedIdentity } from './types';
 import { sha256 } from './hash';
 
@@ -65,6 +66,7 @@ export interface AvatarStorage {
 export interface ServiceOptions {
   clubId?: string; now?: () => string; id?: () => string;
   avatarStorage?: AvatarStorage;
+  memberMediaStorage?: MemberMediaStorage;
   log?: (entry: { action: string; code: string }) => void;
 }
 export const key = (...parts: (string | number)[]) => `${String(parts[0]).replace(/[^a-z0-9]/gi, '_').slice(0, 20)}_${sha256(JSON.stringify(parts))}`;

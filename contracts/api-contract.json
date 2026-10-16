@@ -1,6 +1,6 @@
 {
   "transport": "wx.cloud.callFunction RPC",
-  "status": "v0.2a_implemented_locally_not_deployed",
+  "status": "v0.3_candidate_implemented_locally_cloud_acceptance_pending",
   "requestEnvelope": [
     "action",
     "requestId",
@@ -604,6 +604,536 @@
         "nextCursor"
       ],
       "businessIdempotency": false
+    },
+    {
+      "action": "ranking.mine",
+      "authorization": "member_self",
+      "input": [
+        "metric",
+        "year"
+      ],
+      "output": [
+        "rank_optional",
+        "publicCount",
+        "score",
+        "rankingOptIn"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "media.image.save",
+      "authorization": "member_self_or_owner_for_club_public",
+      "input": [
+        "purpose",
+        "label",
+        "imageBase64",
+        "rightsAcknowledged_optional"
+      ],
+      "output": [
+        "asset_without_fileID"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "media.video.save",
+      "authorization": "member_self_local_mock_only",
+      "input": [
+        "purpose",
+        "label",
+        "sourcePath"
+      ],
+      "output": [
+        "asset_or_MEDIA_VIDEO_UNAVAILABLE_in_cloud"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "media.get",
+      "authorization": "member_self_or_owner_for_bound_dossier_or_skill",
+      "input": [
+        "assetId"
+      ],
+      "output": [
+        "asset",
+        "url_short_lived"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "media.cancel",
+      "authorization": "member_self_unbound_asset",
+      "input": [
+        "assetId"
+      ],
+      "output": [
+        "cancelled"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "dossier.mine",
+      "authorization": "member_self",
+      "input": [],
+      "output": [
+        "dossier_and_submission"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "dossier.save",
+      "authorization": "member_self",
+      "input": [
+        "draft",
+        "expectedRevision"
+      ],
+      "output": [
+        "dossier"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "dossier.submit",
+      "authorization": "member_self",
+      "input": [
+        "consent",
+        "consentVersion",
+        "expectedRevision"
+      ],
+      "output": [
+        "immutable_submission_snapshot"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.dossier.list",
+      "authorization": "owner",
+      "input": [
+        "cursor"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.dossier.get",
+      "authorization": "owner_submitted_only",
+      "input": [
+        "memberId"
+      ],
+      "output": [
+        "submitted_dossier"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.dossier.review",
+      "authorization": "owner",
+      "input": [
+        "memberId",
+        "decision",
+        "reason",
+        "submissionRevision",
+        "expectedRevision"
+      ],
+      "output": [
+        "dossier_review"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "learning.catalog",
+      "authorization": "public",
+      "input": [],
+      "output": [
+        "published_bank_without_answers"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "learning.mine",
+      "authorization": "member_self",
+      "input": [],
+      "output": [
+        "practice_or_null"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "learning.start",
+      "authorization": "member_self",
+      "input": [],
+      "output": [
+        "random_20_question_frozen_attempt"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "learning.answer",
+      "authorization": "member_self",
+      "input": [
+        "attemptId",
+        "questionId",
+        "selectedIndex",
+        "expectedRevision"
+      ],
+      "output": [
+        "practice_feedback_for_answered_question"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.learning.catalog.get",
+      "authorization": "owner",
+      "input": [],
+      "output": [
+        "bank_with_answer_keys"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.learning.catalog.save",
+      "authorization": "owner",
+      "input": [
+        "title",
+        "question_optional",
+        "removeQuestionId_optional",
+        "published",
+        "instructorConfirmed",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "bank"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "skills.mine",
+      "authorization": "member_self",
+      "input": [],
+      "output": [
+        "basic_5_and_advanced_7_items_with_actual_submissions"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "skills.submit",
+      "authorization": "member_self",
+      "input": [
+        "skillId",
+        "assetId",
+        "note",
+        "expectedRevision"
+      ],
+      "output": [
+        "submission"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "skills.cancel",
+      "authorization": "member_self",
+      "input": [
+        "skillId",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "submission"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "skills.history",
+      "authorization": "member_self",
+      "input": [
+        "skillId",
+        "cursor"
+      ],
+      "output": [
+        "immutable_items",
+        "nextCursor",
+        "missingCount"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.skills.history",
+      "authorization": "owner",
+      "input": [
+        "memberId",
+        "skillId",
+        "cursor"
+      ],
+      "output": [
+        "immutable_items",
+        "nextCursor",
+        "missingCount"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.skills.queue",
+      "authorization": "owner",
+      "input": [
+        "cursor"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.skills.review",
+      "authorization": "owner",
+      "input": [
+        "submissionId",
+        "decision",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "submission"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.skills.reference.save",
+      "authorization": "owner",
+      "input": [
+        "skillId",
+        "title",
+        "url",
+        "verified",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "reference_public_https_mp4"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "club.content.get",
+      "authorization": "public",
+      "input": [
+        "section"
+      ],
+      "output": [
+        "published_content_or_unconfigured"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.club.content.get",
+      "authorization": "owner",
+      "input": [
+        "section"
+      ],
+      "output": [
+        "content_with_draft"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.club.content.save",
+      "authorization": "owner",
+      "input": [
+        "section",
+        "content",
+        "status",
+        "rightsAcknowledged",
+        "expectedRevision"
+      ],
+      "output": [
+        "content"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "club.inquiry.submit",
+      "authorization": "member_self",
+      "input": [
+        "kind",
+        "contact",
+        "message",
+        "offerId_optional",
+        "consent",
+        "submissionId"
+      ],
+      "output": [
+        "private_inquiry_no_order_or_points_change"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "club.inquiry.mine",
+      "authorization": "member_self",
+      "input": [
+        "cursor"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "club.inquiry.withdraw",
+      "authorization": "member_self",
+      "input": [
+        "id",
+        "expectedRevision"
+      ],
+      "output": [
+        "inquiry"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.club.inquiry.list",
+      "authorization": "owner",
+      "input": [
+        "cursor"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.club.inquiry.review",
+      "authorization": "owner",
+      "input": [
+        "id",
+        "reply",
+        "expectedRevision"
+      ],
+      "output": [
+        "closed_inquiry"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "history.detail",
+      "authorization": "public_settled_activity",
+      "input": [
+        "activityId",
+        "cursor"
+      ],
+      "output": [
+        "activity",
+        "published_story",
+        "consenting_reviews",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "history.review.mine",
+      "authorization": "member_self",
+      "input": [
+        "activityId"
+      ],
+      "output": [
+        "eligible",
+        "revision",
+        "review"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "history.review.save",
+      "authorization": "member_self_completed_nonvoided_participant",
+      "input": [
+        "activityId",
+        "stars",
+        "comment",
+        "publishConsent",
+        "nicknameConsent",
+        "honorConsent",
+        "consentVersion",
+        "expectedRevision"
+      ],
+      "output": [
+        "pending_review"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "history.review.withdraw",
+      "authorization": "member_self",
+      "input": [
+        "activityId",
+        "expectedRevision"
+      ],
+      "output": [
+        "withdrawn_review"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.history.get",
+      "authorization": "owner",
+      "input": [
+        "activityId"
+      ],
+      "output": [
+        "story"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.history.save",
+      "authorization": "owner",
+      "input": [
+        "activityId",
+        "intro",
+        "photoAssetIds",
+        "documentaryUrl",
+        "documentaryTitle",
+        "published",
+        "videoRightsAcknowledged",
+        "reason",
+        "honors",
+        "expectedRevision"
+      ],
+      "output": [
+        "story"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.history.reviews",
+      "authorization": "owner",
+      "input": [
+        "activityId",
+        "cursor"
+      ],
+      "output": [
+        "items",
+        "nextCursor"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.history.review",
+      "authorization": "owner",
+      "input": [
+        "activityId",
+        "reviewId",
+        "decision",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "moderated_review"
+      ],
+      "businessIdempotency": false
     }
   ],
   "errors": [
@@ -632,7 +1162,7 @@
   },
   "avatarNotes": {
     "identity": "No client memberId/openId/fileID/URL accepted; current SDK actor only; first-time users must establish identity with consent.",
-    "requestLimits": "Only profile.avatar.save: 131072-byte cloud envelope and 131072-character shared limit; ordinary cloud envelopes remain 16384 bytes and shared requests 20000 characters.",
+    "requestLimits": "Cloud envelope: avatar/media image 131072 bytes; staff learning catalog 262144; staff club content/history 65536; all other actions 16384. Decoded image max65536 bytes. Domain guard uses equivalent bounded character limits.",
     "imageValidation": "Canonical base64, decoded at most 65536 bytes; JPEG/PNG signatures, dimensions 1..1024 and basic segment/chunk structure; not a full decoder or EXIF scrubber.",
     "storage": "Server uploads each attempt to a unique member-avatars/{trustedMemberId}/{uuid}.{jpg|png} private object; direct client read/write denied.",
     "concurrency": "Revision is checked before and after upload. Conflict cleans only an unbound unique upload. Unknown database commit outcome preserves any bound object. Readback signs then rechecks actor and revision.",
@@ -648,5 +1178,13 @@
     "projections": "Self summary, authorized staff directory and authorized staff event roster return optional memberNumber. Missing legacy numbers are omitted, never replaced by 0 or an internal ID suffix. Public recommendations and rankings omit memberNumber.",
     "directory": "At most 200 club records, number ascending first and unassigned records last; 20 per page. Numeric queries match the entire number including 0; other queries match nicknames only. Cursor signature binds the result numbers and search so a concurrent backfill requires refresh.",
     "compatibility": "Real legacy members without a number remain unassigned; no read endpoint scans/reorders or assigns zero. Existing undeployed test data requires trusted backfill before wider use. Only the local mock restores old v3 snapshots through a pure fixture upgrader, preserving avatars, records, identities and business revisions."
-  }
+  },
+  "pendingBusinessPolicies": [
+    "racing",
+    "fees_and_financial_records",
+    "external_member_points",
+    "low_points_expulsion",
+    "redemption_point_costs",
+    "qualification_thresholds"
+  ]
 }

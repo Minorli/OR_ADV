@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.2.0-test.6",
+  "version": "0.3.0-test.1",
   "asOf": "2026-10-16",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -19,10 +19,10 @@
     "verifiedInConsole": false
   },
   "appIdConfiguredLocally": true,
-  "testEnvironment": "user_created_free_environment_metadata_verified_via_WeChat_2026-10-16",
+  "testEnvironment": "same_environment_upgraded_to_standard_by_administrator_and_structure_verified_2026-10-16",
   "nativeAppImplemented": true,
   "backendImplemented": true,
-  "backendDeployed": false,
+  "backendDeployed": true,
   "realWeChatTested": false,
   "cloudProvisioned": true,
   "published": false,
@@ -30,7 +30,7 @@
   "milestones": {
     "M0": "implemented_locally",
     "M1": "implemented_locally",
-    "M2": "database_structure_verified_storage_blocked_by_free_tier_function_and_real_identity_pending",
+    "M2": "test_function_and_structure_deployed_real_WeChat_identity_and_owner_pending",
     "M3": "domain_and_native_workflow_implemented_real_cloud_pending",
     "M4": "domain_implemented_real_cloud_pending_some_staff_ui_pending",
     "M5": "pending",
@@ -49,15 +49,15 @@
     "filing",
     "categories",
     "permits",
-    "budget",
     "ownerApprovedPointsRules",
     "dataRetention"
   ],
   "referencesAreMock": true,
   "wechatVerification": "not_reverified",
   "remainingWork": [
-    "administrator upgrades existing environment to allow deny-client storage rules; then verify and deploy",
-    "apply/verify database plan v2 and deploy the test function",
+    "actual owner WeChat login and trusted number0/owner initialization",
+    "new business rules owner promised to specify individually",
+    "bounded cloud video upload capability and real acceptance",
     "trusted owner initialization and actual contact approval",
     "real WeChat identity, concurrent database transactions and client rules evidence",
     "real iOS/Android, weak-network and recovery acceptance",
@@ -68,31 +68,31 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.2.0-test.6",
+    "sourceVersion": "0.3.0-test.1",
     "typecheck": "passed",
-    "domainTests": 70,
-    "cloudTests": 31,
+    "domainTests": 115,
+    "cloudTests": 35,
     "buildAndTemplateTests": 10,
-    "typescriptTests": 111,
-    "nativePageTests": 10,
+    "typescriptTests": 160,
+    "nativePageTests": 40,
     "pythonToolTests": 14,
-    "totalTests": 135,
+    "totalTests": 214,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
   },
   "previewUpload": {
     "status": "success",
-    "version": "0.2.0-test.5",
-    "mode": "mock",
+    "version": "0.3.0-test.1",
+    "mode": "cloud",
     "sdkVersion": "2.1.31",
     "qrGenerated": true,
     "uploadIpWhitelistDisabledByUser": true,
-    "localQrArtifact": "dist/OR_ADV-preview-0.2.0-test.5.png"
+    "localQrArtifact": "dist/OR_ADV-cloud-preview-0.3.0-test.1.png"
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": false,
-  "wechatValidationScope": "official_compile_and_preview_only_not_phone_or_cloud",
+  "wechatValidationScope": "official_cloud_build_compile_preview_upload_and_function_readbacks_not_phone_or_native_login",
   "confirmedProductContext": {
     "clubCount": 1,
     "memberCountUpperBound": 200,
@@ -112,9 +112,9 @@
     "inAppPaymentRequested": false
   },
   "productDesign": {
-    "status": "v02a_implemented_locally_real_acceptance_pending",
+    "status": "second_prototype_candidate_implemented_test_backend_deployed_real_acceptance_pending",
     "document": "docs/20-product-design.md",
-    "asOf": "2026-10-15",
+    "asOf": "2026-10-16",
     "evidence": [
       "current source review",
       "user-confirmed business requirements",
@@ -126,11 +126,11 @@
       "0.2a real activity and member-specific registration",
       "0.2b member statistics, history migration and reconciliation"
     ],
-    "implementedCandidate": "0.2a",
-    "nextCandidate": "0.2b after real 0.2a acceptance",
+    "implementedCandidate": "0.3.0-test.1",
+    "nextCandidate": "owner_policy_details_and_real_acceptance",
     "realAcceptancePassed": false
   },
-  "nativePageCount": 11,
+  "nativePageCount": 16,
   "implementedV02a": [
     "owner-verified member kinds and recognition requests",
     "founder first application, reapplication and FIFO promotion confirmation",
@@ -163,13 +163,13 @@
     "nickname": "optional_native_nickname_input",
     "avatar": "optional_private_self_only",
     "avatarMaxBytes": 65536,
-    "clientCloudStorageAccess": "denied_by_offline_rule_plan_not_applied",
+    "clientCloudStorageAccess": "actual_CUSTOM_deny_rule_read_back_native_client_denial_not_tested",
     "mockAvatarPersistence": "app_owned_local_files",
     "realWeChatLoginVerified": false,
     "realCloudAvatarStorageVerified": false
   },
   "visualIteration": {
-    "reference": "https://yuanbao.tencent.com/sc/XWHhLfsyfPxsiS9",
+    "reference": "https://yuanbao.tencent.com/sc/5UClRnU5SgSusS1",
     "document": "docs/21-visual-reference.md",
     "style": "black_and_orange",
     "tabs": [
@@ -180,13 +180,13 @@
     ],
     "publicArchive": "settled_public_activity_projection_only",
     "privateTrips": "non_tab_authenticated_member_records",
-    "localPhotographicCovers": 3,
+    "localPhotographicCovers": 4,
     "localOutlineIcons": 14,
     "layoutInspection": "native_template_data_in_browser_not_real_device",
     "referenceBusinessPoliciesApplied": false
   },
   "memberNumbering": {
-    "status": "implemented_locally_real_cloud_not_run",
+    "status": "deployed_trusted_owner_and_real_phone_verification_pending",
     "initialOwnerNumber": 0,
     "newMemberNumbersStartAt": 1,
     "allocation": "atomic_private_sequence_and_number_claim_with_identity",
@@ -198,28 +198,60 @@
     "realLegacyBackfillExecuted": false
   },
   "cloudEnvironmentVerification": {
-    "scope": "bound_environment_and_public_sdk_database_definition_readbacks",
+    "scope": "public_SDK_structure_storage_and_function_readbacks",
     "envIdConfiguredLocally": true,
     "region": "ap-shanghai",
     "environmentStatus": "NORMAL",
     "databaseStatus": "RUNNING",
-    "packageLabel": "personal_not_proof_of_payment_or_trial_limits",
+    "packageLabel": "standard_baas_pf_standard",
     "databaseRulesApplied": true,
-    "storageRulesApplied": false,
-    "functionDeploymentVerified": false,
+    "storageRulesApplied": true,
+    "functionDeploymentVerified": true,
     "cloudCliAuthorization": "administrator_device_authorization_verified",
     "wechatManagementQueries": "rejected_invalid_cloud_api_action",
     "billingOperationsPerformed": false,
     "billingResponsibleParty": "mini_program_administrator",
     "developerHandlesPayments": false,
     "readonlyInspectionTests": 7,
-    "collectionsVerified": 18,
-    "indexDefinitionsVerified": 24,
+    "collectionsVerified": 27,
+    "indexDefinitionsVerified": 31,
     "businessRecords": 0,
-    "deployedFunctions": 0,
-    "storageAcl": "PRIVATE",
-    "storageRuleBlocker": "OperationDenied.FreePackageDenied",
-    "paidUpgradeByAdministrator": "pending",
-    "initializationTests": 10
+    "deployedFunctions": 1,
+    "storageAcl": "CUSTOM_deny_read_write",
+    "storageRuleBlocker": null,
+    "paidUpgradeByAdministrator": "verified_same_environment",
+    "initializationTests": 11,
+    "packageExpiresAtPlatform": "2026-11-16 23:59:59",
+    "automaticRenewal": true,
+    "overrunEnabled": true,
+    "monthlyBasePriceReferenceCNY": 199,
+    "budgetReserveCNY": 300,
+    "functionRuntime": "Nodejs20.19",
+    "functionType": "Event",
+    "functionStatus": "Active",
+    "functionMemoryMB": 256,
+    "functionTimeoutSeconds": 30,
+    "functionTriggers": [],
+    "functionEnvVariablesMatch": true,
+    "functionBackendSha256": "80629b6e3ca842a2753be38b495cc77b92979d372cbc07a2c894a8e0f735cf4f"
+  },
+  "developmentUpload": {
+    "status": "success",
+    "version": "0.3.0-test.1",
+    "mode": "cloud",
+    "experienceSelectionByAdministrator": "pending",
+    "formalReviewSubmitted": false,
+    "published": false
+  },
+  "newPrototypeIteration": {
+    "allFourTabsAndLeafFlowsImplemented": true,
+    "dossier": "consented_optional_private_draft_and_immutable_submission",
+    "learning": "real_attempts_no_automatic_qualification",
+    "skills": "local_video_mock_manual_review_and_immutable_revisions",
+    "cloudVideoUpload": "not_open_MEDIA_VIDEO_UNAVAILABLE",
+    "content": "seven_structured_owner_managed_sections",
+    "history": "consented_reviews_and_authorized_media",
+    "newBusinessRules": "awaiting_user_individual_details",
+    "realPhoneAcceptance": false
   }
 }

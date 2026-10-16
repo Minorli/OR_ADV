@@ -62,7 +62,7 @@ Page({
     const id = String(event.currentTarget.dataset.id || '');
     this.setData({ coverErrors: { ...this.data.coverErrors, [id]: true } });
   },
-  open(event: WechatMiniprogram.TouchEvent) { wx.navigateTo({ url: `/pages/activity/detail?id=${encodeURIComponent(event.currentTarget.dataset.id)}` }); },
+  open(event: WechatMiniprogram.TouchEvent) { wx.navigateTo({ url: `/pages/history-detail/index?activityId=${encodeURIComponent(event.currentTarget.dataset.id)}` }); },
   explore() { wx.switchTab({ url: '/pages/activities/index' }); },
   more() { void this.load(true); },
   retry() { void this.load(); },

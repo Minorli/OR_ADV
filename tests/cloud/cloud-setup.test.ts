@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 const nodeRequire = createRequire(__filename);
 const tool = nodeRequire('../../scripts/cloud-setup.cjs');
-const plan = JSON.parse(fs.readFileSync(path.resolve('config/database-plan.v2.json'), 'utf8'));
+const plan = JSON.parse(fs.readFileSync(path.resolve('config/database-plan.v3.json'), 'utf8'));
 const deny = { read: false, write: false };
 const appId = 'wx0123456789abcdef', envId = 'oradv-test-123', region = 'ap-shanghai';
 function withConfig(run: (file: string) => unknown) {
@@ -74,7 +74,7 @@ test('initial cloud setup defaults offline without loading SDK, session credenti
     const result = await tool.main(['apply', '--env', 'test', '--config', file], { connect: () => { connected = true; }, output: () => {} });
     assert.equal(connected, false);
     for (const field of ['sdkLoaded', 'credentialsRead', 'privateKeyRead', 'networkCalled']) assert.equal(result[field], false);
-    assert.equal(result.collections, 18); assert.equal(result.indexes, 24);
+    assert.equal(result.collections, 27); assert.equal(result.indexes, 31);
     assert.deepEqual(Object.keys(nodeRequire.cache).filter(file => file.includes('@cloudbase')), before);
   });
 });
@@ -121,18 +121,45 @@ test('native collection counts require successful bounded EJSON output and never
 test('fresh setup creates exact deny rules and nonunique index definitions and empty rerun preserves data and existing indexes', async () => {
   const f = fake();
   const result = await tool.apply(f.context);
-  assert.equal(result.collections.length, 18); assert.deepEqual(result.otherCollections, []);
+  assert.equal(result.collections.length, 27); assert.deepEqual(result.otherCollections, []);
   assert.ok(result.collections.every((collection: any) => collection.count === 0 && tool.denyReadback(collection.rule)));
   assert.ok(tool.storageDenyReadback(result.storageRule));
   for (const name of plan.collections) {
     const created = f.mutations.findIndex(op => op[0] === 'create' && op[1] === name);
     assert.ok(created >= 0); assert.deepEqual(f.mutations[created + 1], ['deny', name]);
   }
-  assert.equal(f.mutations.filter(op => op[0] === 'index').length, 24);
+  assert.equal(f.mutations.filter(op => op[0] === 'index').length, 31);
   const operations = f.mutations.filter(op => ['create', 'index'].includes(op[0])).length;
   await tool.apply(f.context);
   assert.equal(f.mutations.filter(op => ['create', 'index'].includes(op[0])).length, operations);
   for (const expected of plan.indexes) assert.ok(tool.indexEqual(f.collections.get(expected.collection)!.indexes.find(actual => actual.Name === expected.name), expected));
+});
+
+test('v3 setup extends an empty v2 environment without recreating or changing its collections and indexes', async () => {
+  const oldPlan = JSON.parse(fs.readFileSync(path.resolve('config/database-plan.v2.json'), 'utf8'));
+  const f = fake();
+  for (const name of oldPlan.collections) {
+    const indexes = [{ Name: '_id_', Keys: [{ Name: '_id', Direction: '1' }], Unique: true },
+      ...oldPlan.indexes.filter((index: any) => index.collection === name).map((index: any) => ({ Name: index.name,
+        Keys: index.fields.map(([Name, direction]: string[]) => ({ Name, Direction: direction === 'asc' ? '1' : '-1' })), Unique: false }))];
+    f.collections.set(name, { count: 0, indexes, rule: { AclTag: 'CUSTOM', Rule: JSON.stringify(deny) } });
+  }
+  const previous = structuredClone([...f.collections]);
+  const result = await tool.apply(f.context);
+  assert.equal(result.collections.length, 27);
+  const added = plan.collections.filter((name: string) => !oldPlan.collections.includes(name));
+  assert.deepEqual(f.mutations.filter(op => op[0] === 'create').map(op => op[1]).sort(), [...added].sort());
+  assert.equal(added.length, 9); assert.equal(f.mutations.filter(op => op[0] === 'index').length, 7);
+  assert(f.mutations.filter(op => op[0] === 'index').every(op => !oldPlan.collections.includes(op[1])));
+  for (const [name, before] of previous) {
+    assert.equal(f.collections.get(name)!.count, 0);
+    assert.deepEqual(f.collections.get(name)!.indexes, before.indexes, 'v2 index definitions remain unchanged');
+    assert(tool.denyReadback(f.collections.get(name)!.rule));
+  }
+  const occupied = fake();
+  occupied.collections.set('member_media', { count: 1, indexes: [], rule: { AclTag: 'CUSTOM', Rule: JSON.stringify(deny) } });
+  await assert.rejects(tool.apply(occupied.context), { code: 'BUSINESS_DATA_PRESENT' });
+  assert.deepEqual(occupied.mutations, [], 'new private v3 data also prevents empty-environment initialization');
 });
 
 test('initial setup refuses real business counts despite stale list count, deployed oradv and index mismatch before writes', async () => {

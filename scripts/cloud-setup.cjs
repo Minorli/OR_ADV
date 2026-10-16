@@ -8,16 +8,16 @@ const {createHash}=require('node:crypto');
 const inspector=require('./wechat-cloud-inspect.cjs');
 const assets=require('./asset-inventory.cjs');
 const root=path.resolve(__dirname,'..');
-const COLLECTIONS=['clubs','users','memberships','staff_roles','activities','registrations','qualifications','checkins','points_ledger','member_stats','public_rankings','annual_rewards','audit_logs','settlement_jobs','rpc_limits','schema_migrations','activity_briefings','public_recommendations'];
+const COLLECTIONS=['clubs','users','memberships','staff_roles','activities','registrations','qualifications','checkins','points_ledger','member_stats','public_rankings','annual_rewards','audit_logs','settlement_jobs','rpc_limits','schema_migrations','activity_briefings','public_recommendations','member_dossiers','member_media','learning_catalog','learning_attempts','skill_submissions','club_content','club_inquiries','activity_stories','activity_reviews'];
 const DENY={read:false,write:false};
 class SetupError extends Error { constructor(code,stage='preflight'){super(code);this.code=code;this.stage=stage;} }
 function reject(code,stage){throw new SetupError(code,stage);}
 function exactDeny(value){return value && !Array.isArray(value) && Object.keys(value).sort().join(',')==='read,write' && value.read===false && value.write===false;}
 function readJSON(file){try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{reject('INVALID_JSON');}}
 function validatePlan(plan,storage){
-  if(plan?.version!==2 || plan.clubId!=='oradv' || !exactDeny(plan.clientRulesForEveryCollection) || !exactDeny(storage))reject('INVALID_SECURITY_PLAN');
-  if(!Array.isArray(plan.collections) || plan.collections.length!==18 || new Set(plan.collections).size!==18 || COLLECTIONS.some(name=>!plan.collections.includes(name)))reject('INVALID_COLLECTION_PLAN');
-  if(!Array.isArray(plan.indexes) || plan.indexes.length!==24)reject('INVALID_INDEX_PLAN');
+  if(plan?.version!==3 || plan.clubId!=='oradv' || !exactDeny(plan.clientRulesForEveryCollection) || !exactDeny(storage))reject('INVALID_SECURITY_PLAN');
+  if(!Array.isArray(plan.collections) || plan.collections.length!==27 || new Set(plan.collections).size!==27 || COLLECTIONS.some(name=>!plan.collections.includes(name)))reject('INVALID_COLLECTION_PLAN');
+  if(!Array.isArray(plan.indexes) || plan.indexes.length!==31)reject('INVALID_INDEX_PLAN');
   const seen=new Set();
   for(const index of plan.indexes){
     if(!index || Object.keys(index).sort().join(',')!=='collection,fields,name,unique' || !COLLECTIONS.includes(index.collection) || !/^[a-z][a-z0-9_]{0,63}$/.test(index.name) || index.unique!==false || !Array.isArray(index.fields) || !index.fields.length || index.fields.length>10)reject('INVALID_INDEX_PLAN');
@@ -46,7 +46,7 @@ function loadContext(options){
     if(error instanceof inspector.CloudInspectError)reject(error.code,error.stage);
     reject('INVALID_LOCAL_CONFIG');
   }
-  const plan=readJSON(path.join(root,'config/database-plan.v2.json'));
+  const plan=readJSON(path.join(root,'config/database-plan.v3.json'));
   const storage=readJSON(path.join(root,'config/storage-rules.v1.json'));
   return {...context,options,plan,storage,planHash:validatePlan(plan,storage)};
 }
@@ -173,7 +173,7 @@ async function apply(context){
   await call('deny-storage',()=>context.manager.storage.setStorageAcl('CUSTOM',DENY));
   const after=await inspect(context);
   initialGuard(after,context.plan);
-  if(after.collections.length!==18 || after.collections.some(collection=>!denyReadback(collection.rule)) || !storageDenyReadback(after.storageRule))reject('FINAL_SECURITY_READBACK_MISMATCH','verify');
+  if(after.collections.length!==27 || after.collections.some(collection=>!denyReadback(collection.rule)) || !storageDenyReadback(after.storageRule))reject('FINAL_SECURITY_READBACK_MISMATCH','verify');
   for(const expected of context.plan.indexes){
     const actual=after.collections.find(collection=>collection.name===expected.collection)?.indexes.filter(index=>index.Name===expected.name);
     if(actual?.length!==1 || !indexEqual(actual[0],expected))reject('FINAL_INDEX_READBACK_MISMATCH','verify');
@@ -190,7 +190,7 @@ function saveReport(report){
 async function main(args=process.argv.slice(2),dependencies={}){
   const context=loadContext(parse([...args]));
   if(!context.options.execute){
-    const summary={mode:'OFFLINE_PLAN',action:context.options.action,target:'test',appId:context.config.appId,envId:context.selected.envId,region:context.selected.region,collections:18,indexes:24,planHash:context.planHash,sdkLoaded:false,credentialsRead:false,privateKeyRead:false,networkCalled:false};
+    const summary={mode:'OFFLINE_PLAN',action:context.options.action,target:'test',appId:context.config.appId,envId:context.selected.envId,region:context.selected.region,collections:27,indexes:31,planHash:context.planHash,sdkLoaded:false,credentialsRead:false,privateKeyRead:false,networkCalled:false};
     (dependencies.output||console.log)(JSON.stringify(summary));return summary;
   }
   const connected=await (dependencies.connect||connect)(context);

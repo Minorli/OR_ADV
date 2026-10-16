@@ -10,7 +10,12 @@
     "pages/staff/index",
     "pages/trip/detail",
     "pages/staff-members/index",
-    "pages/history/index"
+    "pages/history/index",
+    "pages/dossier/index",
+    "pages/learning/index",
+    "pages/skills/index",
+    "pages/club-content/index",
+    "pages/history-detail/index"
   ],
   "window": {
     "navigationBarTitleText": "OriginalRally原始拉力",
