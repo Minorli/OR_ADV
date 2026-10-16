@@ -71,12 +71,12 @@
     "sourceVersion": "0.3.0-test.2",
     "typecheck": "passed",
     "domainTests": 115,
-    "cloudTests": 40,
+    "cloudTests": 41,
     "buildAndTemplateTests": 10,
-    "typescriptTests": 165,
+    "typescriptTests": 166,
     "nativePageTests": 40,
     "pythonToolTests": 14,
-    "totalTests": 219,
+    "totalTests": 220,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
@@ -233,13 +233,16 @@
     "functionTimeoutSeconds": 30,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "e72a9157eca727ef44df82dee8616d44e96da5fc56293a896f82cbbbfd888718",
+    "functionBackendSha256": "0b60945ffc96a63ba7352b2a3e9b3e8a64747a1ee3168ef612225350f96e5ab1",
     "nativeEventCompatibility": {
       "fixed": "ignore_only_top_level_platform_userInfo_before_domain",
       "trustedIdentity": "SDK_context_only",
       "rawEventSizeLimitPreserved": true,
       "remoteMalformedProbesPassed": 2,
-      "realPhoneRetest": "pending"
+      "realPhoneRetest": "failed_test.2_unresolved",
+      "diagnosticBuild": "native-envelope-20261016.1",
+      "actualDeployedSourceVerifiedByDownload": true,
+      "diagnosticLoggingVerifiedByRemoteReadback": true
     }
   },
   "developmentUpload": {
@@ -265,10 +268,15 @@
   "userReportedBetaFailure": {
     "message": "请求包含不支持的字段",
     "scope": "multiple_native_pages",
-    "rootCause": "platform_userInfo_rejected_by_outer_envelope_allowlist",
-    "backendFixDeployed": true,
+    "rootCause": "outer_rpc_unknown_field_not_yet_identified",
+    "backendFixDeployed": false,
     "independentSecurityReview": "passed",
-    "newRegressionTests": 5,
-    "phoneRetest": "pending"
+    "newRegressionTests": 6,
+    "phoneRetest": "failed_on_test.2",
+    "resolution": "awaiting_fresh_native_request_diagnostics",
+    "priorFix": "partial_userInfo_compatibility_insufficient",
+    "userInfoCompatibilityDeployed": true,
+    "diagnosticDeployed": true,
+    "actualDeployedSourceDownloadedAndVerified": true
   }
 }

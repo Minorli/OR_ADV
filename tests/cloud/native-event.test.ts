@@ -86,3 +86,25 @@ test('platform-enriched requests reach public pages, consented login and private
   assert.equal(staff.ok, false);
   if (!staff.ok) assert.equal(staff.error.code, 'FORBIDDEN');
 });
+
+test('rejected native fields log bounded names and a build marker without logging values or arbitrary key text', async () => {
+  const logs: Record<string, unknown>[] = [];
+  const handler = createCloudHandler({ config: () => config, context: () => context,
+    store: () => { throw Error('invalid envelope must not access storage'); },
+    invoke: async () => { throw Error('invalid envelope must not invoke'); },
+    log: entry => logs.push(entry),
+  });
+  const result = await handler({ ...request, userInfo: metadata, transportExtension: 'private-secret-value',
+    ['private/姓名/credential']: 'private-contact-value' });
+  assert.equal(result.ok, false);
+  const entry = logs[0] as any;
+  assert.equal(entry.action, 'activity.list');
+  assert.equal(entry.code, 'INVALID_INPUT');
+  assert.match(entry.serverBuild, /^native-envelope-/);
+  assert.deepEqual(entry.rejectedFields, ['transportExtension', '[nonstandard-field]']);
+  assert.equal(entry.rejectedFieldCount, 2);
+  assert(!JSON.stringify(logs).includes('private-secret-value'));
+  assert(!JSON.stringify(logs).includes('private-contact-value'));
+  assert(!JSON.stringify(logs).includes('姓名'));
+  assert(!JSON.stringify(result).includes('transportExtension'));
+});

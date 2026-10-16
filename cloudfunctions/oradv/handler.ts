@@ -13,7 +13,18 @@ export interface HandlerDependencies {
   invoke: (request: RpcRequest, identity: TrustedIdentity, traceId: string) => Promise<RpcResponse>;
   now?: () => number;
   trace?: () => string;
-  log?: (entry: { traceId: string; action: string; code: string }) => void;
+  log?: (entry: { traceId: string; action: string; code: string; serverBuild?: string; rejectedFields?: string[]; rejectedFieldCount?: number }) => void;
+}
+
+const SERVER_BUILD = 'native-envelope-20261016.1';
+class EnvelopeFieldError extends DomainError {
+  readonly fields: string[];
+  readonly fieldCount: number;
+  constructor(fields: string[]) {
+    super('INVALID_INPUT', '请求包含不支持的字段');
+    this.fieldCount = fields.length;
+    this.fields = fields.slice(0, 8).map(name => /^[$A-Za-z_][$A-Za-z_0-9]{0,47}$/.test(name) ? name : '[nonstandard-field]');
+  }
 }
 
 function reject(code: string, message: string): never { throw new DomainError(code, message); }
@@ -39,7 +50,8 @@ export function validateEnvelope(value: unknown): RpcRequest {
   // Native wx.cloud.callFunction adds userInfo to the event. It is transport
   // metadata, never an identity source; validateRuntime still uses SDK context.
   const allowed = ['action', 'requestId', 'clubId', 'payload', 'expectedRevision', 'userInfo'];
-  if (Object.keys(value).some((key) => !allowed.includes(key))) reject('INVALID_INPUT', '请求包含不支持的字段');
+  const rejected = Object.keys(value).filter(key => !allowed.includes(key));
+  if (rejected.length) throw new EnvelopeFieldError(rejected);
   let size: number;
   try { size = Buffer.byteLength(JSON.stringify(value)); } catch { reject('INVALID_INPUT', '请求格式不正确'); }
   if (size! > (['profile.avatar.save','media.image.save'].includes(String(value.action)) ? AVATAR_REQUEST_LIMIT : value.action === 'staff.learning.catalog.save' ? 262144 : ['staff.club.content.save','staff.history.save'].includes(String(value.action)) ? 65536 : 16_384) || typeof value.action !== 'string' || !/^[a-z][a-zA-Z.]{1,79}$/.test(value.action)
@@ -77,6 +89,7 @@ export function createCloudHandler(dependencies: HandlerDependencies) {
     const traceId = (dependencies.trace ?? randomUUID)();
     let action = 'invalid';
     try {
+      if (object(event) && typeof event.action === 'string' && /^[a-z][a-zA-Z.]{1,79}$/.test(event.action)) action = event.action;
       const request = validateEnvelope(event);
       action = request.action;
       const identity = validateRuntime(dependencies.config(), dependencies.context());
@@ -89,7 +102,9 @@ export function createCloudHandler(dependencies: HandlerDependencies) {
     } catch (error) {
       const known = error instanceof DomainError;
       const code = known ? error.code : 'TEMPORARY_FAILURE';
-      dependencies.log?.({ traceId, action, code });
+      dependencies.log?.({ traceId, action, code, serverBuild: SERVER_BUILD,
+        ...(error instanceof EnvelopeFieldError ? { rejectedFields: error.fields, rejectedFieldCount: error.fieldCount } : {}),
+      });
       return { ok: false, error: { code, message: known ? error.message : '服务暂时不可用，请稍后重试', retryable: known ? error.retryable || code === 'TEMPORARY_FAILURE' : true }, traceId };
     }
   };
