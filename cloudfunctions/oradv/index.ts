@@ -3,6 +3,7 @@ import { createService } from '../../shared/service';
 import type { Store } from '../../shared/store';
 import { createCloudHandler } from './handler';
 import { CloudStore, type CloudDatabase } from './store';
+import { createAvatarStorage } from './avatar-storage';
 
 let store: Store | undefined;
 let service: ReturnType<typeof createService> | undefined;
@@ -23,7 +24,8 @@ export const main = createCloudHandler({
   context: () => cloud.getWXContext(),
   store: getStore,
   invoke: async (request, identity, traceId) => {
-    service ??= createService(getStore(), { clubId: 'oradv' });
+    service ??= createService(getStore(), { clubId: 'oradv', avatarStorage: createAvatarStorage(cloud),
+      log: (entry) => console.warn(JSON.stringify(entry)) });
     return service.handle(request, identity, traceId);
   },
   log: (entry) => console.warn(JSON.stringify(entry)),

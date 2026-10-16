@@ -14,7 +14,9 @@
 |---|---|---|
 | identity.ensure | 同意版本/必要昵称，不传可信身份 | 用当前云函数上下文绑定本人，返回本人会员与角色摘要 |
 | activity.list/get | 游标/筛选、activityId | 公开字段投影；草稿仅有权员工 |
-| profile.update | 允许的昵称、可选头像、榜单开关 | 字段白名单；公开缓存同步失效 |
+| profile.update | 昵称、两类公开同意 | 本人字段白名单；头像另走专用保存接口 |
+| profile.avatar.save | imageBase64、可选nickname、expectedRevision | 仅本人，校验图片后上传，事务关联头像与昵称 |
+| profile.avatar.get | 空对象 | 仅本人，返回临时显示URL或null，不接受其他成员ID |
 | registration.apply | activityId、必要回答、接受规则版本、requestId | 返回实际状态/座位；事务保证一人一场有效申请 |
 | registration.cancel | registrationId、reason、expectedRevision | 仅本人允许阶段；只释放一次 |
 | registration.mine | 游标 | 本人申请，无他人电话 |
@@ -56,3 +58,5 @@ UNAUTHENTICATED、FORBIDDEN、ACTIVITY_NOT_FOUND、REGISTRATION_CLOSED、SCORE_T
 | registration.timeline | 本人或限场员工查询实际已有核验记录，稳定分页 |
 
 profile.update只允许昵称及两类公开同意，不接收成员身份或员工角色；推荐同意不自动公开积分。普通成员确认已将资格核验与管理员确认放进同一事务，旧review接口保留兼容。所有错误仍使用既有脱敏响应，不返回原始SDK堆栈。
+
+头像保存单独允许128KiB请求封包，解码图片最多64KiB；其他云入口请求仍限制16,384字节，领域服务仍为20,000字符。头像有独立低频限制，不能借此放大其他RPC。更换头像使用唯一新文件和两次账号／revision检查，不覆盖当前文件；发生不确定结果时先刷新本人资料再重试。查询返回前再次核对当前账号与头像版本。存储文件标识仅留本人服务端档案，不进入成员摘要、员工目录、推荐或积分榜。

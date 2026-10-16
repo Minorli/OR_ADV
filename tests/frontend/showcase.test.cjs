@@ -68,7 +68,9 @@ test('native modules open with populated local demonstrations and reset without 
   const defaultNickname = profile.data.member.nickname;
   assert.equal(profile.data.member.rankingOptIn, false);
   assert.equal(profile.data.member.recommendationOptIn, false, 'main rider keeps separate public consents unset');
-  profile.setData({ nickname: '改名后的演示车友' }); await profile.save();
+  profile.nickname({ detail: { value: '改名后的演示车友' } });
+  profile.nicknameBlur({ detail: { value: '改名后的演示车友' } });
+  profile.nicknameReview({ detail: { pass: true, timeout: false } }); await profile.save();
   assert.equal(profile.data.member.nickname, '改名后的演示车友');
   const trip = page('trip/detail'); trip.setData({ id: 'day-trip' }); await trip.load();
   assert.equal(trip.data.error, '');

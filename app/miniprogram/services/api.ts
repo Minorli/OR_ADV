@@ -3,6 +3,7 @@ import { createDemoStore, DEMO_IDENTITIES } from '../../../shared/demo';
 import { createShowcaseStore } from '../../../shared/demo-showcase';
 import { MemoryStore } from '../../../shared/memory-store';
 import type { RpcResponse, MemberSummary } from '../../../shared/types';
+import { clearMockAvatarFiles, createMockAvatarStorage } from './profile-avatar';
 
 interface RuntimeConfig { mode: 'mock' | 'cloud'; envId: string; appId: string; version: string }
 export const runtime = require('../runtime-config.json') as RuntimeConfig;
@@ -31,8 +32,9 @@ export function switchMockRole(role: MockRole): void {
 }
 export function resetMock(dataset: 'showcase' | 'empty' = 'showcase'): void {
   if (!isMock) return;
+  clearMockAvatarFiles();
   store = dataset === 'empty' ? createDemoStore() : createShowcaseStore();
-  service = createService(store);
+  service = createService(store, { avatarStorage: createMockAvatarStorage() });
   wx.setStorageSync(STORE_KEY, store.snapshot());
   for (const key of wx.getStorageInfoSync().keys) {
     if (key.startsWith(MOCK_CHECKLIST_PREFIX)) wx.removeStorageSync(key);
@@ -43,7 +45,7 @@ function getMockService(): ReturnType<typeof createService> {
   if (service) return service;
   const snapshot = wx.getStorageSync(STORE_KEY);
   store = snapshot && typeof snapshot === 'object' ? new MemoryStore(snapshot) : createShowcaseStore();
-  service = createService(store);
+  service = createService(store, { avatarStorage: createMockAvatarStorage() });
   return service;
 }
 export async function call<T>(action: string, payload: Record<string, unknown> = {}, expectedRevision?: number): Promise<T> {

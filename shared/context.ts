@@ -48,7 +48,7 @@ export class Context {
   async summary(tx: Transaction, actor: Actor, year = shanghaiYear(this.now)): Promise<MemberSummary> {
     const growth = await tx.get<MemberStats>('member_stats', statsIdFor(this.clubId, actor.member.id, null));
     const annual = await tx.get<MemberStats>('member_stats', statsIdFor(this.clubId, actor.member.id, year));
-    return { id: actor.member.id, clubId: this.clubId, nickname: actor.member.nickname, rankingOptIn: actor.member.rankingOptIn,
+    return { id: actor.member.id, clubId: this.clubId, nickname: actor.member.nickname, hasAvatar: !!actor.member.avatarFileId, rankingOptIn: actor.member.rankingOptIn,
       rankingConsentVersion: actor.member.rankingConsentVersion, growthPoints: growth?.points ?? 0,
       annualPoints: annual?.points ?? 0, completedCount: growth?.completedCount ?? 0, revision: actor.member.revision,
       roles: (await this.roles(tx, actor)).map((role) => role.role), ...memberIdentityFields(actor.member, this.now) };

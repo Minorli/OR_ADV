@@ -38,6 +38,7 @@ export interface Registration {
 }
 export interface MemberSummary {
   id: string; clubId: string; nickname: string; rankingOptIn: boolean;
+  hasAvatar?: boolean;
   rankingConsentVersion: number; growthPoints: number; annualPoints: number;
   completedCount: number; revision: number; roles: Role[];
   memberKind: MemberKind; memberKindVersion: number; memberKindExpiresAt: string | null;

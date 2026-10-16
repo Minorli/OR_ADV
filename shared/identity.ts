@@ -5,7 +5,7 @@ import { key, memberIdFor, shanghaiYear, userIdFor } from './models';
 import type { Membership, User } from './models';
 import { syncRecommendation } from './members';
 
-async function syncProfileProjections(ctx: Context, memberId: string) {
+export async function syncProfileProjections(ctx: Context, memberId: string) {
   const projections = await collect<{ id: string }>(ctx.store, 'public_rankings', { clubId: ctx.clubId, memberId });
   for (let start = 0; start < projections.length; start += 20) {
     await ctx.store.transaction(async (tx) => {

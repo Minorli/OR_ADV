@@ -28,7 +28,7 @@
     "memberships": {
       "userId": "string",
       "nickname": "string",
-      "avatarFileId": "string|null",
+      "avatarFileId": "optional string(server-assigned private storage object reference; never projected)",
       "rankingOptIn": "boolean",
       "rankingConsentVersion": "integer",
       "memberKind": "founder|regular; missing means regular",
@@ -136,7 +136,6 @@
     "public_rankings": {
       "memberPublicId": "string",
       "nickname": "string",
-      "avatarFileId": "string|null",
       "metric": "growth|annual|completed_count",
       "score": "integer",
       "year": "integer|null",
@@ -218,5 +217,5 @@
       "revision": "integer; updated atomically with each award/reversal; no scope"
     }
   },
-  "privacyNotes": "All direct client DB access denied. Recommendation API projects only opted nickname/member kind; points/counts require separate rankingOptIn. Private briefing never appears in activity public projection."
+  "privacyNotes": "All direct client DB access denied. Recommendation API projects only opted nickname/member kind; points/counts require separate rankingOptIn. Private briefing never appears in activity public projection. Avatar files are private and client storage access stays denied. Only the current member may request a short-lived avatar URL; public/member/staff projections omit avatar object IDs and URLs."
 }

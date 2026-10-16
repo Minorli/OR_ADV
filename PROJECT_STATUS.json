@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.2.0-test.2",
+  "version": "0.2.0-test.3",
   "asOf": "2026-10-16",
   "product": "OR ADV",
   "repository": {
@@ -17,7 +17,7 @@
     "verifiedInConsole": false
   },
   "appIdConfiguredLocally": true,
-  "testEnvironment": "EnvId_not_provided_or_verified",
+  "testEnvironment": "not_created_as_reconfirmed_by_user_2026-10-16",
   "nativeAppImplemented": true,
   "backendImplemented": true,
   "backendDeployed": false,
@@ -67,27 +67,27 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.2.0-test.2",
+    "sourceVersion": "0.2.0-test.3",
     "typecheck": "passed",
-    "domainTests": 46,
-    "cloudTests": 10,
+    "domainTests": 57,
+    "cloudTests": 13,
     "buildAndTemplateTests": 10,
-    "typescriptTests": 66,
-    "nativePageTests": 6,
+    "typescriptTests": 80,
+    "nativePageTests": 7,
     "pythonToolTests": 14,
-    "totalTests": 86,
+    "totalTests": 101,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 0
   },
   "previewUpload": {
     "status": "success",
-    "version": "0.2.0-test.2",
+    "version": "0.2.0-test.3",
     "mode": "mock",
     "sdkVersion": "2.1.31",
     "qrGenerated": true,
     "uploadIpWhitelistDisabledByUser": true,
-    "localQrArtifact": "dist/OR_ADV-preview-0.2.0-test.2.png"
+    "localQrArtifact": "dist/OR_ADV-preview-0.2.0-test.3.png"
   },
   "wechatCompilationVerified": true,
   "realDeviceTested": false,
@@ -155,5 +155,16 @@
     "dates": "relative_to_initialization_or_manual_reset_with_Shanghai_years",
     "olderLocalSnapshotsPreserved": true,
     "cloudImportImplemented": false
+  },
+  "loginAndProfile": {
+    "status": "implemented_locally_real_cloud_and_phone_acceptance_pending",
+    "identitySource": "trusted_WeChat_native_cloud_context",
+    "nickname": "optional_native_nickname_input",
+    "avatar": "optional_private_self_only",
+    "avatarMaxBytes": 65536,
+    "clientCloudStorageAccess": "denied_by_offline_rule_plan_not_applied",
+    "mockAvatarPersistence": "app_owned_local_files",
+    "realWeChatLoginVerified": false,
+    "realCloudAvatarStorageVerified": false
   }
 }

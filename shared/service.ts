@@ -11,6 +11,8 @@ import type { RpcRequest, RpcResponse, TrustedIdentity } from './types';
 import { assignMemberKind, listMemberRoles, listMembers, listRecommendations, requestMemberKind } from './members';
 import { getBriefing, publicClub, saveBriefing, saveClub } from './club';
 import { listQualifications, reviewQualification } from './qualifications';
+import { ownAvatar, saveAvatar } from './profile-avatar';
+import { AVATAR_REQUEST_LIMIT } from './avatar-image';
 
 export function createService(store: Store, options: ServiceOptions = {}) {
   return {
@@ -20,7 +22,7 @@ export function createService(store: Store, options: ServiceOptions = {}) {
         requireThat(request && typeof request === 'object' && typeof request.action === 'string' && request.action.length <= 80, 'INVALID_INPUT', '请求格式不正确');
         requireThat(typeof request.requestId === 'string' && request.requestId.length > 0 && request.requestId.length <= 100, 'INVALID_INPUT', '缺少请求标识');
         requireThat(request.payload && typeof request.payload === 'object' && !Array.isArray(request.payload), 'INVALID_INPUT', '参数格式不正确');
-        requireThat(JSON.stringify(request).length <= 20000, 'INVALID_INPUT', '请求内容过大');
+        requireThat(JSON.stringify(request).length <= (request.action === 'profile.avatar.save' ? AVATAR_REQUEST_LIMIT : 20000), 'INVALID_INPUT', '请求内容过大');
         ctx = new Context(store, options, request, identity, traceId);
         requireThat(request.clubId === ctx.clubId, 'FORBIDDEN', '没有此俱乐部访问权限');
         let data: unknown;
@@ -30,6 +32,8 @@ export function createService(store: Store, options: ServiceOptions = {}) {
           case 'identity.delete': data = await requestDeletion(ctx); break;
           case 'identity.memberKind.request': data = await requestMemberKind(ctx); break;
           case 'profile.update': data = await updateProfile(ctx); break;
+          case 'profile.avatar.save': data = await saveAvatar(ctx); break;
+          case 'profile.avatar.get': data = await ownAvatar(ctx); break;
           case 'activity.list': data = await listActivities(ctx); break;
           case 'activity.get': data = await getActivity(ctx); break;
           case 'club.public': data = await publicClub(ctx); break;

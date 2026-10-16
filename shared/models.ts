@@ -8,6 +8,7 @@ export interface User {
 }
 export interface Membership {
   id: string; clubId: string; userId: string; nickname: string;
+  avatarFileId?: string;
   publicId: string; rankingOptIn: boolean; rankingConsentVersion: number;
   revision: number; createdAt: string; updatedAt: string;
   memberKind?: MemberKind; memberKindVersion?: number; memberKindExpiresAt?: string | null;
@@ -54,7 +55,17 @@ export interface SettlementJob {
   successCount: number; failureCount: number; failures: { registrationId: string; code: string }[];
 }
 export interface Actor { user: User; member: Membership }
-export interface ServiceOptions { clubId?: string; now?: () => string; id?: () => string }
+/** Implementations return a unique, private new file on every save. */
+export interface AvatarStorage {
+  save(memberId: string, imageBase64: string): Promise<string>;
+  url(fileId: string): Promise<string>;
+  remove(fileId: string): Promise<void>;
+}
+export interface ServiceOptions {
+  clubId?: string; now?: () => string; id?: () => string;
+  avatarStorage?: AvatarStorage;
+  log?: (entry: { action: string; code: string }) => void;
+}
 export const key = (...parts: (string | number)[]) => `${String(parts[0]).replace(/[^a-z0-9]/gi, '_').slice(0, 20)}_${sha256(JSON.stringify(parts))}`;
 /** Private identity key; never returned in a public projection. */
 export const userIdFor = (identity: TrustedIdentity) => key('user', identity.appId, identity.openId);

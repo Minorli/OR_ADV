@@ -77,6 +77,28 @@
       "businessIdempotency": false
     },
     {
+      "action": "profile.avatar.save",
+      "authorization": "member_self",
+      "input": [
+        "imageBase64_JPEG_or_PNG_max65536decodedBytes",
+        "nickname_optional",
+        "expectedRevision"
+      ],
+      "output": [
+        "memberSummary_with_hasAvatar_no_fileID_or_URL"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "profile.avatar.get",
+      "authorization": "member_self",
+      "input": [],
+      "output": [
+        "url_shortLived_or_null"
+      ],
+      "businessIdempotency": false
+    },
+    {
       "action": "registration.apply",
       "authorization": "member_self",
       "input": [
@@ -607,5 +629,15 @@
     "briefings": "Confirmed/nonvoid participants and scoped staff only; cancellation/cancelled activity denies member reads; versions protect writes; advanced re-consent deferred.",
     "directory": "20 per page, role summaries expose no userId; search capped at 200 club records; ten-member read transactions.",
     "initialRevisions": "club/briefing/qualification first save expectedRevision=0; updates must use returned revision"
+  },
+  "avatarNotes": {
+    "identity": "No client memberId/openId/fileID/URL accepted; current SDK actor only; first-time users must establish identity with consent.",
+    "requestLimits": "Only profile.avatar.save: 131072-byte cloud envelope and 131072-character shared limit; ordinary cloud envelopes remain 16384 bytes and shared requests 20000 characters.",
+    "imageValidation": "Canonical base64, decoded at most 65536 bytes; JPEG/PNG signatures, dimensions 1..1024 and basic segment/chunk structure; not a full decoder or EXIF scrubber.",
+    "storage": "Server uploads each attempt to a unique member-avatars/{trustedMemberId}/{uuid}.{jpg|png} private object; direct client read/write denied.",
+    "concurrency": "Revision is checked before and after upload. Conflict cleans only an unbound unique upload. Unknown database commit outcome preserves any bound object. Readback signs then rechecks actor and revision.",
+    "cleanup": "Old-image cleanup failure is recorded with action/code only and does not turn a committed profile into a reported save failure; upload transport uncertainty may leave an orphan for later reconciliation.",
+    "publicProjection": "Only self-summary has hasAvatar. No fileID/URL is returned in summaries, employee directories, recommendations or rankings.",
+    "rateLimit": "Native cloud entry preserves 120 requests/minute and adds a separate five-avatar-saves/minute limit per trusted identity."
   }
 }
