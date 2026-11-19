@@ -246,11 +246,12 @@
       "remoteZipBytes": 9016772,
       "remoteZipSha256": "dc22ac83cfd3029f558aa542e03a45a60fda4c3cf795c288b73a22f0932f007c",
       "wxAppIdAssociatedOnTencentSide": true,
-      "phoneCloudCallVerified": false,
-      "businessRecordsPresent": false,
+      "phoneCloudCallVerified": true,
+      "businessRecordsPresent": true,
       "documentDatabase": "PostgreSQL_DocumentExt",
       "walletSchemaV4V5Applied": true,
-      "syntheticReadonlyRpcVerified": 7
+      "syntheticReadonlyRpcVerified": 7,
+      "ownerAndManagerBootstrappedOn": "2026-11-19"
     },
     "nativeEventCompatibility": {
       "fixed": "discard_observed_userInfo_and_tcbContext_before_domain",
@@ -287,7 +288,7 @@
       "temporaryProbeDeleted": true
     },
     "initialBusinessRecords": 0,
-    "businessRecordsPresent": false
+    "businessRecordsPresent": true
   },
   "developmentUpload": {
     "status": "officially_compiled_and_uploaded",
