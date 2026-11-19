@@ -32,6 +32,7 @@
 | staff.member.certify | memberPublicId、certified、reason | 主理人；榜单“认证车手”称号，留审计 |
 | staff.activity.backfill | 标题、简介、地点、起止时间、默认成长/年度积分 | 主理人；补录已结束活动，直接归档且不开放报名，标记 backfill |
 | staff.points.backfill | activityId、memberNumber、可选积分、reason | 主理人；仅限补录活动；同人同场幂等，冲正后可按新分值重记 |
+| club.hero.get / staff.club.hero.get / staff.club.hero.save | slides、rightsAcknowledged、expectedRevision | 首页公开轮播读取与主理人/经理/内容管理上传更换（最多6张，清空恢复默认） |
 | staff.roles.assign | memberId、role、event scope、期限 | 主理人；不允许前端自授权 |
 | staff.rewards.snapshot/record | 年份、规则版本/奖品发放 | 内部管理，有版本与审计 |
 

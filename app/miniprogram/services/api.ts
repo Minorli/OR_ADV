@@ -6,7 +6,7 @@ import { MemoryStore } from '../../../shared/memory-store';
 import type { RpcResponse, MemberSummary } from '../../../shared/types';
 import type { StoreSnapshot } from '../../../shared/store';
 import { clearMockAvatarFiles, createMockAvatarStorage } from './profile-avatar';
-import { clearMockMemberMediaFiles, createLocalMemberMediaStorage, MemberMediaError } from './member-media';
+import { clearMockMemberMediaFiles, createLocalMemberMediaStorage, MemberMediaError } from './member-media-local';
 import { seedLearningDemo } from '../../../shared/learning-content';
 
 interface RuntimeConfig { mode: 'mock' | 'cloud'; envId: string; appId: string; version: string }

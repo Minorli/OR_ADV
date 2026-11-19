@@ -5,7 +5,7 @@
   <view wx:if="{{notice}}" class="notice">{{notice}}</view>
   <view wx:if="{{!authorized && !loading}}" class="empty">仅主理人和车队经理可管理此处资料。<button class="secondary full mt" bindtap="back">返回工作台</button></view>
   <block wx:if="{{authorized}}"><view class="member-admin-banner"><text>{{adminTitle}}</text><text>业务身份与工作权限分开设置</text></view>
-    <view class="filter-row"><button class="pill {{pane === 'members' ? 'active' : ''}}" data-pane="members" bindtap="pane">会员管理</button><button class="pill {{pane === 'settings' ? 'active' : ''}}" data-pane="settings" bindtap="pane">公开联络设置</button></view>
+    <view class="filter-row"><button class="pill {{pane === 'members' ? 'active' : ''}}" data-pane="members" bindtap="pane">会员管理</button><button class="pill {{pane === 'settings' ? 'active' : ''}}" data-pane="settings" bindtap="pane">公开联络设置</button><button class="pill {{pane === 'hero' ? 'active' : ''}}" data-pane="hero" bindtap="pane">首页轮播图</button></view>
     <block wx:if="{{pane === 'members'}}">
       <view class="search-row"><input value="{{query}}" maxlength="30" bindinput="query" bindconfirm="search" placeholder="搜索昵称或完整成员编号"/><button class="secondary" bindtap="search">查找</button></view>
       <view class="small muted mt">查看成员资料。成员身份不授予员工权限，俱乐部成员与创始合伙人使用同一套安全核验标准。</view>
@@ -42,6 +42,21 @@
       <view class="field"><text class="field-label">实际联系方式</text><input value="{{settings.contactValue}}" data-field="contactValue" bindinput="settingsField" maxlength="100" placeholder="已确认可公开的微信、电话或其他方式"/></view>
       <view class="field"><text class="field-label">联络说明</text><textarea value="{{settings.contactInstructions}}" data-field="contactInstructions" bindinput="settingsField" maxlength="500" placeholder="说明咨询方式、适合联络的时间与注意事项"/></view>
       <button class="primary full" disabled="{{!!busy}}" loading="{{busy === 'settings'}}" bindtap="saveSettings">核实并保存公开信息</button>
+    </view>
+    <view wx:if="{{pane === 'hero'}}" class="card">
+      <view class="card-title">首页轮播图管理</view>
+      <view class="notice">主理人与车队经理可直接上传更换首页轮播图与标语（最多 6 张）。首页轮播高度约占屏幕三分之一，建议选横版照片（比例约 4:3 或 16:10），系统自动居中裁切并压缩保存。未配置或全部移除保存时，首页自动使用内置默认轮播图。</view>
+      <view wx:if="{{!heroSlides.length}}" class="small muted mt">当前使用内置默认 4 张轮播图。点击下方按钮上传自定义图片即可替换。</view>
+      <view wx:for="{{heroSlides}}" wx:key="id" class="card mt hero-slide-editor">
+        <view class="row"><text class="card-title">轮播 {{index + 1}}</text><view class="hero-slide-actions"><button wx:if="{{index > 0}}" class="text-button" data-index="{{index}}" data-delta="-1" disabled="{{!!busy}}" bindtap="moveHeroSlide">上移</button><button wx:if="{{index + 1 < heroSlides.length}}" class="text-button" data-index="{{index}}" data-delta="1" disabled="{{!!busy}}" bindtap="moveHeroSlide">下移</button><button class="text-button" data-index="{{index}}" disabled="{{!!busy}}" bindtap="removeHeroSlide">移除</button></view></view>
+        <image class="hero-slide-preview mt" src="{{item.cover}}" mode="aspectFill"/>
+        <view class="field"><text class="field-label">上标（选填，默认 ORIGINAL RALLY）</text><input value="{{item.kicker}}" data-index="{{index}}" data-field="kicker" bindinput="heroField" maxlength="40" disabled="{{!!busy}}"/></view>
+        <view class="field"><text class="field-label">主标题（必填）</text><input value="{{item.title}}" data-index="{{index}}" data-field="title" bindinput="heroField" maxlength="80" placeholder="例如：不赶路，感受路" disabled="{{!!busy}}"/></view>
+        <view class="field"><text class="field-label">副标题（选填）</text><input value="{{item.caption}}" data-index="{{index}}" data-field="caption" bindinput="heroField" maxlength="120" placeholder="补充一句话说明" disabled="{{!!busy}}"/></view>
+      </view>
+      <button wx:if="{{heroSlides.length < 6}}" class="secondary full mt" disabled="{{!!busy}}" loading="{{busy === 'hero-upload'}}" bindtap="uploadHeroSlide">＋ 从相册或相机上传轮播图（{{heroSlides.length}} / 6）</button>
+      <checkbox-group wx:if="{{heroSlides.length}}" class="mt" bindchange="heroRights"><label class="check-line"><checkbox value="accepted" checked="{{heroRights}}" color="#ff6b00"/><text>确认所选图片已取得俱乐部公开展示授权。</text></label></checkbox-group>
+      <button class="primary full mt" disabled="{{!!busy}}" loading="{{busy === 'hero-save'}}" bindtap="saveHero">{{heroSlides.length ? '保存并发布到首页' : '保存并恢复默认轮播图'}}</button>
     </view>
   </block>
 </view>

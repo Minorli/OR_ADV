@@ -1,6 +1,14 @@
 # 当前交接状态
 
-更新：2026-11-19。源代码与官方开发版 `0.5.0-test.3`（zip 1,717,233 字节）指向 2026-11-18 新开通的个人版测试环境 （EnvId 仅存本地配置）（上海，baas_personal，到期 2026-12-18 23:59:59）。该环境的文档数据库是 PostgreSQL DocumentExt，集合通过 `tcb api tcb CreateTable` 加 MongoConnector 管理；`scripts/cloud-setup.cjs` 的 manager-node 列表接口在此环境报 InstanceHasBeenDeleted，不能用来核对。本轮补齐 v4 兑换钱包 5 个集合、4 个索引及 v5 活动索引，读回 32 个集合、36 个项目索引，集合权限 ADMINONLY（PG DocumentExt 不支持 CUSTOM 规则）。云函数 `oradv` 已重部署 `native-envelope-20261119.1`，下载包内 `lib/index.js` SHA256 `2936f0299322550b50977932861072fdb7747f40f74dc66fd59144784449fcdd` 与本地一致，Active／Event／Nodejs20.19／30秒／256MB，两项环境变量匹配，无触发器。授权 CLI 临时凭据加合成身份对新环境做了 7 个只读 RPC（含兑换目录），全部成功；这不是微信真机登录验收。经典云存储规则仍为 READONLY，改 ADMINONLY 同样被平台拒绝。2026-11-19 14:52（北京时间）已在新环境完成可信授权并读回：经与旧环境同 AppID 身份哈希核对，0 号主理人（原 3 号退役保留）已通过一次性初始化获得全局永久 `owner` 且关闭初始化标记；1 号车队经理已获得全局永久 `owner`（`manager` 称谓）并验证幂等重复无写入；开发账号目前为 2 号且未授予员工权限；普通新编号从 4 起递增。活动与积分尚为空。2026-11-19 14:27（北京时间）用户扫码登录公众平台后读回：开发版 `0.5.0-test.3`（ci机器人1，备注匹配）已带体验版标记——同一 CI 机器人槽位原本就是体验版，新上传自动接替；线上与审核均无版本。官方体验码保存为本机 `OR_ADV体验版二维码.png`（平台提示 11 月 26 日前有效），临时后台会话已退出并清除。公开仓库：[Minorli/OR_ADV](https://github.com/Minorli/OR_ADV)。
+更新：2026-11-19。源代码与官方开发版 `0.5.0-test.4`（zip 1,732,649 字节）指向 2026-11-18 新开通的个人版测试环境 （EnvId 仅存本地配置）（上海，baas_personal，到期 2026-12-18 23:59:59）。该环境的文档数据库是 PostgreSQL DocumentExt，集合通过 `tcb api tcb CreateTable` 加 MongoConnector 管理；`scripts/cloud-setup.cjs` 的 manager-node 列表接口在此环境报 InstanceHasBeenDeleted，不能用来核对。本轮补齐 v4 兑换钱包 5 个集合、4 个索引及 v5 活动索引，读回 32 个集合、36 个项目索引，集合权限 ADMINONLY（PG DocumentExt 不支持 CUSTOM 规则）。云函数 `oradv` 已重部署 `native-envelope-20261119.2`，下载包内 `lib/index.js` SHA256 `9bbd909aa40dc88a292fab219dc331c294ce5eea558bfa0aa5a8c753e80e0857` 与本地一致，Active／Event／Nodejs20.19／30秒／256MB，两项环境变量匹配，无触发器。授权 CLI 临时凭据加合成身份对新环境做了 7 个只读 RPC（含兑换目录），全部成功；这不是微信真机登录验收。经典云存储规则仍为 READONLY，改 ADMINONLY 同样被平台拒绝。2026-11-19 14:52（北京时间）已在新环境完成可信授权并读回：经与旧环境同 AppID 身份哈希核对，0 号主理人（原 3 号退役保留）已通过一次性初始化获得全局永久 `owner` 且关闭初始化标记；1 号车队经理已获得全局永久 `owner`（`manager` 称谓）并验证幂等重复无写入；开发账号已迁为 1024 号（原 2 号退役保留，未授予员工权限）；普通新成员编号按指令改为从 10 号起递增。活动与积分尚为空。2026-11-19 14:27（北京时间）用户扫码登录公众平台后读回：开发版 `0.5.0-test.3`（ci机器人1，备注匹配）已带体验版标记——同一 CI 机器人槽位原本就是体验版，新上传自动接替；线上与审核均无版本。官方体验码保存为本机 `OR_ADV体验版二维码.png`（平台提示 11 月 26 日前有效），临时后台会话已退出并清除。公开仓库：[Minorli/OR_ADV](https://github.com/Minorli/OR_ADV)。
+
+## 0.5.0-test.4 真机反馈修复与轮播后台上传（2026-11-19）
+
+- **修复点击「个人资料审核」提示“操作暂未完成，请稍后重试”**：定位根因是前端 `services/api.js` 与 `services/member-media.js` 存在小程序唯一一处 CommonJS 循环 `require`。在微信真机模块加载器中，`member-media.js` 初始化时拿到的 `api` 为空对象，后续调用 `runtime.appId` 抛出 `TypeError` 并被兜底成“操作暂未完成”。现已拆出无反向依赖的 `services/member-media-local.ts`，彻底消除循环引用，并在 `tests/build/assets.test.ts` 增加全包循环依赖回归测试。
+- **首页轮播高度与后台手动上传**：首页 `.hero` 高度由过高的 `1125rpx` 恢复为 `576.923077rpx`（约占屏幕三分之一），首屏可同时展示标语与活动列表；新增 `club.hero.get`／`staff.club.hero.get`／`staff.club.hero.save`，主理人与车队经理可在「我的 → 成员与身份管理 → 首页轮播图」直接从相册或相机上传更换最多 6 张轮播图与文案，清空保存即恢复默认 4 张轮播图。
+- **编号迁移与起始号段**：可信部署工具已将开发账号由 2 号迁为 1024 号（2 号占用退役保留、1024 列入保留号），并将 `nextNumber` 设为 `10`（未来新注册成员从 10 号起分配），已读回核实。
+
+完整检查 436 项通过（TypeScript 286、原生控制器 136、工具 14）。同一 `ci机器人1` 槽位上传 `0.5.0-test.4` 自动更新体验版，原体验版二维码（11 月 26 日前有效）继续可用。
 
 ## 0.5.0-test.3 审查与修复（2026-11-19）
 

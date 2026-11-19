@@ -99,3 +99,32 @@ test('a dated basic qualification leaves the board after it expires and a disabl
   const hidden = data<{ items: { memberPublicId: string }[] }>(await ctx.call('ranking.list', {}, DEMO_IDENTITIES.owner));
   assert.equal(hidden.items.some(item => item.memberPublicId === member.publicId), false);
 });
+
+test('owner or manager can upload and publish custom homepage hero slides and clear back to defaults', async () => {
+  const store = createDemoStore(NOW);
+  const files = new Map<string, string>();
+  let n = 0;
+  const mediaStorage = {
+    mode: 'local' as const,
+    async saveImage(_m: string, assetId: string, b64: string) { const fileId = `local/${assetId}.png`; files.set(fileId, b64); return { fileId, bytes: Buffer.from(b64, 'base64').length, mimeType: 'image/png' as const }; },
+    async url(fileId: string) { return `https://cdn.example/${fileId}`; },
+    async remove(fileId: string) { files.delete(fileId); },
+  };
+  const call = (action: string, payload: Record<string, unknown> = {}, identity: TrustedIdentity | null = DEMO_IDENTITIES.owner, expectedRevision?: number) =>
+    createService(store, { now: () => NOW, id: () => `hero-${++n}`, memberMediaStorage: mediaStorage }).handle({ action, payload, clubId: 'oradv', requestId: `hero-req-${n}`, expectedRevision }, identity);
+  const png1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
+  assert.deepEqual(data(await call('club.hero.get', {}, null)), { configured: false, revision: 0, slides: [] });
+  const denied = await call('staff.club.hero.save', { slides: [], rightsAcknowledged: false }, DEMO_IDENTITIES.member, 0);
+  assert.equal(denied.ok, false);
+  const asset = data<{ id: string }>(await call('media.image.save', { purpose: 'club_public', label: '首页轮播图', imageBase64: png1x1, rightsAcknowledged: true }));
+  const saved = data<{ configured: boolean; revision: number; slides: { title: string; cover: string }[] }>(await call('staff.club.hero.save', {
+    slides: [{ id: 's1', assetId: asset.id, kicker: 'OR', title: '新线路首发', caption: '车队经理上传' }],
+    rightsAcknowledged: true,
+  }, DEMO_IDENTITIES.owner, 0));
+  assert.equal(saved.configured, true); assert.equal(saved.revision, 1); assert.equal(saved.slides[0].title, '新线路首发');
+  assert.match(saved.slides[0].cover, /^https:\/\/cdn\.example\//);
+  const pub = data<{ configured: boolean; slides: { title: string }[] }>(await call('club.hero.get', {}, null));
+  assert.equal(pub.configured, true); assert.equal(pub.slides.length, 1);
+  const cleared = data<{ configured: boolean; revision: number; slides: unknown[] }>(await call('staff.club.hero.save', { slides: [], rightsAcknowledged: false }, DEMO_IDENTITIES.owner, 1));
+  assert.equal(cleared.configured, false); assert.equal(cleared.revision, 2); assert.equal(cleared.slides.length, 0);
+});

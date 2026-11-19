@@ -4,9 +4,16 @@ import { activityVisual } from '../../services/visual';
 import { memberKindText, tripNextAction } from '../../services/member';
 import type { Activity, MemberSummary, PageResult, Registration } from '../../../../shared/types';
 import type { ClubContentView } from '../../../../shared/club-content-types';
+import type { ClubHeroView } from '../../../../shared/club-hero';
 import { readReferenceChrome, syncReferenceTab, openReferencePanel, closeReferencePanel } from '../../services/reference-ui';
 type JoinedRegistration = Registration & { activityStartAt?: string; activityState?: string };
 interface NextTrip { activityId: string; title: string; dateText: string; stateText: string; nextAction: string; buttonLabel: string }
+const DEFAULT_HERO_SLIDES = [
+  { id: 'road', cover: '/assets/hero/road.jpg', kicker: 'ORIGINAL RALLY', title: '不赶路，感受路', caption: '原创开荒线路，每一步探险都是首发' },
+  { id: 'together', cover: '/assets/hero/together.jpg', kicker: 'ORIGINAL RALLY', title: '独行虽速，忠行致远', caption: '严苛准入，但我们不抛弃、不放弃' },
+  { id: 'craft', cover: '/assets/hero/craft.jpg', kicker: 'ORIGINAL RALLY', title: '把热爱，交给最专业的同路人', caption: '金牌技师・冠军车手・顶级影像全程护航' },
+  { id: 'real', cover: '/assets/hero/real.jpg', kicker: 'ORIGINAL RALLY', title: '无剧本，只有一往无前的真实', caption: '全年全地形全气候，只做硬核本色穿越' },
+];
 const heroTimers = new WeakMap<object, ReturnType<typeof setInterval>>();
 function referenceActivity(activity: Activity) {
   const card = activityVisual(activity), date = new Date(Date.parse(activity.startAt) + 8 * 3600000);
@@ -16,12 +23,7 @@ function referenceActivity(activity: Activity) {
   return { ...card, shortDateText };
 }
 Page({
-  data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, items: [] as ReturnType<typeof referenceActivity>[], displayItems: [] as ReturnType<typeof referenceActivity>[], heroCurrent: 0, coverErrors: {} as Record<string, boolean>, heroSlides: [
-    { id: 'road', cover: '/assets/hero/road.jpg', kicker: 'ORIGINAL RALLY', title: '不赶路，感受路', caption: '原创开荒线路，每一步探险都是首发' },
-    { id: 'together', cover: '/assets/hero/together.jpg', kicker: 'ORIGINAL RALLY', title: '独行虽速，忠行致远', caption: '严苛准入，但我们不抛弃、不放弃' },
-    { id: 'craft', cover: '/assets/hero/craft.jpg', kicker: 'ORIGINAL RALLY', title: '把热爱，交给最专业的同路人', caption: '金牌技师・冠军车手・顶级影像全程护航' },
-    { id: 'real', cover: '/assets/hero/real.jpg', kicker: 'ORIGINAL RALLY', title: '无剧本，只有一往无前的真实', caption: '全年全地形全气候，只做硬核本色穿越' },
-  ], sponsorLogos: [
+  data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, items: [] as ReturnType<typeof referenceActivity>[], displayItems: [] as ReturnType<typeof referenceActivity>[], heroCurrent: 0, coverErrors: {} as Record<string, boolean>, heroSlides: DEFAULT_HERO_SLIDES, sponsorLogos: [
     { id: 'og', src: '/assets/sponsors/og.png' }, { id: 'cardo', src: '/assets/sponsors/cardo.png' }, { id: 'simpson', src: '/assets/sponsors/simpson.png' },
     { id: 'shuodong', src: '/assets/sponsors/shuodong.png' }, { id: 'juemiao', src: '/assets/sponsors/juemiao.png' }, { id: 'fox', src: '/assets/sponsors/fox.png' }, { id: 'percent', src: '/assets/sponsors/percent.png' },
   ], member: null as MemberSummary | null, kindLabel: '游客', nextTrip: null as NextTrip | null,
@@ -45,8 +47,16 @@ Page({
     const requestVersion = this.data.requestVersion + 1, role = mockRole();
     // Personal data is removed before the first asynchronous boundary.
     this.setData({ loading: true, error: '', personalError: '', requestVersion, member: null, kindLabel: '游客', nextTrip: null });
-    await Promise.all([this.loadActivities(append, requestVersion, role), this.loadPersonal(requestVersion, role), this.loadPartners(requestVersion, role)]);
+    await Promise.all([this.loadActivities(append, requestVersion, role), this.loadPersonal(requestVersion, role), this.loadPartners(requestVersion, role), append ? Promise.resolve() : this.loadHero(requestVersion, role)]);
     if (this.data.requestVersion === requestVersion) this.setData({ loading: false });
+  },
+  async loadHero(requestVersion: number, role: string) {
+    try {
+      const hero = await call<ClubHeroView>('club.hero.get');
+      if (!this.isCurrent(requestVersion, role)) return;
+      const slides = hero?.configured && Array.isArray(hero.slides) && hero.slides.length > 0 ? hero.slides : DEFAULT_HERO_SLIDES;
+      this.setData({ heroSlides: slides, heroCurrent: this.data.heroCurrent % slides.length });
+    } catch { /* Keep built-in hero slides if optional custom slides fail to load. */ }
   },
   async loadActivities(append: boolean, requestVersion: number, role: string) {
     try {

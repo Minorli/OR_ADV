@@ -1525,6 +1525,43 @@
         "memberPublicId"
       ],
       "businessIdempotency": true
+    },
+    {
+      "action": "club.hero.get",
+      "authorization": "public",
+      "input": [],
+      "output": [
+        "configured",
+        "revision",
+        "slides"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.club.hero.get",
+      "authorization": "content_admin_or_owner",
+      "input": [],
+      "output": [
+        "configured",
+        "revision",
+        "slides"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.club.hero.save",
+      "authorization": "content_admin_or_owner",
+      "input": [
+        "slides",
+        "rightsAcknowledged",
+        "expectedRevision"
+      ],
+      "output": [
+        "configured",
+        "revision",
+        "slides"
+      ],
+      "businessIdempotency": false
     }
   ],
   "errors": [

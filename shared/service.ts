@@ -11,6 +11,7 @@ import type { RpcRequest, RpcResponse, TrustedIdentity } from './types';
 import { assignMemberKind, certifyRider, listMemberRoles, listMembers, listRecommendations, requestMemberKind } from './members';
 import { grantPastPoints, recordPastActivity } from './backfill';
 import { getBriefing, publicClub, saveBriefing, saveClub } from './club';
+import { getClubHero, saveClubHero } from './club-hero';
 import { listQualifications, reviewQualification } from './qualifications';
 import { ownAvatar, saveAvatar } from './profile-avatar';
 import { AVATAR_REQUEST_LIMIT } from './avatar-image';
@@ -69,6 +70,9 @@ export function createService(store: Store, options: ServiceOptions = {}) {
           case 'activity.get': data = await getActivity(ctx); break;
           case 'club.public': data = await publicClub(ctx); break;
           case 'staff.club.save': data = await saveClub(ctx); break;
+          case 'club.hero.get': data = await getClubHero(ctx); break;
+          case 'staff.club.hero.get': data = await getClubHero(ctx, true); break;
+          case 'staff.club.hero.save': data = await saveClubHero(ctx); break;
           case 'activity.briefing.get': data = await getBriefing(ctx); break;
           case 'staff.briefing.save': data = await saveBriefing(ctx); break;
           case 'registration.apply': data = await applyRegistration(ctx); break;

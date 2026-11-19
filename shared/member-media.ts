@@ -131,9 +131,9 @@ export async function bindOwnedMemberMedia(tx: Transaction, clubId: string, memb
   }
   return result;
 }
-/** Editors may retain another author's image only in the story that already uses it. */
-export async function bindPublicStoryMedia(tx: Transaction, clubId: string, memberId: string, assetIds: unknown, bindingId: string, previousIds: readonly string[]): Promise<MemberMediaSummary[]> {
-  requireThat(Array.isArray(assetIds) && assetIds.length <= 12 && new Set(assetIds).size === assetIds.length
+/** Editors may retain another author's image only in the story or hero carousel that already uses it. */
+export async function bindPublicStoryMedia(tx: Transaction, clubId: string, memberId: string, assetIds: unknown, bindingId: string, previousIds: readonly string[], maxCount = 12): Promise<MemberMediaSummary[]> {
+  requireThat(Array.isArray(assetIds) && assetIds.length <= maxCount && new Set(assetIds).size === assetIds.length
     && assetIds.every(id => typeof id === 'string' && /^media_[a-f0-9]{64}$/.test(id)), 'INVALID_INPUT', '活动图片编号不正确');
   const result: MemberMediaSummary[] = [];
   for (const id of assetIds) {
@@ -148,6 +148,9 @@ export async function bindPublicStoryMedia(tx: Transaction, clubId: string, memb
   }
   return result;
 }
+export function bindPublicHeroMedia(tx: Transaction, clubId: string, memberId: string, assetIds: unknown, bindingId: string, previousIds: readonly string[]) {
+  return bindPublicStoryMedia(tx, clubId, memberId, assetIds, bindingId, previousIds, 6);
+}
 async function readOtherMedia(ctx: Context, tx: Transaction, asset: MemberMediaAsset) {
   if (asset.purpose !== 'club_public') {
     await ctx.staff(tx, ['owner']);
@@ -156,6 +159,11 @@ async function readOtherMedia(ctx: Context, tx: Transaction, asset: MemberMediaA
   }
   await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
   const bindingId = ctx.request.payload.bindingId;
+  if (typeof bindingId === 'string' && /^club_hero_[a-f0-9]{64}$/.test(bindingId) && asset.bindings.includes(bindingId) && asset.kind === 'image' && asset.rightsAcknowledged) {
+    const hero = await tx.get<{ clubId: string; slides?: { assetId: string }[] }>('club_content', bindingId);
+    requireThat(hero?.clubId === ctx.clubId && hero.slides?.some(slide => slide.assetId === asset.id), 'FORBIDDEN', '轮播图片已移除或更新');
+    return;
+  }
   requireThat(typeof bindingId === 'string' && /^activity_story_[a-f0-9]{64}$/.test(bindingId) && asset.bindings.includes(bindingId)
     && asset.kind === 'image' && asset.rightsAcknowledged, 'FORBIDDEN', '仅可管理本场已授权的公开图片');
   const story = await tx.get<ActivityStory>('activity_stories', bindingId);

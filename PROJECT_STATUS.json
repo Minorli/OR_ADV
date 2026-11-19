@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.5.0-test.3",
+  "version": "0.5.0-test.4",
   "asOf": "2026-11-19",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -67,7 +67,7 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.5.0-test.3",
+    "sourceVersion": "0.5.0-test.4",
     "typecheck": "passed",
     "domainTests": "included_in_typescriptTests",
     "cloudTests": "included_in_typescriptTests",
@@ -236,15 +236,15 @@
     "functionTimeoutSeconds": 30,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "2936f0299322550b50977932861072fdb7747f40f74dc66fd59144784449fcdd",
+    "functionBackendSha256": "9bbd909aa40dc88a292fab219dc331c294ce5eea558bfa0aa5a8c753e80e0857",
     "currentFunction": {
       "envId": "local_config_only",
       "deployedOn": "2026-11-19",
       "action": "update",
-      "diagnosticBuild": "native-envelope-20261119.1",
-      "backendSha256": "2936f0299322550b50977932861072fdb7747f40f74dc66fd59144784449fcdd",
-      "remoteZipBytes": 9016772,
-      "remoteZipSha256": "dc22ac83cfd3029f558aa542e03a45a60fda4c3cf795c288b73a22f0932f007c",
+      "diagnosticBuild": "native-envelope-20261119.2",
+      "backendSha256": "9bbd909aa40dc88a292fab219dc331c294ce5eea558bfa0aa5a8c753e80e0857",
+      "remoteZipBytes": 9018571,
+      "remoteZipSha256": "9b6e45d583a3f70a5eb74cc8c995dc1ff0cc4d5f9997a10e3e23b1ea8c664120",
       "wxAppIdAssociatedOnTencentSide": true,
       "phoneCloudCallVerified": true,
       "businessRecordsPresent": true,
@@ -292,14 +292,14 @@
   },
   "developmentUpload": {
     "status": "officially_compiled_and_uploaded",
-    "version": "0.5.0-test.3",
+    "version": "0.5.0-test.4",
     "mode": "cloud",
     "uploadedOn": "2026-11-19",
     "envId": "local_config_only",
-    "zipBufferBytes": 1717233,
+    "zipBufferBytes": 1732649,
     "formalReviewSubmitted": false,
     "published": false,
-    "experienceSelectionByVersionManager": "officially_read_back_0.5.0-test.3_2026-11-19"
+    "experienceSelectionByVersionManager": "same_ci_robot_slot_auto_updated_from_verified_test.3"
   },
   "newPrototypeIteration": {
     "allFourTabsAndLeafFlowsImplemented": true,
@@ -533,9 +533,9 @@
     "requireActualVersionReadback": true,
     "mustReportEffectiveVersion": true,
     "developmentUploadIsNotExperienceRelease": true,
-    "sourceVersion": "0.5.0-test.3",
-    "developmentVersion": "0.5.0-test.3",
-    "effectiveExperienceVersion": "0.5.0-test.3",
+    "sourceVersion": "0.5.0-test.4",
+    "developmentVersion": "0.5.0-test.4",
+    "effectiveExperienceVersion": "0.5.0-test.4",
     "effectiveOnlineVersion": null
   },
   "visualParityV2": {
@@ -567,7 +567,7 @@
       "writes": 0
     },
     "backendIndependentReview": "passed_no_high_or_critical",
-    "backendBuildCandidate": "native-envelope-20261119.1",
+    "backendBuildCandidate": "native-envelope-20261119.2",
     "componentBrowserStates": 39,
     "componentBrowserUiEvents": 52,
     "componentBrowserScreenshots": 95,

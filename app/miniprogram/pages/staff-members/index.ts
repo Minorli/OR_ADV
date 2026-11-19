@@ -1,7 +1,9 @@
 import { call, currentMember, errorMessage, confirm, toast, isMock, mockRole, runtime } from '../../services/api';
 import type { MemberSummary, PageResult, Role, Activity } from '../../../../shared/types';
 import { memberNumberText } from '../../services/member-number';
+import { chooseAndUploadMemberImage, MemberMediaError } from '../../services/member-media';
 import { businessAdminTitle } from '../../../../shared/permissions';
+import type { ClubHeroSlideView, ClubHeroView } from '../../../../shared/club-hero';
 
 interface RoleGrant { role: Role; revision: number; enabled: boolean; activityIds: string[] | null; expiresAt: string | null; designation?: 'manager' }
 interface MemberRow {
@@ -31,10 +33,11 @@ Page({
     qualifications: [] as Qualification[], qualificationCursor: null as string | null, qualificationType: '', qualificationDate: '', qualificationRevision: 0,
     settings: { clubId: 'oradv', name: '原始拉力', contactName: '', contactMethod: 'wechat', contactValue: '', contactInstructions: '', revision: 0, configured: false } as ClubSettings,
     contactLabels, contactIndex: 0, settingsDirty: false,
+    heroSlides: [] as ClubHeroSlideView[], heroRevision: 0, heroDirty: false, heroRights: false, heroLoaded: false,
   },
   onShow() { return this.resume(); },
   onUnload() { this.clearPrivate(); },
-  async resume() { if (this.data.selected || this.data.settingsDirty || this.data.busy) { await this.verifyOwner(); return; } await this.load(); },
+  async resume() { if (this.data.selected || this.data.settingsDirty || this.data.heroDirty || this.data.busy) { await this.verifyOwner(); return; } await this.load(); },
   fence(): OwnerFence { return { version: this.data.version, memberId: this.data.member?.id || '', role: this.data.loadedRole, environment: this.data.loadedEnvironment }; },
   matches(fence: OwnerFence) {
     if (fence.version === this.data.version && (fence.environment !== environmentScope() || isMock && fence.role !== mockRole())) { this.clearPrivate(); return false; }
@@ -43,7 +46,8 @@ Page({
   clearPrivate() {
     this.setData({ version: this.data.version + 1, requestVersion: this.data.requestVersion + 1, selectionVersion: this.data.selectionVersion + 1, member: null, authorized: false, adminTitle: '', loading: false, loadingMore: false,
       selected: null, items: [], nextCursor: null, qualifications: [], qualificationCursor: null, activities: [], scopeOptions: [], scopeIds: [], busy: '', reason: '', expiryDate: '', roleExpiryDate: '', roleProtected: false, roleManager: false, query: '', priority: '0',
-      qualificationType: '', qualificationDate: '', qualificationRevision: 0, notice: '', settingsDirty: false, settings: { clubId: 'oradv', name: '原始拉力', contactName: '', contactMethod: 'wechat', contactValue: '', contactInstructions: '', revision: 0, configured: false } });
+      qualificationType: '', qualificationDate: '', qualificationRevision: 0, notice: '', settingsDirty: false, settings: { clubId: 'oradv', name: '原始拉力', contactName: '', contactMethod: 'wechat', contactValue: '', contactInstructions: '', revision: 0, configured: false },
+      heroSlides: [], heroRevision: 0, heroDirty: false, heroRights: false, heroLoaded: false });
   },
   async verifyOwner() {
     const fence = this.fence();
@@ -101,7 +105,11 @@ Page({
   query(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.setData({ query: event.detail.value }); },
   async search() { if (await this.verifyOwner()) await this.loadMembers(); },
   async more() { if (!this.data.loadingMore && await this.verifyOwner()) await this.loadMembers(true); },
-  pane(event: WechatMiniprogram.TouchEvent) { this.setData({ pane: event.currentTarget.dataset.pane }); },
+  pane(event: WechatMiniprogram.TouchEvent) {
+    const next = String(event.currentTarget.dataset.pane || 'members');
+    this.setData({ pane: next });
+    if (next === 'hero' && !this.data.heroLoaded && !this.data.busy) void this.loadHero();
+  },
   back() { wx.navigateBack({ delta: 1 }); },
   async select(event: WechatMiniprogram.TouchEvent) {
     if (this.data.busy || !await this.verifyOwner()) return;
@@ -255,6 +263,74 @@ Page({
     try {
       const settings = await call<ClubSettings>('staff.club.save', { name: form.name.trim(), contactName: form.contactName.trim(), contactMethod: contactMethods[this.data.contactIndex], contactValue: form.contactValue.trim(), contactInstructions: form.contactInstructions.trim() }, form.revision);
       if (this.matches(fence)) this.setData({ settings, settingsDirty: false, notice: '公开联络信息已更新。' });
+    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    finally { if (this.matches(fence)) this.setData({ busy: '' }); }
+  },
+  async loadHero() {
+    if (!this.data.authorized) return;
+    const fence = this.fence();
+    try {
+      const hero = await call<ClubHeroView>('staff.club.hero.get');
+      if (this.matches(fence)) this.setData({ heroSlides: hero.slides || [], heroRevision: hero.revision || 0, heroDirty: false, heroRights: false, heroLoaded: true });
+    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+  },
+  async uploadHeroSlide() {
+    if (this.data.busy || !await this.verifyOwner()) return;
+    if (this.data.heroSlides.length >= 6) { toast('最多上传 6 张轮播图'); return; }
+    const fence = this.fence();
+    this.setData({ busy: 'hero-upload', error: '', notice: '' });
+    try {
+      const uploaded = await chooseAndUploadMemberImage('club_public', '首页轮播图', true);
+      if (!this.matches(fence)) return;
+      const slide: ClubHeroSlideView = {
+        id: `slide-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        assetId: uploaded.assetId, cover: uploaded.previewUrl,
+        kicker: 'ORIGINAL RALLY', title: '', caption: '',
+      };
+      this.setData({ heroSlides: [...this.data.heroSlides, slide], heroDirty: true, heroRights: false, notice: '轮播图已上传，请填写主标题后保存发布。' });
+    } catch (error) {
+      if (this.matches(fence) && (error as { code?: string })?.code !== 'CANCELLED' && !/cancel/i.test(String((error as { errMsg?: string })?.errMsg || (error as Error)?.message || ''))) {
+        this.setData({ error: error instanceof MemberMediaError ? error.message : errorMessage(error) });
+      }
+    } finally { if (this.matches(fence)) this.setData({ busy: '' }); }
+  },
+  heroField(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    if (!this.matches(this.fence()) || this.data.busy) return;
+    const index = Number(event.currentTarget.dataset.index), field = String(event.currentTarget.dataset.field || '');
+    if (!['kicker', 'title', 'caption'].includes(field) || !this.data.heroSlides[index]) return;
+    this.setData({ heroSlides: this.data.heroSlides.map((row, i) => i === index ? { ...row, [field]: event.detail.value } : row), heroDirty: true, heroRights: false });
+  },
+  moveHeroSlide(event: WechatMiniprogram.TouchEvent) {
+    if (!this.matches(this.fence()) || this.data.busy) return;
+    const index = Number(event.currentTarget.dataset.index), delta = Number(event.currentTarget.dataset.delta);
+    const target = index + delta;
+    if (target < 0 || target >= this.data.heroSlides.length) return;
+    const next = [...this.data.heroSlides];
+    const [picked] = next.splice(index, 1);
+    next.splice(target, 0, picked);
+    this.setData({ heroSlides: next, heroDirty: true });
+  },
+  async removeHeroSlide(event: WechatMiniprogram.TouchEvent) {
+    if (!this.matches(this.fence()) || this.data.busy) return;
+    const index = Number(event.currentTarget.dataset.index);
+    if (!this.data.heroSlides[index]) return;
+    const fence = this.fence();
+    if (!await confirm('移除这张轮播图', '移除后点击底部保存才会生效；全部清空保存后会恢复内置默认轮播。') || !this.matches(fence)) return;
+    this.setData({ heroSlides: this.data.heroSlides.filter((_, i) => i !== index), heroDirty: true, heroRights: false });
+  },
+  heroRights(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { this.setData({ heroRights: event.detail.value.includes('accepted') }); },
+  async saveHero() {
+    if (this.data.busy || !await this.verifyOwner()) return;
+    const fence = this.fence(), slides = this.data.heroSlides;
+    if (slides.some(slide => !slide.title.trim())) { toast('请为每张轮播图填写主标题'); return; }
+    if (slides.length > 0 && !this.data.heroRights) { toast('请勾选公开展示授权确认'); return; }
+    if (!await confirm(slides.length ? '发布首页轮播图' : '恢复默认轮播图', slides.length ? `将这 ${slides.length} 张轮播图发布到小程序首页。` : '当前未保留自定义图片，保存后首页将恢复默认 4 张轮播图。')) return;
+    if (!await this.verifyOwner() || !this.matches(fence)) return;
+    this.setData({ busy: 'hero-save', error: '', notice: '' });
+    try {
+      const payload = slides.map(slide => ({ id: slide.id, assetId: slide.assetId, kicker: slide.kicker.trim() || 'ORIGINAL RALLY', title: slide.title.trim(), caption: slide.caption.trim() }));
+      const saved = await call<ClubHeroView>('staff.club.hero.save', { slides: payload, rightsAcknowledged: slides.length > 0 && this.data.heroRights }, this.data.heroRevision);
+      if (this.matches(fence)) this.setData({ heroSlides: saved.slides || [], heroRevision: saved.revision, heroDirty: false, heroRights: false, heroLoaded: true, notice: saved.configured ? '首页轮播图已更新生效。' : '已恢复默认首页轮播图。' });
     } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
