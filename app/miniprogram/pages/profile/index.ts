@@ -40,7 +40,7 @@ Page({
     avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false,
     loadVersion: 0, profileVersion: 0, lifecycleVersion: 0, loadedScope: '', avatarVersion: 0, avatarReadVersion: 0, loadedRole: '',
     identityVerified: false, dossierReadVersion: 0, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。',
-    dossierCount: '0 / 11', dossierParts: [] as { name: string; ready: boolean }[], ...dossierVisual(null),
+    dossierCount: '0 / 7', dossierParts: [] as { name: string; ready: boolean }[], ...dossierVisual(null),
   },
   onShow() {
     syncReferenceTab(this, 3);
@@ -63,7 +63,7 @@ Page({
   },
   clearIdentity() {
     this.setData({ member: null, memberNumber: '', nickname: '', nicknameInitial: 'OR', nicknameStatus: 'unchanged', nicknameError: '', avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false, saving: false, kindReason: '', consent: false, kindExpiresText: '', showEdit: false, logoutError: '',
-      staff: false, isOwner: false, canManageContent: false, adminTitle: '', identityVerified: false, statistics: null, statisticsError: '', joinedDays: null, ...dossierVisual(null), dossierReadVersion: this.data.dossierReadVersion + 1, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。', dossierCount: '0 / 11', dossierParts: [],
+      staff: false, isOwner: false, canManageContent: false, adminTitle: '', identityVerified: false, statistics: null, statisticsError: '', joinedDays: null, ...dossierVisual(null), dossierReadVersion: this.data.dossierReadVersion + 1, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。', dossierCount: '0 / 7', dossierParts: [],
       profileVersion: this.data.profileVersion + 1, avatarVersion: this.data.avatarVersion + 1, avatarReadVersion: this.data.avatarReadVersion + 1 });
   },
   async verifyIdentity() {
@@ -107,7 +107,7 @@ Page({
         avatarUrl: result.avatarUrl, avatarError: result.avatarError, dossierError: '', loading: false,
         statistics: result.statistics, statisticsError: result.statisticsError, joinedDays: joinedDays(result.statistics), ...dossierVisual(result.dossier),
         dossierStatus: result.dossier?.status || '尚未提交骑手资料', dossierNote: result.dossier?.note || '分次准备，保存后可继续填写。',
-        dossierCount: result.dossier ? `${result.dossier.ready} / ${result.dossier.total}` : '0 / 11', dossierParts: result.dossier?.parts || [] });
+        dossierCount: result.dossier ? `${result.dossier.ready} / ${result.dossier.total}` : '0 / 7', dossierParts: result.dossier?.parts || [] });
     } catch (error) {
       if (loadVersion === this.data.loadVersion && lifecycle === this.data.lifecycleVersion && scope === profileEnvironment() && (!isMock || mockRole() === role)) { this.clearIdentity(); this.setData({ error: errorMessage(error) }); }
     }
@@ -289,7 +289,7 @@ Page({
     if (!member || this.data.saving) return;
     const version = this.data.profileVersion, role = mockRole();
     const next = !member.recommendationOptIn;
-    if (next && !await confirm('参加俱乐部推荐', '同意在俱乐部推荐中公开昵称与成员身份。积分与完成次数仅在另外同意积分榜公开后展示。推荐由成员身份和俱乐部编排决定，可以随时退出；退出不影响成员身份。')) return;
+    if (next && !await confirm('参加俱乐部推荐', '同意在俱乐部推荐中公开昵称与成员身份。推荐由成员身份和俱乐部编排决定，可以随时退出；退出不影响成员身份和积分榜。')) return;
     if (!this.identityMatches(version, member.id, role) || !await this.verifyIdentity()) return;
     this.setData({ saving: true, error: '', loadVersion: this.data.loadVersion + 1, loading: false });
     try {

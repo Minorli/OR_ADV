@@ -128,7 +128,7 @@ test('showcase permissions, private trips and independent publication consents r
   assert.equal(recommendations.items[0].memberKind, 'founder');
   assert(recommendations.items.some(row => row.growthPoints === undefined), 'recommendation-only member keeps scores private');
   assert(!recommendations.items.some(row => row.memberPublicId === (store.snapshot().memberships[memberId('member')] as Membership).publicId));
-  const leaderboard = await request<PageResult<{ score: number }>>(null, 'ranking.list', { metric: 'growth' });
+  const leaderboard = await request<PageResult<{ score: number }>>(DEMO_IDENTITIES.member, 'ranking.list', { metric: 'growth' });
   const founder = await request<PointsResult>(DEMO_IDENTITIES.founder, 'points.mine');
   assert(leaderboard.items[0].score > founder.growthPoints, 'founder priority does not modify actual scores');
   const scoped = await request<PageResult<Activity>>(DEMO_IDENTITIES.leader, 'staff.activity.list');

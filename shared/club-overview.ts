@@ -1,8 +1,7 @@
 import { Context } from './context';
 import { integer, requireThat } from './errors';
-import { listRankings } from './points';
+import { rankingBoard } from './points';
 import { shanghaiYear } from './models';
-import type { RankingEntry } from './types';
 
 export const OVERVIEW_ACTIONS = ['ranking.mine'] as const;
 export interface OwnRanking {
@@ -10,7 +9,7 @@ export interface OwnRanking {
   rankingOptIn: boolean; rank: number | null; publicCount: number | null; score: number | null;
 }
 
-/** A private summary of the same public list; never a second scoring algorithm. */
+/** A private summary of the same public board; one scan, never a second scoring algorithm. */
 export async function ownRanking(ctx: Context, options: { deadlineMs?: number } = {}): Promise<OwnRanking> {
   const withinBudget = () => requireThat(options.deadlineMs === undefined || Date.now() <= options.deadlineMs,
     'TEMPORARY_FAILURE', '排名暂时无法显示，请稍后刷新');
@@ -23,38 +22,20 @@ export async function ownRanking(ctx: Context, options: { deadlineMs?: number } 
   const before = await ctx.store.transaction(async tx => {
     const actor = await ctx.actor(tx);
     return { memberId: actor.member.id, userId: actor.user.id, publicId: actor.member.publicId, revision: actor.member.revision,
-      optIn: actor.member.rankingOptIn, consentVersion: actor.member.rankingConsentVersion };
+      optIn: actor.member.rankingOptIn };
   });
-  const base: OwnRanking = { metric, year, rankingOptIn: before.optIn, rank: null, publicCount: null, score: null };
-  if (!before.optIn) return base;
-  const entries: RankingEntry[] = [], seen = new Set<string>(), cursors = new Set<string>();
-  let cursor: string | null = null;
-  for (let page = 0; page < 12; page++) {
-    withinBudget();
-    const request = { ...ctx.request, action: 'ranking.list', payload: { metric, year, cursor } };
-    const child = new Context(ctx.store, { ...ctx.options, now: () => ctx.now }, request, ctx.identity, ctx.traceId);
-    const result = await listRankings(child);
-    withinBudget();
-    for (const entry of result.items) {
-      requireThat(!seen.has(entry.memberPublicId), 'CONFLICT_REFRESH', '榜单正在变化，请刷新后重新核对');
-      seen.add(entry.memberPublicId); entries.push(entry);
-      requireThat(entries.length <= 200, 'CONFLICT_REFRESH', '榜单超出当前统计范围，请联系负责人核对');
-    }
-    cursor = result.nextCursor;
-    if (!cursor) break;
-    requireThat(!cursors.has(cursor), 'CONFLICT_REFRESH', '榜单正在变化，请刷新后重新核对');
-    cursors.add(cursor);
-  }
-  requireThat(!cursor, 'CONFLICT_REFRESH', '榜单记录正在更新，请刷新后重新核对');
   withinBudget();
+  const board = await rankingBoard(ctx, metric, metric === 'annual' ? year : null);
+  withinBudget();
+  // The identity or profile can change during the scan; never return a rank computed for an older state.
   await ctx.store.transaction(async tx => {
     const actor = await ctx.actor(tx);
     requireThat(actor.member.id === before.memberId && actor.user.id === before.userId && actor.member.publicId === before.publicId
-      && actor.member.rankingOptIn && actor.member.rankingConsentVersion === before.consentVersion && actor.member.revision === before.revision,
-    'CONFLICT_REFRESH', '公开设置或个人资料已更新，请刷新后重新核对');
+      && actor.member.revision === before.revision, 'CONFLICT_REFRESH', '个人资料已更新，请刷新后重新核对');
   });
-  const own = entries.find(entry => entry.memberPublicId === before.publicId);
-  return { ...base, rank: own?.rank ?? null, score: own?.score ?? null, publicCount: entries.length };
+  const index = board.findIndex(row => row.memberPublicId === before.publicId);
+  return { metric, year, rankingOptIn: before.optIn, rank: index >= 0 ? index + 1 : null,
+    score: index >= 0 ? board[index].score : null, publicCount: board.length };
 }
 
 export async function dispatchClubOverview(ctx: Context): Promise<OwnRanking> {

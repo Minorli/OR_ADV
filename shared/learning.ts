@@ -1,7 +1,8 @@
-import { Context, encodeCursor, paginated, parseCursor } from './context';
+import { Context, encodeCursor, paginated, parseCursor, refreshRankings, syncProfileProjections } from './context';
 import { integer, requireThat, text } from './errors';
-import { key } from './models';
+import { key, shanghaiYear } from './models';
 import type { Membership } from './models';
+import { isBasicSkill } from './ranking-board';
 import type { Transaction } from './store';
 import { bindOwnedMemberMedia, requireOwnedMemberMedia } from './member-media';
 import { SKILL_CATALOG } from './learning-content';
@@ -232,6 +233,13 @@ async function ownSkills(ctx: Context) {
     return { items, policyStatus: 'pending' };
   });
 }
+/** Best effort after commit: older annual rows of the same member follow the new visibility too. */
+async function syncBoardRows(ctx: Context, memberId?: string) {
+  try {
+    const id = memberId ?? await ctx.store.transaction(async tx => (await ctx.actor(tx)).member.id);
+    await syncProfileProjections(ctx, id);
+  } catch { ctx.options.log?.({ action: ctx.request.action, code: 'BOARD_SYNC_DEFERRED' }); }
+}
 async function submitSkill(ctx: Context) {
   fields(ctx, ['skillId', 'assetId', 'note']);
   const skill = skillDefinition(ctx.request.payload.skillId);
@@ -251,9 +259,11 @@ async function submitSkill(ctx: Context) {
       reviewedAt: null, reviewedBy: null, reviewReason: '' };
     await tx.set('skill_submissions', id, row);
     await archiveSkill(ctx, tx, row);
+    // Resubmitting a basic item reopens review, so a pass that rested on it is recomputed.
+    if (isBasicSkill(skill.id) && previous?.state === 'approved') await refreshRankings(ctx, tx, actor.member, shanghaiYear(ctx.now), { skillId: skill.id, state: row.state });
     await ctx.audit(tx, actor, 'skill_submission', id, { skillId: skill.id, revision: row.revision, state: row.state });
     return submissionView(row);
-  });
+  }).then(async (view) => { if (isBasicSkill(skill.id)) await syncBoardRows(ctx); return view; });
 }
 async function cancelSkill(ctx: Context) {
   fields(ctx, ['skillId', 'reason']);
@@ -269,9 +279,10 @@ async function cancelSkill(ctx: Context) {
     const updated: SkillSubmission = { ...row, state: 'withdrawn', revision: row.revision + 1, updatedAt: ctx.now };
     await tx.set('skill_submissions', id, updated);
     await archiveSkill(ctx, tx, updated);
+    if (isBasicSkill(skill.id) && row.state === 'approved') await refreshRankings(ctx, tx, actor.member, shanghaiYear(ctx.now), { skillId: skill.id, state: updated.state });
     await ctx.audit(tx, actor, 'skill_submission', id, { state: updated.state, revision: updated.revision }, reason);
     return submissionView(updated);
-  });
+  }).then(async (view) => { if (isBasicSkill(skill.id)) await syncBoardRows(ctx); return view; });
 }
 async function skillQueue(ctx: Context) {
   fields(ctx, ['cursor']);
@@ -311,10 +322,13 @@ async function reviewSkill(ctx: Context) {
       reviewedAt: ctx.now, reviewedBy: actor.user.id, reviewReason: reason };
     await tx.set('skill_submissions', row.id, updated);
     await archiveSkill(ctx, tx, updated);
-    // An evidence review is not a qualification award or a point transaction.
+    if (isBasicSkill(row.skillId)) {
+      const member = await tx.get<Membership>('memberships', row.memberId);
+      if (member?.clubId === ctx.clubId) await refreshRankings(ctx, tx, member, shanghaiYear(ctx.now), { skillId: row.skillId, state: updated.state });
+    }
     await ctx.audit(tx, actor, 'skill_submission', row.id, { skillId: row.skillId, state: updated.state, revision: updated.revision }, reason);
-    return submissionView(updated);
-  });
+    return { view: submissionView(updated), memberId: row.memberId, skillId: row.skillId };
+  }).then(async ({ view, memberId, skillId }) => { if (isBasicSkill(skillId)) await syncBoardRows(ctx, memberId); return view; });
 }
 async function saveReference(ctx: Context) {
   fields(ctx, ['skillId', 'title', 'url', 'verified', 'reason']);

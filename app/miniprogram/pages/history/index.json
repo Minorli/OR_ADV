@@ -1,5 +1,12 @@
 {
   "navigationBarTitleText": "往期活动",
   "enablePullDownRefresh": true,
+  "navigationBarBackgroundColor": "#0a0a0a",
+  "navigationBarTextStyle": "white",
+  "backgroundColor": "#0a0a0a",
+  "backgroundColorTop": "#0a0a0a",
+  "backgroundColorBottom": "#0a0a0a",
+  "backgroundColorContent": "#0a0a0a",
+  "backgroundTextStyle": "light",
   "navigationStyle": "custom"
 }

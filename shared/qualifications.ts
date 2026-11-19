@@ -1,7 +1,8 @@
-import { Context, paginated, parseCursor } from './context';
+import { Context, paginated, parseCursor, refreshRankings, syncProfileProjections } from './context';
 import { requireThat, text } from './errors';
-import { key } from './models';
+import { key, shanghaiYear } from './models';
 import type { Membership, Qualification } from './models';
+import { BASIC_QUALIFICATION } from './ranking-board';
 
 export async function listQualifications(ctx: Context, own = false) {
   const memberId = await ctx.store.transaction(async (tx) => {
@@ -17,7 +18,7 @@ export async function listQualifications(ctx: Context, own = false) {
     expiresAt: row.expiresAt, revision: row.revision ?? 0, reviewedAt: row.reviewedAt ?? null })) };
 }
 export async function reviewQualification(ctx: Context) {
-  return ctx.store.transaction(async (tx) => {
+  const result = await ctx.store.transaction(async (tx) => {
     const actor = await ctx.staff(tx, ['owner','operator']);
     const p = ctx.request.payload;
     const member = await tx.get<Membership>('memberships', text(p.memberId, 'memberId', 100));
@@ -38,7 +39,13 @@ export async function reviewQualification(ctx: Context) {
     const row: Qualification = { id, clubId: ctx.clubId, memberId: member.id, type, decision: p.decision, expiresAt,
       revision: (existing?.revision ?? 0) + 1, reviewedAt: ctx.now, reviewedBy: actor.user.id, reason };
     await tx.set('qualifications', id, row);
+    if (type === BASIC_QUALIFICATION) await refreshRankings(ctx, tx, member, shanghaiYear(ctx.now), { qualification: row });
     await ctx.audit(tx, actor, 'qualification', id, { memberId: member.id, type, decision: row.decision, expiresAt, revision: row.revision }, reason);
     return { id, memberId: member.id, type, decision: row.decision, expiresAt, revision: row.revision, reviewedAt: row.reviewedAt };
   });
+  // Older annual board rows follow the new visibility; the current-year rows were already written above.
+  if (result.type === BASIC_QUALIFICATION) {
+    try { await syncProfileProjections(ctx, result.memberId); } catch { ctx.options.log?.({ action: ctx.request.action, code: 'BOARD_SYNC_DEFERRED' }); }
+  }
+  return result;
 }

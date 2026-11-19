@@ -1,10 +1,10 @@
 <view class="page reference-v2 home-reference" style="padding-top:{{v2Chrome.top}}px">
   <view class="hero" style="margin-top:-{{v2Chrome.top}}px">
     <view wx:for="{{heroSlides}}" wx:key="id" class="slide {{heroCurrent === index ? 'on' : ''}}">
-          <view class="img reference-cover-fallback"><image wx:if="{{!coverErrors[item.cover]}}" class="reference-cover" src="{{item.cover}}" mode="aspectFill" data-src="{{item.cover}}" binderror="coverError"/><view class="reference-hero-shade"></view></view>
+          <view class="img reference-cover-fallback"><image wx:if="{{!coverErrors[item.cover]}}" class="reference-cover hero-fit" src="{{item.cover}}" mode="aspectFill" data-src="{{item.cover}}" binderror="coverError"/><view class="reference-hero-shade"></view></view>
           <view class="cap"><view class="kicker">{{item.kicker}}</view><view class="h2">{{item.title}}</view><view class="p">{{item.caption}}</view></view>
     </view>
-    <view class="bar" style="top:{{v2Chrome.top + 16}}px"><view class="logo i">OR</view></view>
+    <view class="bar" style="top:{{v2Chrome.top + 16}}px"><image class="brand-logo" src="/assets/brand/logo.png" mode="aspectFit"/></view>
     <view class="dots"><view wx:for="{{heroSlides}}" wx:key="id" class="i {{heroCurrent === index ? 'on' : ''}}"></view></view>
   </view>
 
@@ -35,8 +35,7 @@
 
   <view class="sponsor-band">
     <view class="lb"><text class="span">{{partnersTitle || '官方合作伙伴'}}</text><view class="i"></view><button wx:if="{{partnersConfigured}}" class="link a" bindtap="partners">了解合作 ›</button></view>
-    <scroll-view wx:if="{{partners.length}}" scroll-x class="reference-partner-scroll" show-scrollbar="{{false}}"><view class="marquee"><view wx:for="{{partnerLoop}}" wx:key="id" class="sp {{index % 2 === 0 ? 'o' : ''}}" bindtap="partners">{{item.heading}}</view></view></scroll-view>
-    <view wx:else class="reference-partners-empty">{{partnersError ? '合作信息暂时无法显示' : '合作伙伴信息待公布'}}<button wx:if="{{partnersError}}" class="link a" bindtap="retryPartners">重试</button></view>
+    <scroll-view scroll-x class="reference-partner-scroll" show-scrollbar="{{false}}"><view class="marquee sponsor-logos"><view wx:for="{{sponsorLogos}}" wx:key="id" class="sp"><image class="sponsor-logo" src="{{item.src}}" mode="aspectFit"/></view></view></scroll-view>
   </view>
 
   <view class="reference-home-extra">

@@ -122,17 +122,21 @@ test('points only follow full verification; concurrent settlement and reversal a
   assert.equal(corrected.items.length, 2);
 });
 
-test('ranking consent is separate and withdrawal removes existing public projection', async () => {
+test('the points board requires login and a passed basic assessment', async () => {
   const ctx = setup();
+  error(await ctx.call('ranking.list', {}, null), 'UNAUTHENTICATED');
   const member = data(await ctx.call('identity.ensure', {}, DEMO_IDENTITIES.member));
-  assert.equal(data(await ctx.call('ranking.list', {})).items.length, 0);
+  assert.equal(data(await ctx.call('ranking.list', {}, DEMO_IDENTITIES.member)).items.length, 0);
   const updated = data(await ctx.call('profile.update', { nickname: '自愿公开', rankingOptIn: true, rankingConsentVersion: 1 }, DEMO_IDENTITIES.member, member.revision));
-  const rows = data(await ctx.call('ranking.list', {})).items;
+  assert.equal(data(await ctx.call('ranking.list', {}, DEMO_IDENTITIES.member)).items.length, 0);
+  data(await ctx.call('staff.qualification.review', { memberId: member.id, type: 'basic_control', decision: 'approved', reason: '基础控车考核通过' }, DEMO_IDENTITIES.owner, 0));
+  const rows = data(await ctx.call('ranking.list', {}, DEMO_IDENTITIES.member)).items;
   assert.equal(rows.length, 1);
   assert.equal(rows[0].nickname, '自愿公开');
+  assert.equal(rows[0].rank, 1);
   assert.equal(JSON.stringify(rows).includes(DEMO_IDENTITIES.member.openId), false);
   data(await ctx.call('profile.update', { rankingOptIn: false }, DEMO_IDENTITIES.member, updated.revision));
-  assert.equal(data(await ctx.call('ranking.list', {})).items.length, 0);
+  assert.equal(data(await ctx.call('ranking.list', {}, DEMO_IDENTITIES.member)).items.length, 1);
 });
 
 test('private deterministic keys use correct SHA256 and never contain raw identity', () => {
@@ -370,25 +374,28 @@ test('cancellation racing with departure cannot release an occupied on-site seat
   assert.equal(data<Activity>(await ctx.call('activity.get', { activityId: activity.id })).reservedSeats, 1);
 });
 
-test('tie ranks remain stable over cursors, and withdrawn members disappear on later pages', async () => {
+test('equal scores sort by nickname and a failed basic assessment leaves the later page', async () => {
   const ctx = setup();
   for (let index = 0; index < 25; index++) {
     const identity = { appId: 'demo-app', openId: `rank-${index}` };
     const member = data(await ctx.call('identity.ensure', { nickname: `榜单成员${index}`, consentVersions: { privacy: 1, terms: 1 } }, identity));
-    data(await ctx.call('profile.update', { rankingOptIn: true, rankingConsentVersion: 1 }, identity, member.revision));
+    data(await ctx.call('staff.qualification.review', { memberId: member.id, type: 'basic_control', decision: 'approved', reason: '基础控车考核通过' }, DEMO_IDENTITIES.owner, 0));
   }
-  const first = data(await ctx.call('ranking.list', {}));
+  const first = data(await ctx.call('ranking.list', {}, DEMO_IDENTITIES.member));
   assert.equal(first.items.length, 20);
   assert.ok(first.nextCursor);
-  const second = data(await ctx.call('ranking.list', { cursor: first.nextCursor }));
+  const second = data(await ctx.call('ranking.list', { cursor: first.nextCursor }, DEMO_IDENTITIES.member));
   assert.equal(second.items.length, 5);
-  assert.ok([...first.items,...second.items].every((row: any) => row.rank === 1));
-  assert.equal(new Set([...first.items,...second.items].map((row: any) => row.memberPublicId)).size, 25);
+  const all = [...first.items, ...second.items];
+  assert.deepEqual(all.map((row: { rank: number }) => row.rank), Array.from({ length: 25 }, (_, index) => index + 1));
+  const names = all.map((row: { nickname: string }) => row.nickname);
+  assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b, 'zh') || a.localeCompare(b)));
+  assert.equal(new Set(all.map((row: { memberPublicId: string }) => row.memberPublicId)).size, 25);
   const identity = { appId: 'demo-app', openId: 'rank-0' };
   const me = data(await ctx.call('identity.me', {}, identity));
-  data(await ctx.call('profile.update', { rankingOptIn: false }, identity, me.revision));
-  const rows = data(await ctx.call('ranking.list', {}));
-  const remainder = data(await ctx.call('ranking.list', { cursor: rows.nextCursor }));
+  data(await ctx.call('staff.qualification.review', { memberId: me.id, type: 'basic_control', decision: 'rejected', reason: '复核未通过' }, DEMO_IDENTITIES.owner, 1));
+  const rows = data(await ctx.call('ranking.list', {}, DEMO_IDENTITIES.member));
+  const remainder = data(await ctx.call('ranking.list', { cursor: rows.nextCursor }, DEMO_IDENTITIES.member));
   assert.equal(rows.items.length + remainder.items.length, 24);
 });
 

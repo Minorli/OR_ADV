@@ -60,8 +60,7 @@ export function dossierMediaIds(draft: DossierDraft): string[] {
 }
 function complete(draft: DossierDraft) {
   requireThat(draft.riderName && draft.ridingExperience && draft.contactValue, 'INVALID_INPUT', '请补全骑手称呼、骑行经历和联系方式');
-  requireThat(DOSSIER_GEAR.every(name => draft.gear[name]), 'INVALID_INPUT', '请补全四类护具照片');
-  requireThat(draft.bikes.length >= 1 && draft.bikes.every(b => b.brand && b.model && b.photoAssetId && b.tireAssetId), 'INVALID_INPUT', '请填写至少一辆车的品牌、车型、车辆照片和轮胎照片');
+  requireThat(draft.bikes.length >= 1 && draft.bikes.every(b => b.brand && b.model && b.year && typeof b.odometerKm === 'number'), 'INVALID_INPUT', '请填写至少一辆车的品牌、车型、年份和里程');
   if (draft.emergencyContact) requireThat(draft.emergencyContact.name && draft.emergencyContact.phone && draft.emergencyContact.relationship,
     'INVALID_INPUT', '请补全紧急联系人，或关闭此可选项');
 }

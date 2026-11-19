@@ -64,7 +64,7 @@ test('platform-enriched requests reach public pages, consented login and private
     userInfo: metadata,
   });
   for (const [action, payload] of [
-    ['activity.list', {}], ['club.public', {}], ['ranking.list', { metric: 'growth' }],
+    ['activity.list', {}], ['club.public', {}],
     ['club.content.get', { section: 'handbook' }], ['learning.catalog', {}],
   ] as const) {
     const result = await call(action, payload);
@@ -78,6 +78,8 @@ test('platform-enriched requests reach public pages, consented login and private
   const me = await call('identity.me');
   assert.equal(me.ok, true);
   if (me.ok) assert.equal((me.data as MemberSummary).id, member.id);
+  const board = await call('ranking.list', { metric: 'growth' });
+  assert.equal(board.ok, true, JSON.stringify(board));
   for (const action of ['dossier.mine', 'skills.mine', 'learning.mine', 'registration.mine', 'points.mine']) {
     const result = await call(action);
     assert.equal(result.ok, true, `${action}: ${JSON.stringify(result)}`);

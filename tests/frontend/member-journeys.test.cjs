@@ -117,22 +117,24 @@ test('member pages distinguish founder participation, manual confirmation, priva
   assert.equal(recommended.items[0].completedCount, undefined);
 
   api.switchMockRole('founder'); await profile.load(); await profile.recommendation();
+  recommended = await api.call('recommendation.list');
+  assert.equal(recommended.items.length, 2);
+  assert.equal(recommended.items[0].memberKind, 'founder');
   const club = capture('ranking/index'); await club.load();
-  assert.equal(club.data.mode, 'recommended');
-  assert.equal(club.data.recommendations.length, 2);
-  assert.equal(club.data.recommendations[0].memberKind, 'founder');
+  assert.equal(club.data.signedIn, true);
   assert.equal(club.data.items.length, 0, 'recommendation opt-in has not joined the actual points leaderboard');
   const ownFounder = await api.currentMember();
   assert.equal(ownFounder.id, founderId);
   await profile.recommendation(); await club.load();
-  assert.equal(club.data.recommendations.length, 1, 'recommendation withdrawal removes entry');
+  recommended = await api.call('recommendation.list');
+  assert.equal(recommended.items.length, 1, 'recommendation withdrawal removes entry');
   assert.equal((await api.currentMember()).memberKind, 'founder', 'withdrawal leaves member identity intact');
   api.switchMockRole('member');
   assert.equal((await api.currentMember()).id, memberId);
-  await profile.load(); await profile.rankingConsent();
-  assert.equal(profile.data.member.rankingOptIn, true);
+  await profile.load();
+  assert.equal(profile.data.member.rankingOptIn, false);
   recommended = await api.call('recommendation.list');
-  assert.equal(recommended.items[0].growthPoints, 0, 'points become public only after separate consent');
+  assert.equal(recommended.items[0].growthPoints, undefined, 'recommendation display does not publish points by itself');
 
   api.switchMockRole('owner');
   let small = await api.call('staff.activity.save', {

@@ -19,15 +19,17 @@ export interface ProfileOverview {
 /** Only progress is needed on the profile page; contacts and asset IDs stay out. */
 export function profileDossierProgress(dossier: MemberDossier | null): ProfileDossierProgress {
   const draft = dossier?.draft ?? emptyDossierDraft(), bikes = draft.bikes;
-  const ready = [draft.riderName, draft.ridingExperience, draft.contactValue, ...Object.values(draft.gear),
-    ...bikes.flatMap(bike => [bike.brand, bike.model, bike.photoAssetId, bike.tireAssetId])].filter(Boolean).length;
+  const filled = (pick: (bike: typeof bikes[number]) => boolean) => bikes.length > 0 && bikes.every(pick);
+  const parts = [
+    { name: '称呼', ready: !!draft.riderName }, { name: '联系方式', ready: !!draft.contactValue }, { name: '骑行经历', ready: !!draft.ridingExperience },
+    { name: '品牌', ready: filled(bike => !!bike.brand) }, { name: '车型', ready: filled(bike => !!bike.model) },
+    { name: '年份', ready: filled(bike => !!bike.year) }, { name: '里程', ready: filled(bike => typeof bike.odometerKm === 'number') },
+  ];
   const statuses = { draft: '骑手资料待准备', pending: '骑手资料等待审核', approved: '本次骑手资料已通过', returned: '骑手资料需补充' };
   const state = dossier?.status ?? 'draft';
-  return { status: statuses[state], ready, total: 7 + Math.max(1, bikes.length) * 4,
+  return { status: statuses[state], ready: parts.filter(part => part.ready).length, total: parts.length,
     note: state === 'returned' ? dossier?.review?.reason || '请查看主理人的补充说明。'
       : state === 'pending' ? `已提交第 ${dossier?.submission?.submissionRevision} 版，等待主理人核对。`
-      : state === 'approved' ? '仅适用于本次提交资料；修改后需重新审核。' : '填写称呼与联络办法，准备护具、车辆及轮胎照片。',
-    parts: [{ name: '头盔', ready: !!draft.gear.helmet }, { name: '护甲', ready: !!draft.gear.armor },
-      { name: '护膝', ready: !!draft.gear.knee }, { name: '靴子', ready: !!draft.gear.boots },
-      { name: `车辆 ${bikes.length}`, ready: bikes.length > 0 }, { name: '轮胎', ready: bikes.length > 0 && bikes.every(bike => !!bike.tireAssetId) }] };
+      : state === 'approved' ? '仅适用于本次提交资料；修改后需重新审核。' : '填写称呼、联系方式、骑行经历，以及车辆品牌、车型、年份和里程。照片选填。',
+    parts };
 }

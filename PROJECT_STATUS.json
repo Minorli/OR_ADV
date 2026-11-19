@@ -1,7 +1,7 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.5.0-test.1",
-  "asOf": "2026-10-16",
+  "version": "0.5.0-test.3",
+  "asOf": "2026-11-19",
   "product": "OriginalRally原始拉力",
   "repository": {
     "url": "https://github.com/Minorli/OR_ADV",
@@ -19,7 +19,7 @@
     "verifiedInConsole": false
   },
   "appIdConfiguredLocally": true,
-  "testEnvironment": "same_environment_upgraded_to_standard_by_administrator_and_structure_verified_2026-10-16",
+  "testEnvironment": "personal_baas_local_config_only_created_2026-11-18_schema_and_function_verified",
   "nativeAppImplemented": true,
   "backendImplemented": true,
   "backendDeployed": true,
@@ -67,7 +67,7 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.5.0-test.1",
+    "sourceVersion": "0.5.0-test.3",
     "typecheck": "passed",
     "domainTests": "included_in_typescriptTests",
     "cloudTests": "included_in_typescriptTests",
@@ -205,9 +205,11 @@
     "region": "ap-shanghai",
     "environmentStatus": "NORMAL",
     "databaseStatus": "RUNNING",
-    "packageLabel": "standard_baas_pf_standard",
+    "envId": "local_config_only",
+    "packageLabel": "personal_baas_personal",
     "databaseRulesApplied": true,
-    "storageRulesApplied": true,
+    "databaseAcl": "ADMINONLY",
+    "storageRulesApplied": false,
     "functionDeploymentVerified": true,
     "cloudCliAuthorization": "administrator_device_authorization_verified",
     "wechatManagementQueries": "rejected_invalid_cloud_api_action",
@@ -218,11 +220,11 @@
     "collectionsVerified": 32,
     "indexDefinitionsVerified": 36,
     "deployedFunctions": 1,
-    "storageAcl": "CUSTOM_deny_read_write",
-    "storageRuleBlocker": null,
-    "paidUpgradeByAdministrator": "verified_same_environment",
+    "storageAcl": "READONLY",
+    "storageRuleBlocker": "ModifyStorageSafeRule refused while PostgreSQL resource exists",
+    "paidUpgradeByAdministrator": "new_personal_environment_2026-11-18",
     "initializationTests": 11,
-    "packageExpiresAtPlatform": "2026-11-16 23:59:59",
+    "packageExpiresAtPlatform": "2026-12-18 23:59:59",
     "automaticRenewal": true,
     "overrunEnabled": true,
     "monthlyBasePriceReferenceCNY": 199,
@@ -234,7 +236,22 @@
     "functionTimeoutSeconds": 30,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "5a90d4919770065e2109ace615079bbee13db62fd478022e29b8050f0edbda7e",
+    "functionBackendSha256": "2936f0299322550b50977932861072fdb7747f40f74dc66fd59144784449fcdd",
+    "currentFunction": {
+      "envId": "local_config_only",
+      "deployedOn": "2026-11-19",
+      "action": "update",
+      "diagnosticBuild": "native-envelope-20261119.1",
+      "backendSha256": "2936f0299322550b50977932861072fdb7747f40f74dc66fd59144784449fcdd",
+      "remoteZipBytes": 9016772,
+      "remoteZipSha256": "dc22ac83cfd3029f558aa542e03a45a60fda4c3cf795c288b73a22f0932f007c",
+      "wxAppIdAssociatedOnTencentSide": true,
+      "phoneCloudCallVerified": false,
+      "businessRecordsPresent": false,
+      "documentDatabase": "PostgreSQL_DocumentExt",
+      "walletSchemaV4V5Applied": true,
+      "syntheticReadonlyRpcVerified": 7
+    },
     "nativeEventCompatibility": {
       "fixed": "discard_observed_userInfo_and_tcbContext_before_domain",
       "trustedIdentity": "SDK_context_only",
@@ -270,12 +287,15 @@
       "temporaryProbeDeleted": true
     },
     "initialBusinessRecords": 0,
-    "businessRecordsPresent": true
+    "businessRecordsPresent": false
   },
   "developmentUpload": {
     "status": "officially_compiled_and_uploaded",
-    "version": "0.5.0-test.1",
+    "version": "0.5.0-test.3",
     "mode": "cloud",
+    "uploadedOn": "2026-11-19",
+    "envId": "local_config_only",
+    "zipBufferBytes": 1717233,
     "formalReviewSubmitted": false,
     "published": false,
     "experienceSelectionByVersionManager": "officially_read_back_0.5.0-test.1"
@@ -512,8 +532,8 @@
     "requireActualVersionReadback": true,
     "mustReportEffectiveVersion": true,
     "developmentUploadIsNotExperienceRelease": true,
-    "sourceVersion": "0.5.0-test.1",
-    "developmentVersion": "0.5.0-test.1",
+    "sourceVersion": "0.5.0-test.3",
+    "developmentVersion": "0.5.0-test.3",
     "effectiveExperienceVersion": "0.5.0-test.1",
     "effectiveOnlineVersion": null
   },
@@ -546,7 +566,7 @@
       "writes": 0
     },
     "backendIndependentReview": "passed_no_high_or_critical",
-    "backendBuildCandidate": "native-envelope-20261016.11",
+    "backendBuildCandidate": "native-envelope-20261119.1",
     "componentBrowserStates": 39,
     "componentBrowserUiEvents": 52,
     "componentBrowserScreenshots": 95,

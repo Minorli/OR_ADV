@@ -54,11 +54,13 @@ test('native modules open with populated local demonstrations and reset without 
 
   const club = page('ranking/index'); await club.load();
   assert.equal(club.data.error, '');
-  assert(club.data.items.length > 0, 'points leaderboard is ready to inspect');
-  assert(club.data.recommendations.length > 0, 'club recommendations are ready to inspect');
-  assert.equal(club.data.recommendations[0].memberKind, 'founder');
+  assert.equal(club.data.signedIn, false);
+  assert.equal(club.data.items.length, 0, 'guests cannot inspect the points leaderboard');
 
   api.switchMockRole('member');
+  await club.load();
+  assert.equal(club.data.signedIn, true);
+  assert(club.data.items.length > 0, 'points leaderboard is ready to inspect');
   const mine = page('mine/index'); await mine.load();
   assert.equal(mine.data.error, '');
   assert(mine.data.items.some(item => item.activityId === 'history-ride' && item.state === 'completed'));

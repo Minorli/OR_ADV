@@ -12,6 +12,8 @@ export interface Activity extends ActivityDisplayFields {
   minGrowthPoints: number; requiredQualifications: string[]; requiresReview: boolean;
   ruleVersion: number; revision: number; pointsRule: { growth: number; annual: number; redeemable?: number; walletPolicyVersion?: number };
   nextQueueSeq: number; actualCompletedAt: string | null; fixtureOnly?: boolean;
+  /** Recorded afterwards by the owner; never opened for registration. */
+  backfill?: boolean;
   safetyNotice: string; equipment: string;
   waitlistCount?: number;
   actualStartedAt?: string | null;
@@ -82,7 +84,7 @@ export interface LedgerEntry {
 }
 export interface RankingEntry {
   memberPublicId: string; nickname: string; score: number; rank: number;
-  completedCount: number;
+  completedCount: number; certifiedRider?: boolean;
 }
 export interface PageResult<T> { items: T[]; nextCursor: string | null }
 export interface PointsResult {

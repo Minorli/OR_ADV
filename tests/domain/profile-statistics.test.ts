@@ -14,15 +14,15 @@ function setup() {
   const serviceFor = (backing: Store = store) => createService(backing, { now: () => NOW });
   const call = (action: string, payload: Record<string, unknown> = {}, revision?: number, backing: Store = store) => serviceFor(backing).handle({ action, payload, expectedRevision: revision, clubId: 'oradv', requestId: `profile-statistics-${++n}` }, DEMO_IDENTITIES.member);
   const optIn = async () => { const who = data(await call('identity.me')); return data(await call('profile.update', { rankingOptIn: true, rankingConsentVersion: 1 }, who.revision)); };
-  return { store, call, optIn };
+  const owner = (action: string, payload: Record<string, unknown> = {}, revision?: number) => createService(store, { now: () => NOW }).handle({ action, payload, expectedRevision: revision, clubId: 'oradv', requestId: `profile-owner-${++n}` }, DEMO_IDENTITIES.owner);
+  return { store, call, optIn, owner };
 }
 function data(result: any): any { assert(result.ok, JSON.stringify(result)); return result.data; }
 
-test('profile uses persisted joining time and unknown actual distance, and never scans a nonconsenting member ranking', async () => {
+test('profile uses persisted joining time and unknown actual distance, and reads the live board after login', async () => {
   const env = setup(), member = env.store.snapshot().memberships[mid] as Membership;
-  const backing: Store = { transaction: env.store.transaction.bind(env.store), async query(collection, filters, options) { assert.notEqual(collection, 'public_rankings'); return env.store.query(collection, filters, options); } };
-  const before = env.store.snapshot(), overview = data(await env.call('profile.overview', {}, undefined, backing));
-  assert.equal(overview.statistics.joinedAt, member.createdAt); assert.equal(overview.statistics.rank, null); assert.equal(overview.statistics.rankedMembers, null);
+  const before = env.store.snapshot(), overview = data(await env.call('profile.overview'));
+  assert.equal(overview.statistics.joinedAt, member.createdAt); assert.equal(overview.statistics.rank, null); assert.equal(overview.statistics.rankedMembers, 0);
   assert.equal(overview.statistics.distanceKm, null); assert.equal(overview.statistics.distanceStatus, 'unrecorded'); assert.equal(overview.statisticsError, '');
   assert.deepEqual(env.store.snapshot(), before);
 });
@@ -58,7 +58,10 @@ test('identity disabled during the optional rank read fails closed, while consen
 });
 
 test('optional ranking budget stops before another page without weakening the complete ranking endpoint', async () => {
-  const env = setup(); await env.optIn(); let queries = 0;
+  const env = setup();
+  const who = data(await env.call('identity.me'));
+  data(await env.owner('staff.qualification.review', { memberId: who.id, type: 'basic_control', decision: 'approved', reason: '基础控车考核通过' }, 0));
+  await env.optIn(); let queries = 0;
   const backing: Store = { transaction: env.store.transaction.bind(env.store), async query(collection, filters, options) { queries++; return env.store.query(collection, filters, options); } };
   const ctx = new Context(backing, { now: () => NOW }, { action: 'ranking.mine', clubId: 'oradv', payload: {}, requestId: 'budget-rank' }, DEMO_IDENTITIES.member);
   await assert.rejects(ownRanking(ctx, { deadlineMs: Date.now() - 1 }), { code: 'TEMPORARY_FAILURE' }); assert.equal(queries, 0);

@@ -122,6 +122,12 @@ Page({
     if (['reason', 'expiryDate', 'priority', 'qualificationType', 'qualificationDate', 'roleExpiryDate'].includes(name)) this.setData({ [name]: event.detail.value });
   },
   clearExpiry() { this.setData({ expiryDate: '' }); },
+  pickQualificationType(event: WechatMiniprogram.TouchEvent) {
+    if (this.data.busy) return;
+    const type = String(event.currentTarget.dataset.type || '');
+    const current = this.data.qualifications.find(row => row.type === type);
+    this.setData({ qualificationType: type, qualificationDate: current?.expiresAt?.slice(0, 10) || '', qualificationRevision: current?.revision ?? 0 });
+  },
   clearRoleExpiry() { this.setData({ roleExpiryDate: '' }); },
   async refreshSelected() {
     const selected = this.data.selected, fence = this.fence();

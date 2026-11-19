@@ -29,9 +29,8 @@ export async function profileOverview(ctx: Context): Promise<ProfileOverview> {
   let statistics: ProfileStatistics | null = viewer ? { joinedAt: Number.isFinite(Date.parse(viewer.joinedAt)) ? viewer.joinedAt : null,
     rank: null, rankedMembers: null, distanceKm: null, distanceStatus: 'unrecorded' } : null;
   let statisticsError = '';
-  // No opt-in means no scan. This optional calculation uses the exact public
-  // ranking algorithm and never starts additional client identity requests.
-  const rankRead = viewer?.member.rankingOptIn ? ownRanking(new Context(ctx.store, { ...ctx.options, now: () => ctx.now },
+  // Logged-in members read the same public board. Guests never reach this scan.
+  const rankRead = viewer ? ownRanking(new Context(ctx.store, { ...ctx.options, now: () => ctx.now },
     { ...ctx.request, action: 'ranking.mine', payload: { metric: 'growth' } }, ctx.identity, ctx.traceId), { deadlineMs: Date.now() + 2000 })
     .then(value => { if (statistics) statistics = { ...statistics, rank: value.rank, rankedMembers: value.publicCount }; },
       () => { statisticsError = '排名暂时无法显示，请稍后刷新'; }) : Promise.resolve();

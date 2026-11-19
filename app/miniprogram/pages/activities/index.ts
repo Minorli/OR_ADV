@@ -17,10 +17,13 @@ function referenceActivity(activity: Activity) {
 }
 Page({
   data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, items: [] as ReturnType<typeof referenceActivity>[], displayItems: [] as ReturnType<typeof referenceActivity>[], heroCurrent: 0, coverErrors: {} as Record<string, boolean>, heroSlides: [
-    { id: 'together', cover: '/assets/covers/v2-1.jpg', kicker: 'OR · ORIGINAL RALLY', title: '一个人骑很快\n一群人走很远', caption: 'Ride Together, Ride Far.' },
-    { id: 'ready', cover: '/assets/covers/dunes.jpg', kicker: 'SLOGAN', title: '从库布齐的沙\n到贺兰山的风', caption: '下一段路，和车友一起出发' },
-    { id: 'record', cover: '/assets/covers/v2-3.jpg', kicker: 'BROTHERHOOD', title: '轮胎丈量\n最野的中国', caption: '每一次同行，都留下自己的足迹' },
-    { id: 'practice', cover: '/assets/covers/v2-4.jpg', kicker: 'ORIGINAL RALLY', title: '去穿越\n只为更远的路', caption: 'OR · ADV 探险拉力俱乐部' },
+    { id: 'road', cover: '/assets/hero/road.jpg', kicker: 'ORIGINAL RALLY', title: '不赶路，感受路', caption: '原创开荒线路，每一步探险都是首发' },
+    { id: 'together', cover: '/assets/hero/together.jpg', kicker: 'ORIGINAL RALLY', title: '独行虽速，忠行致远', caption: '严苛准入，但我们不抛弃、不放弃' },
+    { id: 'craft', cover: '/assets/hero/craft.jpg', kicker: 'ORIGINAL RALLY', title: '把热爱，交给最专业的同路人', caption: '金牌技师・冠军车手・顶级影像全程护航' },
+    { id: 'real', cover: '/assets/hero/real.jpg', kicker: 'ORIGINAL RALLY', title: '无剧本，只有一往无前的真实', caption: '全年全地形全气候，只做硬核本色穿越' },
+  ], sponsorLogos: [
+    { id: 'og', src: '/assets/sponsors/og.png' }, { id: 'cardo', src: '/assets/sponsors/cardo.png' }, { id: 'simpson', src: '/assets/sponsors/simpson.png' },
+    { id: 'shuodong', src: '/assets/sponsors/shuodong.png' }, { id: 'juemiao', src: '/assets/sponsors/juemiao.png' }, { id: 'fox', src: '/assets/sponsors/fox.png' }, { id: 'percent', src: '/assets/sponsors/percent.png' },
   ], member: null as MemberSummary | null, kindLabel: '游客', nextTrip: null as NextTrip | null,
     partners: [] as { heading: string; introduction: string }[], partnerLoop: [] as { id: number; heading: string }[], partnersTitle: '', partnersIntroduction: '', partnersConfigured: false,
     partnersError: '', personalError: '', loading: false, requestVersion: 0, error: '', filter: 'all', nextCursor: null as string | null, filters: [{ value: 'all', label: '全部活动' }, { value: 'published', label: '正在招募' }, { value: 'in_progress', label: '正在同行' }, { value: 'settled', label: '往期记录' }] },

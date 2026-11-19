@@ -6,7 +6,7 @@ import type { Transaction } from './store';
 import { BETA_MAX_CAPACITY } from './limits';
 import { awardActivityWallet, reverseActivityWallet } from './points-wallet';
 
-async function applyStats(ctx: Context, tx: Transaction, entry: LedgerEntry) {
+export async function applyStats(ctx: Context, tx: Transaction, entry: LedgerEntry) {
   for (const scope of ['growth','year'] as const) {
     const year = scope === 'growth' ? null : entry.year;
     const id = statsIdFor(ctx.clubId, entry.memberId, year);
@@ -142,29 +142,47 @@ export async function ownPoints(ctx: Context) {
   return { memberId: summary.id, growthPoints: summary.growthPoints, annualPoints: summary.annualPoints, completedCount: summary.completedCount, year, ...page, items };
 }
 
-export async function listRankings(ctx: Context) {
+export type RankingMetric = 'growth' | 'annual' | 'completed_count';
+export type BoardRow = PublicRanking & { visible?: boolean; visibleUntil?: string | null; certifiedRider?: boolean };
+/** One read of the whole board (≤200 members). Ties are ordered by nickname, then public ID; ranks are sequential. */
+export async function rankingBoard(ctx: Context, metric: RankingMetric, year: number | null): Promise<BoardRow[]> {
+  const rows = await collect<BoardRow>(ctx.store, 'public_rankings', { clubId: ctx.clubId, metric, year, visible: true });
+  return rows.filter(row => row.visible === true && (!row.visibleUntil || row.visibleUntil > ctx.now))
+    .sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname, 'zh') || a.memberPublicId.localeCompare(b.memberPublicId));
+}
+export function rankingQuery(ctx: Context) {
   const selected = ctx.request.payload.metric ?? 'growth';
-  const metric = selected === 'completed' ? 'completed_count' : selected;
+  const metric = (selected === 'completed' ? 'completed_count' : selected) as RankingMetric;
   requireThat(['growth','annual','completed_count'].includes(String(metric)), 'INVALID_INPUT', '榜单维度不正确');
   const year = metric === 'annual' ? integer(ctx.request.payload.year ?? shanghaiYear(ctx.now), '年份', 2000) : null;
+  requireThat(year === null || year <= 2200, 'INVALID_INPUT', '年份不正确');
+  return { metric, year };
+}
+
+export async function listRankings(ctx: Context) {
+  const { metric, year } = rankingQuery(ctx);
+  // Guests cannot read the board.
+  await ctx.store.transaction(async (tx) => { await ctx.actor(tx); });
+  const ranked = await rankingBoard(ctx, metric, year);
   const cursor = parseCursor(ctx.request.payload.cursor);
-  const rows = await ctx.store.query<PublicRanking>('public_rankings', { clubId: ctx.clubId, metric, year, visible: true }, { orderBy: 'score', direction: 'desc', limit: 21, after: cursor });
-  const candidates = rows.slice(0, 20);
-  const items = await ctx.store.transaction(async (tx) => {
-    const result = [];
-    let offset = cursor?.offset ?? 0, previousScore = cursor?.score, previousRank = cursor?.rank ?? 0;
-    for (const row of candidates) {
+  const offset = cursor?.offset ?? 0;
+  if (cursor) requireThat(Number.isInteger(offset) && offset >= 0 && offset <= 1000, 'INVALID_INPUT', '分页游标不正确');
+  const slice = ranked.slice(offset, offset + 20);
+  // The projection may lag a deletion or an account change made elsewhere; re-check each displayed person live.
+  const allowedIds = await ctx.store.transaction(async (tx) => {
+    const allowed: string[] = [];
+    for (const row of slice) {
       const member = await tx.get<Membership>('memberships', row.memberId);
-      if (!member?.rankingOptIn || member.rankingConsentVersion !== row.consentVersion) continue;
+      if (member?.clubId !== ctx.clubId || member.publicId !== row.memberPublicId) continue;
       const user = await tx.get<User>('users', member.userId);
-      if (user?.status !== 'active') continue;
-      offset++;
-      const rank = previousScore === row.score ? previousRank : offset;
-      result.push({ memberPublicId: member.publicId, nickname: member.nickname, score: row.score, rank, completedCount: row.completedCount });
-      previousScore = row.score; previousRank = rank;
+      if (user?.status === 'active') allowed.push(row.id);
     }
-    return result;
+    return allowed;
   });
-  const last = candidates[candidates.length - 1], lastPublic = items[items.length - 1];
-  return { items, nextCursor: rows.length > 20 && last ? encodeCursor({ value: last.score, id: last.id, offset: (cursor?.offset ?? 0) + items.length, score: lastPublic?.score, rank: lastPublic?.rank }) : null };
+  const live = new Set(allowedIds);
+  const page = slice.map((row, index) => ({ row, rank: offset + index + 1 })).filter(({ row }) => live.has(row.id))
+    .map(({ row, rank }) => ({ memberPublicId: row.memberPublicId, nickname: row.nickname, score: row.score, rank,
+      completedCount: row.completedCount, certifiedRider: row.certifiedRider === true }));
+  const next = offset + 20;
+  return { items: page, nextCursor: next < ranked.length ? encodeCursor({ value: next, id: String(next), offset: next }) : null };
 }

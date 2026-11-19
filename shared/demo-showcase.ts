@@ -41,6 +41,7 @@ export function showcaseSnapshot(referenceNow = new Date().toISOString()): Store
       recommendationOptIn, recommendationConsentVersion: recommendationOptIn ? 1 : 0,
       recommendationPriority: index === 1 ? 900 : index === 6 ? 300 : 10,
       memberKind: founder ? 'founder' : 'regular', memberKindVersion: founder ? 1 : 0,
+      certifiedRider: index === 6,
       memberKindExpiresAt: index === 21 ? iso(time - DAY) : null, revision: 1,
       ...(index === 20 ? { kindRequestStatus: 'pending', kindRequestedAt: iso(time - HOUR), kindRequestReason: '演示：申请按既有成员资料核对身份' } : {}),
       createdAt: iso(time - 120 * DAY), updatedAt: now });
@@ -195,7 +196,7 @@ export function showcaseSnapshot(referenceNow = new Date().toISOString()): Store
         put<PublicRanking & { visible: boolean }>('public_rankings', { id, clubId: 'oradv', memberId: member.id,
           memberPublicId: member.publicId, nickname: member.nickname, metric, year,
           score: metric === 'growth' ? growth?.points ?? 0 : metric === 'annual' ? annual?.points ?? 0 : growth?.completedCount ?? 0,
-          completedCount: growth?.completedCount ?? 0, consentVersion: member.rankingConsentVersion, visible: member.rankingOptIn });
+          completedCount: growth?.completedCount ?? 0, consentVersion: member.rankingConsentVersion, visible: member.rankingOptIn, certifiedRider: member.certifiedRider === true });
       }
     }
     const id = key('recommendation', 'oradv', member.id);
@@ -208,6 +209,12 @@ export function showcaseSnapshot(referenceNow = new Date().toISOString()): Store
     put<Qualification>('qualifications', { id, clubId: 'oradv', memberId: members[index].id, type: 'advanced_offroad', decision, expiresAt,
       revision: 1, ...(decision === 'pending' ? {} : { reviewedAt: iso(time - 10 * DAY), reviewedBy: owner }),
       reason: decision === 'pending' ? '演示：等待领队核对' : '演示：依据虚构技能核验记录填写' });
+  }
+  for (const member of members) {
+    if (!member.rankingOptIn) continue;
+    const id = key('qualification', 'oradv', member.id, 'basic_control');
+    put<Qualification>('qualifications', { id, clubId: 'oradv', memberId: member.id, type: 'basic_control', decision: 'approved', expiresAt: null,
+      revision: 1, reviewedAt: iso(time - 10 * DAY), reviewedBy: owner, reason: '演示：基础控车考核已通过' });
   }
   for (const activityId of ['intro-ride', 'day-trip', 'full-ride', 'ongoing-ride', 'settlement-ride', 'history-ride']) {
     const activity = seed.activities[activityId] as Activity;

@@ -159,7 +159,7 @@
     },
     {
       "action": "ranking.list",
-      "authorization": "public",
+      "authorization": "member_self",
       "input": [
         "metric",
         "year",
@@ -1465,6 +1465,66 @@
       ],
       "businessIdempotency": false,
       "bounds": "At most 100 settled activity metadata rows per request, two content readers, cursor bound to club/month/query. No unpublished story, private media, unconsented honor or inactive author. reviews.total=null when more candidates remain."
+    },
+    {
+      "action": "staff.member.certify",
+      "authorization": "owner",
+      "input": [
+        "memberPublicId",
+        "certified",
+        "reason"
+      ],
+      "output": [
+        "memberPublicId",
+        "certifiedRider",
+        "revision"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "staff.activity.backfill",
+      "authorization": "owner",
+      "input": [
+        "title",
+        "description",
+        "location",
+        "startAt",
+        "endAt",
+        "actualCompletedAt",
+        "growth",
+        "annual",
+        "coverKey",
+        "distanceKm"
+      ],
+      "output": [
+        "id",
+        "title",
+        "revision",
+        "growth",
+        "annual",
+        "actualCompletedAt"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "staff.points.backfill",
+      "authorization": "owner",
+      "input": [
+        "activityId",
+        "memberNumber",
+        "growth",
+        "annual",
+        "reason"
+      ],
+      "output": [
+        "ledgerId",
+        "registrationId",
+        "idempotent",
+        "growth",
+        "annual",
+        "memberPublicId"
+      ],
+      "businessIdempotency": true
     }
   ],
   "errors": [

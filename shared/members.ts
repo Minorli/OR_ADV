@@ -1,6 +1,6 @@
-import { Context, encodeCursor, parseCursor } from './context';
+import { Context, collect, encodeCursor, parseCursor, refreshRankings, syncProfileProjections } from './context';
 import { integer, requireThat, text } from './errors';
-import { key, statsIdFor } from './models';
+import { key, shanghaiYear, statsIdFor } from './models';
 import type { Membership, RecommendationProjection, StaffRole, User, MemberStats } from './models';
 import { effectiveMemberKind, memberIdentityFields, recommendationSortKey } from './member-identity';
 import { sha256 } from './hash';
@@ -134,6 +134,32 @@ export async function assignMemberKind(ctx: Context, priorityOnly = false) {
       : { from: effectiveMemberKind(member, ctx.now), to: effectiveMemberKind(next, ctx.now), memberKindVersion: next.memberKindVersion, expiresAt: next.memberKindExpiresAt }, reason);
     return staffMember(ctx, tx, next);
   });
+}
+export async function certifyRider(ctx: Context) {
+  const publicId = text(ctx.request.payload.memberPublicId, '成员公开标识', 120);
+  requireThat(typeof ctx.request.payload.certified === 'boolean', 'INVALID_INPUT', '认证状态不正确');
+  const reason = text(ctx.request.payload.reason, '操作依据', 500);
+  await ctx.store.transaction(async (tx) => { await ctx.staff(tx, ['owner']); });
+  const rows = await collect<Membership>(ctx.store, 'memberships', { clubId: ctx.clubId });
+  requireThat(rows.length <= 200, 'STATE_CONFLICT', '当前内测成员数量超过200人，请联系主理人处理');
+  const found = rows.filter((row) => row.publicId === publicId);
+  requireThat(found.length === 1, 'INVALID_INPUT', '未找到该榜单成员');
+  const result = await ctx.store.transaction(async (tx) => {
+    const actor = await ctx.staff(tx, ['owner']);
+    const member = await tx.get<Membership>('memberships', found[0].id);
+    requireThat(member?.clubId === ctx.clubId && member.publicId === publicId, 'FORBIDDEN', '成员不可访问');
+    const user = await tx.get<User>('users', member.userId);
+    requireThat(user?.status === 'active', 'FORBIDDEN', '该成员账号不可使用');
+    const certified = ctx.request.payload.certified === true;
+    const next: Membership = { ...member, certifiedRider: certified, revision: member.revision + 1, updatedAt: ctx.now };
+    await tx.set('memberships', next.id, next);
+    await refreshRankings(ctx, tx, next, shanghaiYear(ctx.now));
+    await ctx.audit(tx, actor, 'membership', next.id, { certifiedRider: certified, revision: next.revision }, reason);
+    return { memberPublicId: next.publicId, certifiedRider: next.certifiedRider === true, revision: next.revision, memberId: next.id };
+  });
+  try { await syncProfileProjections(ctx, result.memberId); } catch { ctx.options.log?.({ action: ctx.request.action, code: 'BOARD_SYNC_DEFERRED' }); }
+  const { memberId: _memberId, ...view } = result;
+  return view;
 }
 export async function requestMemberKind(ctx: Context) {
   return ctx.store.transaction(async (tx) => {

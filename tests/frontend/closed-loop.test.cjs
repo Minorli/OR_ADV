@@ -79,13 +79,15 @@ test('built native pages complete the staff/member loop and reversible ranking c
   assert.equal(points.data.items.length, 1, 'settlement retry does not duplicate the award');
   const ranking = capture('ranking/index');
   await ranking.load();
-  assert.equal(ranking.data.items.length, 0, 'public ranking defaults to private');
-  await ranking.optIn();
+  assert.equal(ranking.data.items.length, 0, 'basic assessment is required before a rider appears');
+  const rider = await api.currentMember();
+  api.switchMockRole('owner');
+  await api.call('staff.qualification.review', { memberId: rider.id, type: 'basic_control', decision: 'approved', reason: '基础控车考核通过' }, 0);
+  api.switchMockRole('member');
+  await ranking.load();
   assert.equal(ranking.data.error, '');
   assert.equal(ranking.data.items.length, 1);
-  await ranking.optIn();
-  assert.equal(ranking.data.error, '');
-  assert.equal(ranking.data.items.length, 0, 'withdrawal removes public data immediately');
+  assert.equal(ranking.data.items[0].rank, 1);
 
   api.switchMockRole('owner');
   staff.setData({ ledgerId: points.data.items[0].id, reversalReason: '复核原完成核验记录，按纠错流程冲正' });

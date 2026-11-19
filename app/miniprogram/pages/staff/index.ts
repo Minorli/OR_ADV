@@ -23,6 +23,9 @@ const environmentScope = () => JSON.stringify([runtime.mode, runtime.appId, runt
 const canManageActivity = (member: MemberSummary | null) => !!member?.roles.some(role => ['owner', 'operator'].includes(role));
 function emptyBriefing(): Briefing { return { activityId: '', meetingPoint: '', meetingTime: '', contactName: '', contactMethod: 'wechat', contactValue: '', checklist: [], notes: '', revision: 0 }; }
 function chinaDate(value: string) { return new Date(Date.parse(value) + 8 * 3600000).toISOString().slice(0, 10); }
+function chinaStamp(date: string, time: string) { return new Date(`${date}T${time}:00+08:00`).toISOString(); }
+interface PastChoice { id: string; title: string; label: string; growth: number; annual: number }
+function pointValue(value: string) { const text = value.trim(); return /^\d{1,4}$/.test(text) && Number(text) <= 1000 ? Number(text) : null; }
 function chinaTime(value: string) { return new Date(Date.parse(value) + 8 * 3600000).toISOString().slice(11, 16); }
 function structuredStages(stages: ActivityItineraryStage[] = []) { return stages.map(stage => ({ ...stage })); }
 function emptyForm(): ActivityForm {
@@ -37,6 +40,7 @@ Page({
     registrations: [] as ReturnType<typeof registrationCard>[], preview: null as SettlementPreview | null, previewRows: [] as ReturnType<typeof registrationCard>[],
     settlement: null as SettlementResult | null, form: emptyForm(), editor: false, editorKind: 'draft', formDirty: false, formMemberId: '', formEnvironment: '',
     operationReason: '', ledgerId: '', reversalReason: '', reversalTarget: '', pane: 'overview',
+    pastTitle: '', pastLocation: '', pastDate: '', pastEndDate: '', pastDescription: '', pastGrowth: '100', pastAnnual: '100', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '', settledChoices: [] as PastChoice[],
     today: chinaDate(new Date().toISOString()), rosterQuery: '', rosterFilter: 'all',
     displayedRegistrations: [] as ReturnType<typeof rosterPresentation>['visible'],
     rosterFilters: [{ value: 'all', label: '全部' }, { value: 'unreturned', label: '待回场' }, { value: 'pending', label: '待确认' }, { value: 'confirmed', label: '已确认' }, { value: 'today', label: '今日核验' }, { value: 'waitlisted', label: '候补' }],
@@ -56,6 +60,7 @@ Page({
   resetPrivate() {
     this.setData({ member: null, authorized: false, canManage: false, isOwner: false, adminTitle: '', items: [], selected: null, registrations: [], displayedRegistrations: [], preview: null, previewRows: [], settlement: null,
       form: emptyForm(), editor: false, editorKind: 'draft', formDirty: false, formMemberId: '', formEnvironment: '', operationReason: '', ledgerId: '', reversalReason: '', reversalTarget: '', pane: 'overview', rosterQuery: '', rosterFilter: 'all',
+      pastTitle: '', pastLocation: '', pastDate: '', pastEndDate: '', pastDescription: '', pastGrowth: '100', pastAnnual: '100', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '', settledChoices: [],
       briefing: emptyBriefing(), briefingChecklist: '', briefingDate: '', briefingTime: '', briefingContactIndex: 0, briefingLoading: false, briefingDirty: false, rosterLoading: false, busy: '', notice: '',
       pendingCount: 0, confirmedCount: 0, departedCount: 0, returnedCount: 0, unreturnedCount: 0, todayDepartureCount: 0, todayReturnCount: 0 });
   },
@@ -69,7 +74,7 @@ Page({
         if (fence.version === this.data.requestVersion) { this.clearPrivate(); await this.load(); this.setData({ error: '当前身份或权限已变化，请重新核对活动后操作' }); }
         return false;
       }
-      this.setData({ member, canManage: canManageActivity(member), isOwner: member.roles.includes('owner'), adminTitle: businessAdminTitle(member), ...(!member.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '' } : {}) });
+      this.setData({ member, canManage: canManageActivity(member), isOwner: member.roles.includes('owner'), adminTitle: businessAdminTitle(member), ...(!member.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '', pastTitle: '', pastLocation: '', pastDescription: '', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '' } : {}) });
       return true;
     } catch (error) { if (fence.version === this.data.requestVersion) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } return false; }
   },
@@ -85,7 +90,7 @@ Page({
       const authorized = canOperateActivities(member);
       const canManage = canManageActivity(member);
       if (this.data.member?.id !== member?.id || !canManage && this.data.editor) this.resetPrivate();
-      this.setData({ member, authorized, canManage, isOwner: !!member?.roles?.includes('owner'), adminTitle: businessAdminTitle(member), ...(!member?.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '' } : {}) });
+      this.setData({ member, authorized, canManage, isOwner: !!member?.roles?.includes('owner'), adminTitle: businessAdminTitle(member), ...(!member?.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '', pastTitle: '', pastLocation: '', pastDescription: '', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '' } : {}) });
       if (!authorized) { this.resetPrivate(); this.setData({ member }); return; }
       const fence = this.fence(), activities: Activity[] = [];
       let cursor: string | null = null;
@@ -96,8 +101,11 @@ Page({
       } while (cursor && activities.length < 1000);
       if (!this.matches(fence)) return;
       const items = activities.map(activityCard);
+      const settledChoices: PastChoice[] = items.filter(item => item.state === 'settled' && (item as Activity & { backfill?: boolean }).backfill === true && !(item.pointsRule.redeemable ?? 0))
+        .map(item => ({ id: item.id, title: item.title, label: `${chinaDate(item.endAt)} ${item.title}`, growth: item.pointsRule.growth, annual: item.pointsRule.annual }));
+      const pastActivityIndex = settledChoices.findIndex(choice => choice.id === this.data.pastActivityId);
       const selected = items.find(item => item.id === this.data.selected?.id) || items.find(item => item.state === 'in_progress') || items.find(item => ['published', 'closed', 'ended'].includes(item.state)) || items[0] || null;
-      this.setData({ items, selected, ...(this.data.selected?.id !== selected?.id ? { registrations: [], displayedRegistrations: [], briefing: emptyBriefing() } : {}) });
+      this.setData({ items, settledChoices, pastActivityIndex, ...(pastActivityIndex < 0 ? { pastActivityId: '' } : {}), selected, ...(this.data.selected?.id !== selected?.id ? { registrations: [], displayedRegistrations: [], briefing: emptyBriefing() } : {}) });
       if (selected) await Promise.all([this.loadRoster(), this.loadBriefing()]);
     } catch (error) { if (this.data.requestVersion === requestVersion) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } }
     finally { if (this.data.requestVersion === requestVersion) this.setData({ loading: false }); }
@@ -329,6 +337,61 @@ Page({
     const registration = this.data.registrations.find(item => item.id === event.currentTarget.dataset.id);
     if (!this.data.isOwner || !registration?.settlementId || registration.completionVoided) return;
     this.setData({ ledgerId: registration.settlementId, reversalReason: '', reversalTarget: `${registration.nickname || '本场车友'} · ${this.data.selected?.title || ''}`, pane: 'owner', notice: '' });
+  },
+  pastField(event: WechatMiniprogram.Input) {
+    const field = event.currentTarget.dataset.field as string;
+    if (!['pastTitle', 'pastLocation', 'pastDescription', 'pastGrowth', 'pastAnnual', 'pastMemberNumber', 'pastReason', 'pastDate', 'pastEndDate', 'grantGrowth', 'grantAnnual'].includes(field)) return;
+    this.setData({ [field]: event.detail.value });
+  },
+  pickPastActivity(event: WechatMiniprogram.PickerChange) {
+    const index = Number(event.detail.value), choice = this.data.settledChoices[index];
+    if (choice) this.setData({ pastActivityId: choice.id, pastActivityIndex: index, grantGrowth: '', grantAnnual: '' });
+  },
+  async savePastActivity() {
+    if (this.data.busy || !await this.verifyIdentity() || !this.data.isOwner) return;
+    const fence = this.fence();
+    const { pastTitle, pastLocation, pastDate, pastEndDate, pastDescription, pastGrowth, pastAnnual } = this.data;
+    if (!pastTitle.trim() || !pastLocation.trim() || !pastDate || !pastEndDate || !pastDescription.trim()) { toast('请填写活动名称、地点、日期和回顾简介'); return; }
+    const today = chinaDate(new Date().toISOString());
+    if (pastEndDate < pastDate) { toast('结束日期不能早于开始日期'); return; }
+    if (pastEndDate > today) { toast('只能补录已经结束的活动'); return; }
+    const growth = pointValue(pastGrowth), annual = pointValue(pastAnnual);
+    if (growth === null || annual === null) { toast('积分请填写 0 到 1000 的整数'); return; }
+    if (!await confirm('补录已完成活动', `「${pastTitle.trim()}」会直接进入往期档案，不开放报名。默认每人成长 ${growth} 分、年度 ${annual} 分，之后按成员编号逐人补记。`)) return;
+    if (!await this.verifyIdentity() || !this.data.isOwner || !this.matches(fence)) return;
+    this.setData({ busy: 'past', error: '' });
+    try {
+      // An activity that ended today is stamped at the current time instead of a future 18:00.
+      const endAt = pastEndDate === today ? new Date(Date.now() - 60000).toISOString() : chinaStamp(pastEndDate, '18:00');
+      const startAt = pastDate === today ? new Date(Date.parse(endAt) - 3600000).toISOString() : chinaStamp(pastDate, '09:00');
+      const saved = await call<{ id: string }>('staff.activity.backfill', {
+        title: pastTitle.trim(), location: pastLocation.trim(), description: pastDescription.trim(),
+        startAt: startAt < endAt ? startAt : new Date(Date.parse(endAt) - 3600000).toISOString(), endAt, actualCompletedAt: endAt, growth, annual,
+      });
+      if (!this.matches(fence)) return;
+      this.setData({ notice: `已补录「${pastTitle.trim()}」，可以在下方按成员编号补记积分。`, pastActivityId: saved.id, pastTitle: '', pastLocation: '', pastDescription: '', pastDate: '', pastEndDate: '' });
+      await this.load();
+    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    finally { if (this.matches(fence)) this.setData({ busy: '' }); }
+  },
+  async grantPast() {
+    if (this.data.busy || !await this.verifyIdentity() || !this.data.isOwner) return;
+    const fence = this.fence();
+    const choice = this.data.settledChoices.find(item => item.id === this.data.pastActivityId);
+    const memberNumber = this.data.pastMemberNumber.trim(), reason = this.data.pastReason.trim();
+    if (!choice || !/^\d{1,9}$/.test(memberNumber) || !reason) { toast('请选择补录活动，并填写成员编号和依据'); return; }
+    const growth = this.data.grantGrowth.trim() === '' ? choice.growth : pointValue(this.data.grantGrowth);
+    const annual = this.data.grantAnnual.trim() === '' ? choice.annual : pointValue(this.data.grantAnnual);
+    if (growth === null || annual === null) { toast('积分请填写 0 到 1000 的整数'); return; }
+    if (!await confirm('补记参加积分', `「${choice.title}」给 ${memberNumber} 号补记成长 ${growth} 分、年度 ${annual} 分。同一人同一场重复提交不会重复加分；分值不同需要先冲正。`)) return;
+    if (!await this.verifyIdentity() || !this.data.isOwner || !this.matches(fence)) return;
+    this.setData({ busy: 'grant', error: '' });
+    try {
+      const result = await call<{ idempotent: boolean }>('staff.points.backfill', { activityId: choice.id, memberNumber: Number(memberNumber), reason, growth, annual });
+      if (!this.matches(fence)) return;
+      this.setData({ notice: result.idempotent ? `${memberNumber} 号本场积分已经记过，没有重复加分。` : `已给 ${memberNumber} 号补记「${choice.title}」积分。`, pastMemberNumber: '', pastReason: '' });
+    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async reverse() {
     if (this.data.busy || !await this.verifyIdentity() || !this.data.isOwner) return;

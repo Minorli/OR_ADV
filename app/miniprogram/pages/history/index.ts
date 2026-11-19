@@ -3,6 +3,10 @@ import { coverForKey } from '../../services/visual';
 import { readReferenceChrome, syncReferenceTab, closeReferencePanel } from '../../services/reference-ui';
 import type { HistoryFeed, HistoryFeedCard } from '../../../../shared/history-feed-types';
 
+function shortIntro(value: string) {
+  const chars = Array.from(value.trim());
+  return chars.length > 80 ? `${chars.slice(0, 80).join('')}…` : chars.join('');
+}
 function archiveCard(detail: HistoryFeedCard) {
   const activity = detail.activity, value = activity.actualCompletedAt || activity.endAt;
   const date = new Date(Date.parse(value) + 8 * 3600000);
@@ -12,6 +16,7 @@ function archiveCard(detail: HistoryFeedCard) {
   const honors = detail.story?.honors || [];
   return { ...detail, id: activity.id, title: activity.title, location: activity.location, startAt: activity.startAt, dateText, archiveMonth,
     cover: coverForKey(activity.coverKey, activity.id), distanceText: activity.distanceKm === null || activity.distanceKm === undefined ? '里程未记录' : `${activity.distanceKm}km`,
+    intro: shortIntro(detail.story?.intro || activity.description || ''),
     honorSlots: [0, 1].map(index => ({ label: honors[index]?.label || (index ? '最佳新人' : '优秀车手'), nickname: honors[index]?.nickname || '待公布', initial: Array.from(honors[index]?.nickname || '—')[0] })),
     photos: detail.story?.photos || [], photoPreviews: (detail.story?.photos || []).slice(0, 3).map((photo, index) => ({ ...photo, albumLabel: index === 2 && detail.story!.photos.length > 3 ? `+${detail.story!.photos.length - 3}` : '相册' })), documentary: detail.story?.documentary || null,
     reviewCountText: detail.reviews.total === null ? '查看评价 ›' : `${detail.reviews.total} 条 ›`,
@@ -24,7 +29,7 @@ Page({
   data: {
     isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, items: [] as ArchiveCard[], visibleItems: [] as ArchiveCard[],
     months: [{ value: 'all', label: '全部时间' }], month: 'all', query: '',
-    nextCursor: null as string | null, loading: false, error: '', requestVersion: 0,
+    nextCursor: null as string | null, loadedMonth: '', loadedQuery: '', loading: false, error: '', requestVersion: 0,
     coverErrors: {} as Record<string, boolean>, playingVideoId: '', videoErrors: {} as Record<string, boolean>, year: new Date(Date.now() + 8 * 3600000).getUTCFullYear(),
   },
   onShow() { syncReferenceTab(this, 2); void this.load(); },
@@ -35,17 +40,21 @@ Page({
     if (append && (this.data.loading || !this.data.nextCursor)) return;
     const timer = searchTimers.get(this); if (timer) clearTimeout(timer); searchTimers.delete(this);
     const version = this.data.requestVersion + 1, month = this.data.month, query = this.data.query.trim();
-    this.setData({ loading: true, error: '', requestVersion: version, playingVideoId: '', ...(append ? {} : { items: [], visibleItems: [], nextCursor: null }) });
+    const sameView = !append && this.data.loadedMonth === month && this.data.loadedQuery === query && this.data.items.length > 0;
+    this.setData({ loading: true, error: '', requestVersion: version, playingVideoId: '', ...(append || sameView ? {} : { items: [], visibleItems: [], nextCursor: null }) });
     try {
       const result = await call<HistoryFeed>('history.feed', { ...(append && this.data.nextCursor ? { cursor: this.data.nextCursor } : {}), ...(month !== 'all' ? { month } : {}), ...(query ? { query } : {}) });
       if (version !== this.data.requestVersion || month !== this.data.month || query !== this.data.query.trim()) return;
       const byId = new Map<string, ArchiveCard>();
       for (const item of append ? this.data.items : []) byId.set(item.id, item);
       for (const detail of result.items) byId.set(detail.activity.id, archiveCard(detail));
+      // Returning to the tab refreshes the first page but keeps cards already loaded further down.
+      const keepLoaded = sameView && this.data.items.length > result.items.length;
+      if (keepLoaded) for (const item of this.data.items) if (!byId.has(item.id)) byId.set(item.id, item);
       const items = [...byId.values()];
       const values = [...new Set([...this.data.months.map(row => row.value).filter(value => value !== 'all'), ...result.months])].sort().reverse();
       const months = [{ value: 'all', label: '全部时间' }, ...values.map(value => ({ value, label: value.replace('-', '.') }))];
-      this.setData({ items, visibleItems: items, months, nextCursor: result.nextCursor });
+      this.setData({ items, visibleItems: items, months, nextCursor: keepLoaded ? this.data.nextCursor : result.nextCursor, loadedMonth: month, loadedQuery: query });
     } catch (error) { if (version === this.data.requestVersion) this.setData({ error: errorMessage(error) }); }
     finally { if (version === this.data.requestVersion) this.setData({ loading: false }); }
   },

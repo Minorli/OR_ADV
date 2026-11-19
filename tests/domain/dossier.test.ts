@@ -66,6 +66,19 @@ test('dossier submit requires real completeness, purpose consent and owned image
   for (const collection of ['memberships', 'staff_roles', 'points_ledger', 'qualifications']) assert.deepEqual(store.snapshot()[collection], before[collection]);
 });
 
+test('dossier submission accepts brand and the six text fields without photos', async () => {
+  const { context } = setup();
+  const draft = { ...emptyDossierDraft(), riderName: '北向骑手', ridingExperience: '三年骑行', contactValue: 'fictional_contact',
+    bikes: [{ id: 'bike-one', brand: '测试品牌', model: 'ADV', year: '2024', plate: '', odometerKm: 800, photoAssetId: null, tireAssetId: null }] };
+  const saved = await saveDossier(context(DEMO_IDENTITIES.member, 'dossier.save', { draft }, 0));
+  const pending = await submitDossier(context(DEMO_IDENTITIES.member, 'dossier.submit', consent, saved.revision));
+  assert.equal(pending.status, 'pending');
+  assert.equal(pending.submission?.snapshot.bikes[0].photoAssetId, null);
+  const missingYear = { ...draft, bikes: [{ ...draft.bikes[0], year: '' }] };
+  const incomplete = await saveDossier(context(DEMO_IDENTITIES.member, 'dossier.save', { draft: missingYear }, pending.revision));
+  await assert.rejects(submitDossier(context(DEMO_IDENTITIES.member, 'dossier.submit', consent, incomplete.revision)), { code: 'INVALID_INPUT' });
+});
+
 test('owner review is bound to submitted revision, requires a return reason and edits invalidate previous approval', async () => {
   const { context, store } = setup();
   const draft = await ready(store, emptyDossierDraft());
@@ -132,16 +145,17 @@ test('owner cannot read an unsubmitted private draft and unchanged saves preserv
   await assert.rejects(lookup, { code: 'STATE_CONFLICT' });
 });
 
-test('each vehicle requires its own tire field and wrong-purpose or video evidence is rejected', async () => {
+test('vehicle photos stay optional while video and wrong-purpose evidence are rejected', async () => {
   const { context, store } = setup();
   const draft = await ready(store, emptyDossierDraft());
   const saved = await saveDossier(context(DEMO_IDENTITIES.member, 'dossier.save', { draft: { ...draft, bikes: [...draft.bikes, { ...draft.bikes[0], id: 'second-bike', tireAssetId: null }] } }, 0));
-  await assert.rejects(submitDossier(context(DEMO_IDENTITIES.member, 'dossier.submit', consent, saved.revision)), { code: 'INVALID_INPUT' });
+  const pending = await submitDossier(context(DEMO_IDENTITIES.member, 'dossier.submit', consent, saved.revision));
+  assert.equal(pending.status, 'pending');
   const id = draft.gear.helmet!;
   await store.transaction(async tx => { const row = await tx.get<any>('member_media', id); await tx.set('member_media', id, { ...row, kind: 'video', mimeType: 'video/mp4' }); });
-  await assert.rejects(saveDossier(context(DEMO_IDENTITIES.member, 'dossier.save', { draft }, saved.revision)), { code: 'INVALID_INPUT' });
+  await assert.rejects(saveDossier(context(DEMO_IDENTITIES.member, 'dossier.save', { draft }, pending.revision)), { code: 'INVALID_INPUT' });
   await store.transaction(async tx => { const row = await tx.get<any>('member_media', id); await tx.set('member_media', id, { ...row, kind: 'image', mimeType: 'image/jpeg', purpose: 'skill' }); });
-  await assert.rejects(saveDossier(context(DEMO_IDENTITIES.member, 'dossier.save', { draft }, saved.revision)), { code: 'FORBIDDEN' });
+  await assert.rejects(saveDossier(context(DEMO_IDENTITIES.member, 'dossier.save', { draft }, pending.revision)), { code: 'FORBIDDEN' });
 });
 
 test('failed submission or review audit rolls back media binding, snapshot and conclusion together', async () => {

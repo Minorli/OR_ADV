@@ -103,6 +103,7 @@ test('recommendation consent is separate; low-point founder leads recommendation
   });
   for (const person of [core, regular]) {
     data(await ctx.call('profile.update', { rankingOptIn: true, rankingConsentVersion: 1 }, person.identity, person.member.revision));
+    data(await ctx.call('staff.qualification.review', { memberId: person.member.id, type: 'basic_control', decision: 'approved', reason: '基础控车考核通过' }, DEMO_IDENTITIES.owner, 0));
   }
   assert.equal(data(await ctx.call('recommendation.list', {}, null)).items.length, 0);
   for (const person of [core, regular]) {
@@ -112,11 +113,11 @@ test('recommendation consent is separate; low-point founder leads recommendation
   const recommended = data(await ctx.call('recommendation.list', {}, null)).items;
   assert.equal(recommended[0].memberKind, 'founder');
   assert.equal(recommended[0].growthPoints, 0);
-  assert.equal(data(await ctx.call('ranking.list', {}, null)).items[0].score, 500);
+  assert.equal(data(await ctx.call('ranking.list', {}, DEMO_IDENTITIES.member)).items[0].score, 500);
   const me = data(await ctx.call('identity.me', {}, core.identity));
   data(await ctx.call('profile.update', { recommendationOptIn: false }, core.identity, me.revision));
   assert.equal(data(await ctx.call('recommendation.list', {}, null)).items.length, 1);
-  assert.equal(data(await ctx.call('ranking.list', {}, null)).items.length, 2);
+  assert.equal(data(await ctx.call('ranking.list', {}, DEMO_IDENTITIES.member)).items.length, 2);
 });
 
 test('briefings are private to actual participants and event staff; public detail never leaks meeting data', async () => {

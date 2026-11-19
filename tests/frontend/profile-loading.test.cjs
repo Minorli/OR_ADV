@@ -54,7 +54,7 @@ test('duplicate foreground callbacks share one pending request and reveal the co
   try {
     assert.deepEqual(env.calls, ['profile.overview']); assert.equal(p.data.loading, true); assert.equal(p.data.member, null); assert.equal(p.data.avatarUrl, '');
     held.release(); await Promise.all([first, second]);
-    assert(p.data.member); assert(p.data.avatarUrl); assert.equal(p.data.dossierParts.length, 6); assert.equal(p.data.dossierCount, '0 / 11'); assert.equal(p.data.loading, false);
+    assert(p.data.member); assert(p.data.avatarUrl); assert.equal(p.data.dossierParts.length, 7); assert.equal(p.data.dossierCount, '0 / 7'); assert.equal(p.data.loading, false);
   } finally { held.release(); env.restore(); }
 });
 
@@ -92,7 +92,7 @@ test('a delayed previous account overview cannot replace a newer account page', 
   const p = profile(), pending = p.resume(); await started.promise;
   try {
     env.api.switchMockRole('founder'); await p.resume(); const currentId = p.data.member.id;
-    held.release(); await pending; assert.equal(p.data.member.id, currentId); assert.equal(p.data.member.memberKind, 'founder'); assert.equal(p.data.avatarUrl, ''); assert.equal(p.data.dossierCount, '0 / 11');
+    held.release(); await pending; assert.equal(p.data.member.id, currentId); assert.equal(p.data.member.memberKind, 'founder'); assert.equal(p.data.avatarUrl, ''); assert.equal(p.data.dossierCount, '0 / 7');
   } finally { held.release(); env.restore(); }
 });
 
@@ -100,7 +100,7 @@ test('an explicit newer refresh supersedes an older same-member overview', async
   const env = await environment('member', true), held = gate(), started = gate(); let count = 0;
   env.setIntercept(async (action, args, real) => { const result = await real.call(action, ...args); if (action === 'profile.overview' && ++count === 1) { started.release(); await held.promise; return { ...result, avatarUrl: '/obsolete-avatar', dossier: { ...result.dossier, ready: 99 } }; } return result; });
   const p = profile(), pending = p.resume(); await started.promise;
-  try { await p.load(); const currentUrl = p.data.avatarUrl; held.release(); await pending; assert.equal(p.data.avatarUrl, currentUrl); assert.notEqual(currentUrl, '/obsolete-avatar'); assert.equal(p.data.dossierCount, '0 / 11'); }
+  try { await p.load(); const currentUrl = p.data.avatarUrl; held.release(); await pending; assert.equal(p.data.avatarUrl, currentUrl); assert.notEqual(currentUrl, '/obsolete-avatar'); assert.equal(p.data.dossierCount, '0 / 7'); }
   finally { held.release(); env.restore(); }
 });
 

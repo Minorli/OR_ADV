@@ -20,9 +20,9 @@ test('profile overview reads one authorized member snapshot and exposes only dos
   });
   const service = createService(store, { now: () => NOW, avatarStorage: { save: async () => '', remove: async () => {}, url: async file => { assert.equal(file, 'private-file-marker'); return 'https://private.example.test/avatar.png'; } } });
   const result = data(await service.handle(request, identity));
-  assert.equal(result.member.id, id); assert.equal(result.dossier.ready, 3); assert.equal(result.dossier.total, 11);
+  assert.equal(result.member.id, id); assert.equal(result.dossier.ready, 3); assert.equal(result.dossier.total, 7);
   assert.equal(result.avatarUrl, 'https://private.example.test/avatar.png'); assert.equal(result.avatarError, '');
-  assert.equal(result.dossier.parts.length, 6);
+  assert.equal(result.dossier.parts.length, 7);
   assert(!JSON.stringify(result).includes('private-contact-marker')); assert(!JSON.stringify(result).includes('private-file-marker'));
   assert(!JSON.stringify(result).includes(identity.openId));
 });

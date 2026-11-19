@@ -24,7 +24,7 @@ test('private ranking has no invented rank or participant count and rejects iden
   const ctx = await setup();
   const before = ctx.store.snapshot();
   const mine = await ctx.call();
-  assert.equal(mine.rankingOptIn, false); assert.equal(mine.rank, null); assert.equal(mine.publicCount, null); assert.equal(mine.score, null);
+  assert.equal(mine.rankingOptIn, false); assert.equal(mine.rank, null); assert.equal(mine.publicCount, 0); assert.equal(mine.score, null);
   assert.equal(mine.metric, 'growth'); assert.equal(mine.year, 2026);
   assert.deepEqual(ctx.store.snapshot(), before, 'overview reads must not mutate business data');
   await rejects(ctx.call({ memberId: 'forged' }), 'INVALID_INPUT');

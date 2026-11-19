@@ -21,7 +21,7 @@
 | registration.cancel | registrationId、reason、expectedRevision | 仅本人允许阶段；只释放一次 |
 | registration.mine | 游标 | 本人申请，无他人电话 |
 | points.mine | 年份/游标 | 本人汇总与流水 |
-| ranking.list / ranking.mine | 维度/年份/游标 | 公开榜单；本人名次取同一真实公开榜单，不另算或抬高 |
+| ranking.list / ranking.mine | 维度/年份/游标 | 须登录；已注册且通过基础控车考核（basic_control 资格或5项基础技能复核通过）的成员自动进入，无单独公开同意；按分数排序，同分按昵称、名次顺延；本人名次取同一榜单 |
 | staff.activity.save/publish/close | 变更和 expectedRevision | 运营/主理人；冻结发布规则 |
 | staff.registration.review | registrationId、decision、reason | 检查角色与活动，记录审核 |
 | staff.registration.confirm | registrationId、expectedRevision | 确认参加，非缴费确认 |
@@ -29,6 +29,9 @@
 | staff.checkin.record | registrationId、phase、day、result | 限现场角色和本场；重复不重复核验 |
 | staff.settlement.preview/run | activityId、ruleVersion、taskId | 运营/主理人；逐人事务幂等 |
 | staff.points.reverse | ledgerId、reason、expectedRevision | 主理人；防重复冲正 |
+| staff.member.certify | memberPublicId、certified、reason | 主理人；榜单“认证车手”称号，留审计 |
+| staff.activity.backfill | 标题、简介、地点、起止时间、默认成长/年度积分 | 主理人；补录已结束活动，直接归档且不开放报名，标记 backfill |
+| staff.points.backfill | activityId、memberNumber、可选积分、reason | 主理人；仅限补录活动；同人同场幂等，冲正后可按新分值重记 |
 | staff.roles.assign | memberId、role、event scope、期限 | 主理人；不允许前端自授权 |
 | staff.rewards.snapshot/record | 年份、规则版本/奖品发放 | 内部管理，有版本与审计 |
 

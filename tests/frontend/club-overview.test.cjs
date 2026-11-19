@@ -46,13 +46,15 @@ test('home shows only published partner content and ranking uses its real own pu
   assert(routes.some(route => route.startsWith('/pages/trip/detail?id=')));
   const ranking = page('ranking/index'); await ranking.load();
   assert.equal(ranking.data.error, ''); assert.equal(ranking.data.ownRanking.rankingOptIn, false);
-  assert.equal(ranking.data.ownRanking.rank, null); assert.equal(ranking.data.ownRanking.publicCount, null);
+  assert.equal(ranking.data.ownRanking.rank, null); assert.equal(ranking.data.ownRanking.publicCount, 0);
   const pointsBefore = ranking.data.member.growthPoints;
-  await ranking.optIn();
-  assert.equal(ranking.data.ownRanking.rankingOptIn, true); assert.equal(ranking.data.ownRanking.rank, 1); assert.equal(ranking.data.ownRanking.publicCount, 1);
+  const riderId = ranking.data.member.id;
+  api.switchMockRole('owner');
+  await api.call('staff.qualification.review', { memberId: riderId, type: 'basic_control', decision: 'approved', reason: '基础控车考核通过' }, 0);
+  api.switchMockRole('member'); await ranking.load();
+  assert.equal(ranking.data.ownRanking.rank, 1); assert.equal(ranking.data.ownRanking.publicCount, 1);
   assert.equal(ranking.data.member.growthPoints, pointsBefore);
   ranking.duties(); assert.equal(ranking.data.refPanel, 'core'); ranking.rules(); assert.equal(ranking.data.refPanel, 'rules');
-  await ranking.optIn(); assert.equal(ranking.data.ownRanking.rank, null); assert.equal(ranking.data.ownRanking.publicCount, null);
   api.switchMockRole('owner');
   await api.call('staff.club.content.save', { section: 'partners', content, status: 'draft' }, published.revision);
   await home.load(); assert.equal(home.data.partnersConfigured, false); assert.equal(home.data.partners.length, 0); assert(home.data.items.length > 0);
@@ -93,7 +95,7 @@ test('a delayed own-rank callback cannot replace the newly loaded identity or it
     api.switchMockRole('founder'); await ranking.load();
     const nextId = ranking.data.member.id; assert.notEqual(nextId, original.id); assert.equal(ranking.data.ownRanking.rankingOptIn, false);
     release.release(); await pending;
-    assert.equal(ranking.data.member.id, nextId); assert.equal(ranking.data.ownRanking.rank, null); assert.equal(ranking.data.ownRanking.publicCount, null);
+    assert.equal(ranking.data.member.id, nextId); assert.equal(ranking.data.ownRanking.rank, null); assert.equal(ranking.data.ownRanking.publicCount, 0);
     assert.equal(ranking.data.ownRankingError, '');
   } finally { module.exports = real; }
 });

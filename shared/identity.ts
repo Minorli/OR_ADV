@@ -1,27 +1,13 @@
 import { requireThat, text } from './errors';
 import type { Context } from './context';
-import { collect, refreshRankings } from './context';
+import { refreshRankings, syncProfileProjections } from './context';
 import { key, memberIdFor, shanghaiYear, userIdFor } from './models';
 import type { Membership, StaffRole, User } from './models';
 import { syncRecommendation } from './members';
 import { allocateMemberNumber, memberSequenceId, validateMemberSequence } from './member-number';
 import type { MemberNumberSequence } from './member-number';
 
-export async function syncProfileProjections(ctx: Context, memberId: string) {
-  const projections = await collect<{ id: string }>(ctx.store, 'public_rankings', { clubId: ctx.clubId, memberId });
-  for (let start = 0; start < projections.length; start += 20) {
-    await ctx.store.transaction(async (tx) => {
-      const member = await tx.get<Membership>('memberships', memberId);
-      requireThat(member?.clubId === ctx.clubId, 'FORBIDDEN', '成员不存在');
-      const user = await tx.get<User>('users', member.userId);
-      for (const projection of projections.slice(start, start + 20)) {
-        const row = await tx.get<Record<string, unknown>>('public_rankings', projection.id);
-        if (row) await tx.set('public_rankings', projection.id, { ...row, nickname: member.nickname,
-          visible: member.rankingOptIn && user?.status === 'active', consentVersion: member.rankingConsentVersion });
-      }
-    });
-  }
-}
+export { syncProfileProjections };
 
 export async function ensureIdentity(ctx: Context) {
   requireThat(ctx.identity?.appId && ctx.identity.openId, 'UNAUTHENTICATED', '当前无法取得可信微信身份');

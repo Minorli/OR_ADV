@@ -8,7 +8,8 @@ import { assignRole, recordReward, rewardSnapshot } from './staff';
 import type { Store } from './store';
 import type { ServiceOptions } from './models';
 import type { RpcRequest, RpcResponse, TrustedIdentity } from './types';
-import { assignMemberKind, listMemberRoles, listMembers, listRecommendations, requestMemberKind } from './members';
+import { assignMemberKind, certifyRider, listMemberRoles, listMembers, listRecommendations, requestMemberKind } from './members';
+import { grantPastPoints, recordPastActivity } from './backfill';
 import { getBriefing, publicClub, saveBriefing, saveClub } from './club';
 import { listQualifications, reviewQualification } from './qualifications';
 import { ownAvatar, saveAvatar } from './profile-avatar';
@@ -79,6 +80,7 @@ export function createService(store: Store, options: ServiceOptions = {}) {
           case 'recommendation.list': data = await listRecommendations(ctx); break;
           case 'staff.member.list': data = await listMembers(ctx); break;
           case 'staff.member.assign': data = await assignMemberKind(ctx); break;
+          case 'staff.member.certify': data = await certifyRider(ctx); break;
           case 'staff.recommendation.save': data = await assignMemberKind(ctx, true); break;
           case 'staff.roles.list': data = await listMemberRoles(ctx); break;
           case 'staff.qualification.list': data = await listQualifications(ctx); break;
@@ -97,6 +99,8 @@ export function createService(store: Store, options: ServiceOptions = {}) {
           case 'staff.settlement.preview': data = await previewSettlement(ctx); break;
           case 'staff.settlement.run': data = await runSettlement(ctx); break;
           case 'staff.points.reverse': data = await reversePoints(ctx); break;
+          case 'staff.activity.backfill': data = await recordPastActivity(ctx); break;
+          case 'staff.points.backfill': data = await grantPastPoints(ctx); break;
           case 'staff.roles.assign': data = await assignRole(ctx); break;
           case 'staff.rewards.snapshot': data = await rewardSnapshot(ctx); break;
           case 'staff.rewards.record': data = await recordReward(ctx); break;

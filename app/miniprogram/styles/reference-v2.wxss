@@ -71,6 +71,7 @@
 .reference-v2 .hero .dots .i.on{background:var(--orange);width:50rpx}
 .reference-v2 .hero .bar{position:absolute;top:115.384615rpx;left:38.461538rpx;z-index:3;display:flex;align-items:center;gap:15.384615rpx}
 .reference-v2 .hero .logo{width:57.692308rpx;height:57.692308rpx;border-radius:15.384615rpx;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:25rpx;font-weight:800;color:#fff;font-style:normal}
+.reference-v2 .hero .brand-logo{width:96rpx;height:84rpx;display:block}
 .reference-v2 .slogan-strip{display:flex;gap:19.230769rpx;overflow-x:auto;padding:0 30.769231rpx 26.923077rpx;scrollbar-width:none}
 .reference-v2 .slogan-strip::-webkit-scrollbar{display:none}
 .reference-v2 .slogan-strip .mini{min-width:346.153846rpx;height:123.076923rpx;border-radius:var(--r-s);border:1.923077rpx solid var(--line);background:var(--card);padding:19.230769rpx;display:flex;flex-direction:column;justify-content:center}

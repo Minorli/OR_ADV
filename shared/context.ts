@@ -3,6 +3,8 @@ import { CLUB_ID } from './types';
 import type { MemberSummary, Role, RpcRequest, TrustedIdentity } from './types';
 import type { Store, Transaction } from './store';
 import { key, memberIdFor, shanghaiYear, statsIdFor, userIdFor } from './models';
+import { basicAssessmentStatus } from './ranking-board';
+import type { SkillStateOverride } from './ranking-board';
 import { memberIdentityFields } from './member-identity';
 import { readMemberNumber } from './member-number';
 import { STAFF_ROLES } from './permissions';
@@ -72,21 +74,47 @@ export function publicActivity(activity: Activity) {
     ruleVersion: activity.ruleVersion, revision: activity.revision, pointsRule: activity.pointsRule,
     actualCompletedAt: activity.actualCompletedAt, actualStartedAt: activity.actualStartedAt ?? null, safetyNotice: activity.safetyNotice, equipment: activity.equipment,
     fixtureOnly: activity.fixtureOnly ?? false,
+    ...(activity.backfill ? { backfill: true } : {}),
     ...(activity.coverKey !== undefined ? { coverKey: activity.coverKey } : {}),
     ...(activity.distanceKm !== undefined ? { distanceKm: activity.distanceKm } : {}),
     ...(activity.itinerary !== undefined ? { itinerary: activity.itinerary } : {}) };
 }
 
-export async function refreshRankings(ctx: Context, tx: Transaction, member: Membership, year: number) {
+/** Board visibility: an active account that passed the basic assessment. No separate opt-in (owner decision 2026-11-18). */
+export async function rankingVisibility(ctx: Context, tx: Transaction, member: Membership, override?: SkillStateOverride) {
+  const user = await tx.get<User>('users', member.userId);
+  if (user?.status !== 'active') return { visible: false, visibleUntil: null };
+  const status = await basicAssessmentStatus(tx, ctx.clubId, member.id, ctx.now, override);
+  return { visible: status.passed, visibleUntil: status.passed ? status.visibleUntil : null };
+}
+export async function refreshRankings(ctx: Context, tx: Transaction, member: Membership, year: number, override?: SkillStateOverride) {
   const growth = await tx.get<MemberStats>('member_stats', statsIdFor(ctx.clubId, member.id, null));
   const annual = await tx.get<MemberStats>('member_stats', statsIdFor(ctx.clubId, member.id, year));
+  const { visible, visibleUntil } = await rankingVisibility(ctx, tx, member, override);
   for (const metric of ['growth','annual','completed_count']) {
     const scopeYear = metric === 'annual' ? year : null;
     const id = key('ranking', ctx.clubId, member.id, metric, scopeYear ?? 'all');
     const row: PublicRanking & { visible: boolean } = { id, clubId: ctx.clubId, memberId: member.id, memberPublicId: member.publicId,
       nickname: member.nickname, metric, year: scopeYear, score: metric === 'growth' ? growth?.points ?? 0 : metric === 'annual' ? annual?.points ?? 0 : growth?.completedCount ?? 0,
-      completedCount: growth?.completedCount ?? 0, consentVersion: member.rankingConsentVersion, visible: member.rankingOptIn };
+      completedCount: growth?.completedCount ?? 0, consentVersion: member.rankingConsentVersion, visible, visibleUntil, certifiedRider: member.certifiedRider === true };
     await tx.set('public_rankings', id, row);
+  }
+}
+
+/** Re-applies nickname, badge and visibility to every stored board row of one member (all years). */
+export async function syncProfileProjections(ctx: Context, memberId: string) {
+  const projections = await collect<{ id: string }>(ctx.store, 'public_rankings', { clubId: ctx.clubId, memberId });
+  for (let start = 0; start < projections.length; start += 10) {
+    await ctx.store.transaction(async (tx) => {
+      const member = await tx.get<Membership>('memberships', memberId);
+      requireThat(member?.clubId === ctx.clubId, 'FORBIDDEN', '成员不存在');
+      const { visible, visibleUntil } = await rankingVisibility(ctx, tx, member);
+      for (const projection of projections.slice(start, start + 10)) {
+        const row = await tx.get<Record<string, unknown>>('public_rankings', projection.id);
+        if (row) await tx.set('public_rankings', projection.id, { ...row, nickname: member.nickname, memberPublicId: member.publicId,
+          visible, visibleUntil, certifiedRider: member.certifiedRider === true, consentVersion: member.rankingConsentVersion });
+      }
+    });
   }
 }
 

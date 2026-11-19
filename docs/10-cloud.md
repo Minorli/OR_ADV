@@ -84,7 +84,9 @@ node scripts/cloud-plan.cjs --env test --config config/local.json --check
 
 ## 当前接入与费用分工（2026-10-16）
 
-用户先申请免费环境，随后管理员升级同一环境为标准版（baas_pf_standard）。实际EnvId只写入本地忽略配置。环境NORMAL、文档数据库RUNNING，地域ap-shanghai；当前到期时间2026-11-16 23:59:59。自动续费、超额计费返回开启，由管理员核对和管理，开发者没有修改。费用见[预算说明](14-costs.md)。
+用户先申请免费环境，随后管理员升级同一环境为标准版（baas_pf_standard）。实际EnvId只写入本地忽略配置。环境NORMAL、文档数据库RUNNING，地域ap-shanghai；该标准版当时到期时间2026-11-16 23:59:59。自动续费、超额计费返回开启，由管理员核对和管理，开发者没有修改。费用见[预算说明](14-costs.md)。
+
+2026-11-18：上述标准版到期后，当前测试环境改为同日新开通的个人版，EnvId 仍只写在本地忽略配置。读回状态 NORMAL、文档数据库 RUNNING、地域 ap-shanghai，到期 2026-12-18 23:59:59。集合权限为 ADMINONLY。经典云存储规则仍是 READONLY。
 
 新增只读检查工具，默认不加载SDK、不读取私钥、不联网：
 

@@ -46,7 +46,11 @@ function card(id, total = null) {
 }
 test('four tabs retain canonical block order, six separate entries and all reference overlays', () => {
   const markup = name => fs.readFileSync(path.join(app, 'pages', name, 'index.wxml'), 'utf8');
-  for (const name of ['activities', 'ranking', 'history', 'profile']) { assert.match(markup(name), /class="page reference-v2/); assert.match(markup(name), /<reference-overlay /); }
+  for (const name of ['activities', 'ranking', 'history', 'profile']) {
+    assert.match(markup(name), /class="page reference-v2/); assert.match(markup(name), /<reference-overlay /);
+    // Every tab must load the shared V2 stylesheet; losing the import collapses the whole page layout.
+    assert.match(fs.readFileSync(path.join(app, 'pages', name, 'index.wxss'), 'utf8'), /^@import '\.\.\/\.\.\/styles\/reference-v2\.wxss';/, name);
+  }
   const profile = markup('profile'); assert(profile.indexOf('class="verify-card"') < profile.indexOf('class="stats"')); assert(profile.indexOf('class="stats"') < profile.indexOf('class="grid"')); assert.equal((profile.match(/class="gi"/g) || []).length, 6); assert.equal((profile.slice(0, profile.indexOf('class="logout"')).match(/class="li"/g) || []).length, 5);
   const home = markup('activities'); assert.equal((home.match(/class="mini"/g) || []).length, 4); assert(home.indexOf('class="sponsor-band"') < home.indexOf('class="reference-home-extra"'));
   const history = markup('history'); for (const block of ['honor', 'photo-row', 'video-card', 'review']) assert(history.includes('class="' + block), block);

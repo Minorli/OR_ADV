@@ -99,13 +99,13 @@ test('cloud-mode native tabs, consented login and private dossier accept enriche
   assert.equal((store.snapshot().users[userIdFor(identity)] as any).wxOpenId, trusted.OPENID);
   assert.equal(store.snapshot().users[userIdFor({ appId: forged.appId, openId: forged.openId })], undefined);
   for (const tab of tabs) { await tab.load(); assert.equal(tab.data.error, ''); }
-  assert.equal(tabs[1].data.ownRanking.rank, null); assert.equal(tabs[1].data.ownRanking.publicCount, null);
+  assert.equal(tabs[1].data.ownRanking.rank, null); assert.equal(tabs[1].data.ownRanking.publicCount, 0);
   const dossier = page('dossier/index'); dossier.onLoad({}); await dossier.load(); assert.equal(dossier.data.error, '');
   dossier.field({ currentTarget: { dataset: { field: 'riderName' } }, detail: { value: '私人成员资料' } });
   await dossier.save(); assert.equal(dossier.data.error, ''); assert.equal(dossier.data.dossier.draft.riderName, '私人成员资料');
   for (const name of ['learning/index', 'skills/index']) { const item = page(name); await item.load(); assert.equal(item.data.error, ''); }
   assert(failures.every(row => row.code === 'UNAUTHENTICATED'), JSON.stringify(failures));
-  for (const action of ['activity.list', 'ranking.list', 'recommendation.list', 'club.public', 'club.content.get', 'identity.me', 'identity.ensure', 'ranking.mine', 'dossier.mine', 'dossier.save', 'learning.catalog', 'skills.mine']) {
+  for (const action of ['activity.list', 'ranking.list', 'club.public', 'club.content.get', 'identity.me', 'identity.ensure', 'ranking.mine', 'dossier.mine', 'dossier.save', 'learning.catalog', 'skills.mine']) {
     assert(requests.includes(action), `${action} crossed the native JSON/enriched-event transport`);
   }
   await assert.rejects(api.call('dossier.mine', { injected: true }), (error: any) => error instanceof api.ApiError && error.code === 'INVALID_INPUT', 'business field validation still returns the real cloud ApiError');
