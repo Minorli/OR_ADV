@@ -9,6 +9,17 @@ const gearNames: Record<DossierGear, string> = { helmet: '头盔', armor: '护�
 const labels = { draft: '草稿', pending: '等待主理人审核', approved: '本次资料已通过', returned: '请补充后重新提交' };
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const friendly = (error: unknown) => error instanceof MemberMediaError ? error.message : errorMessage(error);
+async function mapPool<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (cursor < items.length) {
+      const idx = cursor++;
+      results[idx] = await worker(items[idx]);
+    }
+  }));
+  return results;
+}
 interface UploadTarget { gear?: DossierGear; bikeId?: string; part?: 'photoAssetId' | 'tireAssetId'; label: string; version: number; viewerId: string; role: string }
 interface PendingUpload { draftId: string; label: string; gear?: DossierGear; bikeId?: string; part?: 'photoAssetId' | 'tireAssetId'; available?: boolean }
 const pendingKey = (id: string) => `oradv-dossier-upload-targets-v1-${id}`;
@@ -20,7 +31,7 @@ export const controller = defineReferencePage({
     bikeRows: [] as (DossierDraft['bikes'][number] & { photoUrl: string; tireUrl: string; photoError: string; tireError: string })[],
     urls: {} as Record<string, string>, photoErrors: {} as Record<string, string>, statusText: '', consent: false, emergencyEnabled: false,
     pendingUploads: [] as PendingUpload[], uploadTarget: null as UploadTarget | null,
-    dirty: false, loading: false, saving: false, uploading: false, uploadLabel: '', error: '', notice: '', reviewReason: '', photoCount: 0, photoTotal: 4,
+    dirty: false, previewing: false, loading: false, saving: false, uploading: false, uploadLabel: '', error: '', notice: '', reviewReason: '', photoCount: 0, photoTotal: 4,
   },
   onLoad(options: Record<string, string>) {
     this.setData({ mode: options.mode === 'review' && options.memberId ? 'review' : options.mode === 'queue' ? 'queue' : 'own', memberId: options.memberId || '' });
@@ -35,10 +46,11 @@ export const controller = defineReferencePage({
   async resume() {
     const role = mockRole();
     if (this.data.loadedRole && this.data.loadedRole !== role) { this.clearPrivate(); await this.load(); return; }
-    if (!this.data.saving && !this.data.uploading && !this.data.dirty) {
+    if (!this.data.saving && !this.data.uploading && !this.data.dirty && !this.data.previewing) {
       // Hide the prior private view while the new load verifies identity once.
       this.clearPrivate(); await this.load(); return;
     }
+    if (this.data.previewing) this.setData({ previewing: false });
     const version = this.data.version, viewerId = this.data.viewerId;
     try {
       const member = await currentMember();
@@ -102,10 +114,10 @@ export const controller = defineReferencePage({
   async loadPhotos() {
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
     const ids = [...new Set([...Object.values(this.data.draft.gear), ...this.data.draft.bikes.flatMap(b => [b.photoAssetId, b.tireAssetId])].filter((id): id is string => !!id))];
-    const results = await Promise.all(ids.map(async assetId => {
+    const results = await mapPool(ids, 3, async assetId => {
       try { const result = await resolveMemberMedia(assetId); return { assetId, url: result.url, error: result.url ? '' : '照片暂时无法显示，请重试' }; }
       catch (error) { return { assetId, url: '', error: friendly(error) }; }
-    }));
+    });
     if (!this.matches(version, viewerId, role)) return;
     const urls = { ...this.data.urls }, photoErrors = { ...this.data.photoErrors };
     for (const result of results) { urls[result.assetId] = result.url || ''; photoErrors[result.assetId] = result.error; }
@@ -161,7 +173,9 @@ export const controller = defineReferencePage({
     if (this.data.mode !== 'own' || this.data.saving) return;
     const { id, field } = event.currentTarget.dataset;
     if (!['brand', 'model', 'year', 'plate', 'odometerKm'].includes(field)) return;
-    const value = field === 'odometerKm' ? event.detail.value.trim() === '' ? null : Number(event.detail.value) : event.detail.value;
+    const raw = event.detail.value;
+    const digits = raw.replace(/\D+/g, '');
+    const value = field === 'odometerKm' ? (digits === '' ? null : Number(digits)) : field === 'year' ? digits.slice(0, 4) : raw;
     this.updateDraft({ ...this.data.draft, bikes: this.data.draft.bikes.map(b => b.id === id ? { ...b, [field]: value } : b) });
   },
   addBike() {
@@ -247,7 +261,10 @@ export const controller = defineReferencePage({
   retryPhotos() { void this.loadPhotos(); },
   preview(event: WechatMiniprogram.CustomEvent) {
     const url = this.data.urls[event.currentTarget.dataset.assetId];
-    if (url) void wx.previewImage({ current: url, urls: [url] }).catch(error => this.setData({ error: errorMessage(error) }));
+    if (!url) return;
+    this.setData({ previewing: true });
+    void Promise.resolve(wx.previewImage({ current: url, urls: [url] }))
+      .catch(error => this.setData({ previewing: false, error: errorMessage(error) }));
   },
   consent(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { this.setData({ consent: event.detail.value.includes('accepted') }); },
   async persist() {
@@ -265,13 +282,13 @@ export const controller = defineReferencePage({
     if (this.data.mode !== 'own' || this.data.saving || this.data.uploading) return;
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
     this.setData({ saving: true, error: '', notice: '' });
-    try { await this.persist(); if (this.matches(version, viewerId, role)) this.setData({ notice: '草稿已保存，可以稍后继续。' }); }
-    catch (error) { if (this.matches(version, viewerId, role)) this.setData({ error: errorMessage(error) }); }
+    try { await this.persist(); if (this.matches(version, viewerId, role)) { this.setData({ notice: '草稿已保存，可以稍后继续。' }); toast('草稿已保存'); } }
+    catch (error) { if (this.matches(version, viewerId, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(version, viewerId, role)) this.setData({ saving: false }); }
   },
   async submit() {
     if (this.data.mode !== 'own' || this.data.saving || this.data.uploading) return;
-    if (!this.data.consent) { this.setData({ error: '请阅读资料用途并勾选本人提交确认' }); return; }
+    if (!this.data.consent) { this.setData({ error: '请阅读资料用途并勾选本人提交确认' }); toast('请先勾选本人提交确认'); return; }
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
     this.setData({ saving: true, error: '', notice: '' });
     try {
@@ -282,7 +299,8 @@ export const controller = defineReferencePage({
       if (!this.matches(version, viewerId, role)) return;
       markReferenceChanged(this);
       this.renderDraft(clone(result.draft), { dossier: result, statusText: labels[result.status], dirty: false, consent: false, notice: '资料已提交。只有主理人核对后才会更新审核结论。' });
-    } catch (error) { if (this.matches(version, viewerId, role)) this.setData({ error: errorMessage(error) }); }
+      toast('资料已提交审核');
+    } catch (error) { if (this.matches(version, viewerId, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(version, viewerId, role)) this.setData({ saving: false }); }
   },
   reviewReason(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.setData({ reviewReason: event.detail.value }); },
@@ -291,7 +309,7 @@ export const controller = defineReferencePage({
     if (this.data.mode !== 'review' || !dossier?.submission || this.data.saving) return;
     const decision = event.currentTarget.dataset.decision;
     if (!['approved', 'returned'].includes(decision)) return;
-    if (!this.data.reviewReason.trim()) { this.setData({ error: '请填写本次核对说明；退回时需明确补充项目' }); return; }
+    if (!this.data.reviewReason.trim()) { this.setData({ error: '请填写本次核对说明；退回时需明确补充项目' }); toast('请先填写本次核对依据'); return; }
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
     this.setData({ saving: true, error: '' });
     try {
@@ -300,7 +318,8 @@ export const controller = defineReferencePage({
       if (!this.matches(version, viewerId, role)) return;
       markReferenceChanged(this);
       this.setData({ dossier: result, statusText: labels[result.status], notice: decision === 'approved' ? '本次资料审核已通过；成员权限、积分和考核资格分别管理。' : '已退回，并将补充说明交给成员。' });
-    } catch (error) { if (this.matches(version, viewerId, role)) this.setData({ error: errorMessage(error) }); }
+      toast(decision === 'approved' ? '已通过资料审核' : '已退回补充');
+    } catch (error) { if (this.matches(version, viewerId, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(version, viewerId, role)) this.setData({ saving: false }); }
   },
 });

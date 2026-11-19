@@ -15,6 +15,7 @@ const DEFAULT_HERO_SLIDES = [
   { id: 'real', cover: '/assets/hero/real.jpg', kicker: 'ORIGINAL RALLY', title: '无剧本，只有一往无前的真实', caption: '全年全地形全气候，只做硬核本色穿越' },
 ];
 const heroTimers = new WeakMap<object, ReturnType<typeof setInterval>>();
+const heroTouches = new WeakMap<object, { x: number; y: number }>();
 function referenceActivity(activity: Activity) {
   const card = activityVisual(activity), date = new Date(Date.parse(activity.startAt) + 8 * 3600000);
   const end = new Date(Date.parse(activity.endAt) + 8 * 3600000);
@@ -24,8 +25,8 @@ function referenceActivity(activity: Activity) {
 }
 Page({
   data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, items: [] as ReturnType<typeof referenceActivity>[], displayItems: [] as ReturnType<typeof referenceActivity>[], heroCurrent: 0, coverErrors: {} as Record<string, boolean>, heroSlides: DEFAULT_HERO_SLIDES, sponsorLogos: [
-    { id: 'og', src: '/assets/sponsors/og.png' }, { id: 'cardo', src: '/assets/sponsors/cardo.png' }, { id: 'simpson', src: '/assets/sponsors/simpson.png' },
-    { id: 'shuodong', src: '/assets/sponsors/shuodong.png' }, { id: 'juemiao', src: '/assets/sponsors/juemiao.png' }, { id: 'fox', src: '/assets/sponsors/fox.png' }, { id: 'percent', src: '/assets/sponsors/percent.png' },
+    { id: 'og', src: '/assets/sponsors/og.png' }, { id: 'cardo', src: '/assets/sponsors/cardo.png' }, { id: 'simpson', src: '/assets/sponsors/simpson.png' }, { id: 'shuodong', src: '/assets/sponsors/shuodong.png' },
+    { id: 'juemiao', src: '/assets/sponsors/juemiao.png' }, { id: 'fox', src: '/assets/sponsors/fox.png' }, { id: 'percent', src: '/assets/sponsors/percent.png' }, { id: 'arc', src: '/assets/sponsors/arc.png' },
   ], member: null as MemberSummary | null, kindLabel: '游客', nextTrip: null as NextTrip | null,
     partners: [] as { heading: string; introduction: string }[], partnerLoop: [] as { id: number; heading: string }[], partnersTitle: '', partnersIntroduction: '', partnersConfigured: false,
     partnersError: '', personalError: '', loading: false, requestVersion: 0, error: '', filter: 'all', nextCursor: null as string | null, filters: [{ value: 'all', label: '全部活动' }, { value: 'published', label: '正在招募' }, { value: 'in_progress', label: '正在同行' }, { value: 'settled', label: '往期记录' }] },
@@ -46,7 +47,7 @@ Page({
     if (append && this.data.loading) return;
     const requestVersion = this.data.requestVersion + 1, role = mockRole();
     // Personal data is removed before the first asynchronous boundary.
-    this.setData({ loading: true, error: '', personalError: '', requestVersion, member: null, kindLabel: '游客', nextTrip: null });
+    this.setData({ loading: true, error: '', personalError: '', requestVersion, member: null, kindLabel: '游客', nextTrip: null, ...(append ? {} : { coverErrors: {} }) });
     await Promise.all([this.loadActivities(append, requestVersion, role), this.loadPersonal(requestVersion, role), this.loadPartners(requestVersion, role), append ? Promise.resolve() : this.loadHero(requestVersion, role)]);
     if (this.data.requestVersion === requestVersion) this.setData({ loading: false });
   },
@@ -97,6 +98,30 @@ Page({
   },
   filter(event: WechatMiniprogram.TouchEvent) { this.setData({ filter: event.currentTarget.dataset.value, items: [], displayItems: [], nextCursor: null }); void this.load(); },
   heroChange(event: WechatMiniprogram.CustomEvent<{ current: number }>) { this.setData({ heroCurrent: event.detail.current }); },
+  heroDot(event: WechatMiniprogram.TouchEvent) {
+    const count = this.data.heroSlides.length;
+    const index = Number(event.currentTarget.dataset.index);
+    if (count > 0 && Number.isInteger(index) && index >= 0 && index < count) {
+      this.setData({ heroCurrent: index });
+      if (heroTimers.has(this)) { this.stopHero(); this.startHero(); }
+    }
+  },
+  heroTouchStart(event: WechatMiniprogram.TouchEvent) {
+    const touch = event.touches && event.touches[0];
+    if (touch) heroTouches.set(this, { x: touch.clientX, y: touch.clientY });
+  },
+  heroTouchEnd(event: WechatMiniprogram.TouchEvent) {
+    const start = heroTouches.get(this);
+    heroTouches.delete(this);
+    const touch = event.changedTouches && event.changedTouches[0];
+    const count = this.data.heroSlides.length;
+    if (!start || !touch || count <= 1) return;
+    const dx = touch.clientX - start.x, dy = touch.clientY - start.y;
+    if (Math.abs(dx) < 36 || Math.abs(dx) <= Math.abs(dy)) return;
+    const next = (this.data.heroCurrent + (dx < 0 ? 1 : count - 1)) % count;
+    this.setData({ heroCurrent: next });
+    if (heroTimers.has(this)) { this.stopHero(); this.startHero(); }
+  },
   coverError(event: WechatMiniprogram.CustomEvent) { const src = event.currentTarget.dataset.src as string; if (src) this.setData({ coverErrors: { ...this.data.coverErrors, [src]: true } }); },
   history() { wx.switchTab({ url: '/pages/history/index' }); },
   more() { void this.load(true); },
@@ -105,7 +130,11 @@ Page({
   partners() { openReferencePanel(this, 'partners'); },
   learning() { openReferencePanel(this, 'learning'); },
   open(event: WechatMiniprogram.TouchEvent) { openReferencePanel(this, 'activity', { id: event.currentTarget.dataset.id }); },
-  closeReference() { closeReferencePanel(this); },
+  closeReference(event?: WechatMiniprogram.CustomEvent<{ changed?: boolean; login?: boolean }>) {
+    closeReferencePanel(this);
+    if (event?.detail?.login) { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); return; }
+    if (event?.detail?.changed) void this.load();
+  },
   trip() { if (this.data.nextTrip) wx.navigateTo({ url: `/pages/trip/detail?id=${encodeURIComponent(this.data.nextTrip.activityId)}` }); },
   profile() { wx.switchTab({ url: '/pages/profile/index' }); },
   points() { wx.navigateTo({ url: '/pages/points/index' }); },

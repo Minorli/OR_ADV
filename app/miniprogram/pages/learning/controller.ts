@@ -1,6 +1,6 @@
 import { defineReferencePage } from '../../services/reference-controller';
-import { closeReferenceLeaf, markReferenceChanged } from '../../services/reference-ui';
-import { ApiError, call, currentMember, errorMessage, isMock, mockRole, runtime, toast } from '../../services/api';
+import { closeReferenceLeaf, markReferenceChanged, navigateToReferenceLogin } from '../../services/reference-ui';
+import { ApiError, call, confirm, currentMember, errorMessage, isMock, mockRole, runtime, toast } from '../../services/api';
 import type { LearningBank, PracticeView, SafetyQuestion } from '../../../../shared/learning-types';
 import type { MemberSummary } from '../../../../shared/types';
 import { canManagePublicContent } from '../../../../shared/permissions';
@@ -16,14 +16,14 @@ export const controller = defineReferencePage({
     displayQuestion: null as PracticeView['question'], feedback: null as (NonNullable<PracticeView['feedback']> & { rightText: string }) | null,
     selectedIndex: -1, optionLabels: ['A', 'B', 'C', 'D'], questionNumber: 1, progress: 0,
     loading: false, busy: false, error: '', notice: '', loadVersion: 0, loadedRole: '', loadedEnvironment: '', autoStartAttempted: false,
-    isOwner: false, canManageContent: false, editor: false, bank: null as LearningBank | null, questionLabels: [] as string[],
+    isOwner: false, canManageContent: false, editor: false, bank: null as LearningBank | null, bankTitle: '', questionLabels: [] as string[],
     draft: emptyQuestion(), reason: '', instructorConfirmed: false,
   },
   onShow() { return this.resume(); },
   onUnload() { this.clearPrivate(); },
   clearPrivate() {
     this.setData({ loadVersion: this.data.loadVersion + 1, loadedRole: '', loadedEnvironment: '', member: null, practice: null, displayQuestion: null, feedback: null,
-      selectedIndex: -1, questionNumber: 1, progress: 0, bank: null, questionLabels: [], draft: emptyQuestion(), reason: '',
+      selectedIndex: -1, questionNumber: 1, progress: 0, bank: null, bankTitle: '', questionLabels: [], draft: emptyQuestion(), reason: '',
       instructorConfirmed: false, isOwner: false, canManageContent: false, editor: false, busy: false, loading: false, error: '', notice: '' });
   },
   viewerFence(): ViewerFence { return { version: this.data.loadVersion, memberId: this.data.member?.id || '', role: this.data.loadedRole, environment: this.data.loadedEnvironment }; },
@@ -128,7 +128,7 @@ export const controller = defineReferencePage({
   },
   next() { if (this.localViewer() && !this.data.busy) this.showPractice(this.data.practice); },
   retry() { void this.load(); },
-  profile() { wx.switchTab({ url: '/pages/profile/index' }); },
+  profile() { navigateToReferenceLogin(this); },
   skills() { wx.navigateTo({ url: '/pages/skills/index?level=basic' }); },
   async toggleEditor() {
     const fence = this.viewerFence();
@@ -140,7 +140,7 @@ export const controller = defineReferencePage({
     try {
       const bank: LearningBank = await this.verifiedCall(fence, 'staff.learning.catalog.get', {}, undefined, true);
       if (!this.matches(fence) || !this.data.canManageContent) return;
-      this.setData({ bank, questionLabels: bank.questions.map((question, index) => `${index + 1}. ${question.prompt}`) });
+      this.setData({ bank, bankTitle: bank.title || '安全穿越知识练习', questionLabels: bank.questions.map((question, index) => `${index + 1}. ${question.prompt}`) });
     } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
   },
   chooseQuestion(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
@@ -154,6 +154,7 @@ export const controller = defineReferencePage({
     const field = String(event.currentTarget.dataset.field);
     if (['id', 'prompt', 'option0', 'option1', 'option2', 'option3', 'explanation'].includes(field)) this.setData({ [`draft.${field}`]: event.detail.value });
     else if (field === 'reason') this.setData({ reason: event.detail.value });
+    else if (field === 'bankTitle') this.setData({ bankTitle: event.detail.value });
   },
   rightAnswer(event: WechatMiniprogram.CustomEvent<{ value: string }>) { if (this.localViewer(true)) this.setData({ 'draft.rightIndex': Number(event.detail.value) }); },
   instructor(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { if (this.localViewer(true)) this.setData({ instructorConfirmed: event.detail.value.includes('confirmed') }); },
@@ -162,26 +163,49 @@ export const controller = defineReferencePage({
     const draft = this.data.draft;
     const fence = this.viewerFence();
     const question: SafetyQuestion = { id: draft.id.trim(), prompt: draft.prompt.trim(), options: [draft.option0, draft.option1, draft.option2, draft.option3].map(value => value.trim()), rightIndex: draft.rightIndex, explanation: draft.explanation.trim() };
+    const title = this.data.bankTitle.trim();
     this.setData({ busy: true, error: '' });
     try {
-      await this.verifiedCall(fence, 'staff.learning.catalog.save', { question, published: false, reason: this.data.reason.trim() }, this.data.bank.revision, true);
+      await this.verifiedCall(fence, 'staff.learning.catalog.save', { question, ...(title ? { title } : {}), published: false, reason: this.data.reason.trim() }, this.data.bank.revision, true);
       if (!this.matches(fence)) return;
       this.setData({ notice: '题目已保存为草稿。核定并发布后，车友才能开始新的练习。' });
+      toast('题目已保存为草稿');
       await this.loadBank();
       const catalog = await call<Catalog>('learning.catalog'); if (this.matches(fence)) this.setData({ catalog });
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
+    finally { if (this.matches(fence)) this.setData({ busy: false }); }
+  },
+  async removeQuestion() {
+    if (!this.data.bank || this.data.busy) return;
+    const id = this.data.draft.id.trim();
+    if (!id || !this.data.bank.questions.some(q => q.id === id)) { toast('请先选择一道已有题目'); return; }
+    if (!this.data.reason.trim()) { toast('请先填写变更依据'); return; }
+    const fence = this.viewerFence();
+    if (!await confirm('移除这道题目', `确认从题库草稿中移除题目 ${id}？`) || !this.matches(fence)) return;
+    this.setData({ busy: true, error: '' });
+    try {
+      await this.verifiedCall(fence, 'staff.learning.catalog.save', { removeQuestionId: id, published: false, reason: this.data.reason.trim() }, this.data.bank.revision, true);
+      if (!this.matches(fence)) return;
+      this.setData({ draft: emptyQuestion(), notice: '题目已移除，题库已转为草稿。' });
+      toast('题目已移除');
+      await this.loadBank();
+      const catalog = await call<Catalog>('learning.catalog'); if (this.matches(fence)) this.setData({ catalog });
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   async publish() {
     if (!this.data.bank || this.data.busy) return;
     const fence = this.viewerFence();
+    const title = this.data.bankTitle.trim();
     this.setData({ busy: true, error: '' });
     try {
-      await this.verifiedCall(fence, 'staff.learning.catalog.save', { published: !this.data.bank.published, instructorConfirmed: this.data.instructorConfirmed, reason: this.data.reason.trim() }, this.data.bank.revision, true);
+      await this.verifiedCall(fence, 'staff.learning.catalog.save', { ...(title ? { title } : {}), published: !this.data.bank.published, instructorConfirmed: this.data.instructorConfirmed, reason: this.data.reason.trim() }, this.data.bank.revision, true);
       if (!this.matches(fence)) return;
-      this.setData({ notice: this.data.bank.published ? '已暂停新练习，已开始的记录仍可继续。' : '题库已发布。练习分数不会自动授予活动资格。' });
+      const msg = this.data.bank.published ? '已暂停新练习，已开始的记录仍可继续。' : '题库已发布。练习分数不会自动授予活动资格。';
+      this.setData({ notice: msg });
+      toast(this.data.bank.published ? '已暂停新练习' : '题库已发布');
       await this.loadBank(); const catalog = await call<Catalog>('learning.catalog'); if (this.matches(fence)) this.setData({ catalog });
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
 });

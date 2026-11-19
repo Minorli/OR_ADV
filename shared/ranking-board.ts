@@ -6,6 +6,10 @@ import type { Transaction } from './store';
 export const BASIC_QUALIFICATION = 'basic_control';
 export const BASIC_SKILL_IDS = ['basic-posture', 'basic-forward', 'basic-braking', 'basic-turning', 'basic-slopes'] as const;
 export const isBasicSkill = (skillId: string) => (BASIC_SKILL_IDS as readonly string[]).includes(skillId);
+export function normalizeQualificationType(value: string): string {
+  const trimmed = value.trim();
+  return trimmed === '基础控车' || trimmed === '基础控车考核' ? BASIC_QUALIFICATION : trimmed;
+}
 
 export interface BasicAssessmentStatus {
   passed: boolean;

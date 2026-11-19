@@ -45,7 +45,9 @@ Page({
   onShow() {
     syncReferenceTab(this, 3);
     if (wx.getStorageSync('oradv-open-privacy')) { this.setData({ showPrivacy: true }); wx.setStorageSync('oradv-open-privacy', false); }
-    return this.resume();
+    const wantLogin = Boolean(wx.getStorageSync('oradv-open-login'));
+    if (wantLogin) wx.setStorageSync('oradv-open-login', false);
+    return this.resume().then(() => { if (wantLogin) this.openEdit(); });
   },
   async resume() {
     const pending = activeLoads.get(this), role = mockRole();
@@ -166,46 +168,72 @@ Page({
     try {
       const draft = await prepareAvatar(path);
       if (!this.identityMatches(version, member.id, role) || avatarVersion !== this.data.avatarVersion) return;
-      this.setData({ avatarDraftUrl: draft.previewUrl, avatarBase64: draft.imageBase64, draftPreviewFailed: false, showEdit: true });
+      this.setData({ avatarDraftUrl: draft.previewUrl, avatarBase64: draft.imageBase64, draftPreviewFailed: false, showEdit: true }, () => { wx.pageScrollTo?.({ selector: '#profile-editor', duration: 180 }); });
     } catch (error) {
-      if (this.identityMatches(version, member.id, role) && avatarVersion === this.data.avatarVersion) this.setData({ avatarError: error instanceof AvatarError ? error.message : errorMessage(error) });
+      if (this.identityMatches(version, member.id, role) && avatarVersion === this.data.avatarVersion) {
+        const msg = error instanceof AvatarError ? error.message : errorMessage(error);
+        this.setData({ avatarError: msg });
+        toast(msg);
+      }
     } finally { if (this.identityMatches(version, member.id, role) && avatarVersion === this.data.avatarVersion) this.setData({ avatarProcessing: false }); }
   },
   avatarChoiceFailed(event: WechatMiniprogram.CustomEvent<{ errMsg?: string }>) {
-    if (!/cancel/i.test(event.detail.errMsg || '')) this.setData({ avatarError: '头像选择未完成，请重试。' });
+    if (!/cancel/i.test(event.detail.errMsg || '')) { this.setData({ avatarError: '头像选择未完成，请重试。' }); toast('头像选择未完成，请重试'); }
   },
   retry() { void this.load(); },
+  openEdit() {
+    this.setData({ showEdit: true }, () => { wx.pageScrollTo?.({ selector: '#profile-editor', duration: 180 }); });
+  },
+  closeEdit() {
+    this.setData({ showEdit: false, nicknameError: '', avatarError: '' });
+  },
   edit() {
     const showEdit = !this.data.showEdit;
-    this.setData({ showEdit }, () => { if (showEdit) wx.pageScrollTo({ selector: '#profile-editor', duration: 180 }); });
+    this.setData({ showEdit }, () => { if (showEdit) wx.pageScrollTo?.({ selector: '#profile-editor', duration: 180 }); });
   },
   privacy() { this.setData({ showPrivacy: !this.data.showPrivacy }); },
   nickname(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const nickname = event.detail.value;
-    this.setData({ nickname, nicknameStatus: !nickname.trim() || nickname.trim() === this.data.member?.nickname ? 'unchanged' : 'pending', nicknameError: '' });
+    this.setData({ nickname, nicknameStatus: !nickname.trim() || nickname.trim() === this.data.member?.nickname ? 'unchanged' : 'edited', nicknameError: '' });
   },
   nicknameBlur(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const nickname = event.detail.value;
     const rejected = ['rejected', 'timeout'].includes(this.data.nicknameStatus);
-    if (nickname !== this.data.nickname && !rejected) this.nickname(event);
+    if (rejected) {
+      this.setData({ nickname });
+      return;
+    }
+    if (this.data.nicknameStatus === 'passed') {
+      this.setData({ nickname, nicknameError: '' });
+      return;
+    }
+    if (nickname !== this.data.nickname) this.nickname(event);
     else this.setData({ nickname });
   },
   nicknameReview(event: WechatMiniprogram.CustomEvent<{ pass: boolean; timeout?: boolean }>) {
     const passed = event.detail.pass === true && !event.detail.timeout;
-    this.setData({ nicknameStatus: passed ? 'passed' : event.detail.timeout ? 'timeout' : 'rejected',
-      nicknameError: passed ? '' : event.detail.timeout ? '昵称检测暂未完成，请重新填写后再保存。' : '这个昵称未通过检测，请换一个称呼。' });
+    const message = passed ? '' : event.detail.timeout ? '昵称检测暂未完成，请重新填写后再保存。' : '这个昵称未通过检测，请换一个称呼。';
+    this.setData({ nicknameStatus: passed ? 'passed' : event.detail.timeout ? 'timeout' : 'rejected', nicknameError: message });
+    if (!passed && message) toast(message);
   },
   consent(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { this.setData({ consent: event.detail.value.includes('accepted') }); },
   kindReason(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.setData({ kindReason: event.detail.value }); },
-  async save() {
+  async save(event?: WechatMiniprogram.FormSubmit) {
     if (this.data.saving || this.data.avatarProcessing || !await this.verifyIdentity()) return;
     if (this.data.saving || this.data.avatarProcessing) return;
     const original = this.data.member;
     if (!original && !this.data.consent) { toast('请先阅读并同意身份与隐私说明'); return; }
-    const nickname = this.data.nickname.trim();
+    const formNickname = typeof event?.detail?.value?.nickname === 'string' ? event.detail.value.nickname : undefined;
+    if (formNickname !== undefined && formNickname !== this.data.nickname && !['rejected', 'timeout'].includes(this.data.nicknameStatus)) {
+      this.setData({ nickname: formNickname });
+    }
+    const nickname = (formNickname !== undefined && !['rejected', 'timeout'].includes(this.data.nicknameStatus) ? formNickname : this.data.nickname).trim();
     const nicknameChanged = !!original && !!nickname && nickname !== original.nickname;
-    if (original && (['rejected', 'timeout'].includes(this.data.nicknameStatus) || nicknameChanged && this.data.nicknameStatus !== 'passed')) {
-      this.setData({ nicknameError: this.data.nicknameError || '请等待昵称检测完成后保存。' }); return;
+    if (original && ['rejected', 'timeout'].includes(this.data.nicknameStatus)) {
+      const msg = this.data.nicknameError || '这个昵称未通过检测，请换一个称呼。';
+      this.setData({ nicknameError: msg });
+      toast(msg);
+      return;
     }
     if (original && !nicknameChanged && !this.data.avatarBase64) { this.setData({ showEdit: false }); return; }
     const version = this.data.profileVersion + 1, role = mockRole();
@@ -224,7 +252,11 @@ Page({
       const snapshot: ProfileReadSnapshot = { member, profileVersion: version, loadVersion: this.data.loadVersion, role: resultRole, lifecycle: this.data.lifecycleVersion, environment: profileEnvironment() };
       await Promise.all([member.hasAvatar ? this.readAvatar(snapshot) : Promise.resolve(), this.readDossier(snapshot)]);
     } catch (error) {
-      if (this.data.profileVersion === version && (!isMock || mockRole() === role || mockRole() === resultRole)) this.setData({ error: errorMessage(error) });
+      if (this.data.profileVersion === version && (!isMock || mockRole() === role || mockRole() === resultRole)) {
+        const msg = errorMessage(error);
+        this.setData({ error: msg });
+        toast(msg);
+      }
     } finally { if (this.data.profileVersion === version && (!isMock || mockRole() === role || mockRole() === resultRole)) this.setData({ saving: false }); }
   },
   async copyMemberNumber() {
@@ -236,12 +268,12 @@ Page({
   trips() { wx.navigateTo({ url: '/pages/mine/index' }); },
   activities() { wx.switchTab({ url: '/pages/activities/index' }); },
   quickMembers() { if (this.data.isOwner) this.members(); else this.ranking(); },
-  privacySettings() { this.setData({ showPrivacy: true }); wx.pageScrollTo({ selector: '#profile-privacy', duration: 180 }); },
+  privacySettings() { this.setData({ showPrivacy: true }, () => { wx.pageScrollTo?.({ selector: '#profile-privacy', duration: 180 }); }); },
   staff() { wx.navigateTo({ url: '/pages/staff/index' }); },
   members() { wx.navigateTo({ url: '/pages/staff-members/index' }); },
   ranking() { wx.switchTab({ url: '/pages/ranking/index' }); },
   contact() { void contactPerson(this.data.contact.contactMethod, this.data.contact.contactValue); },
-  dossier() { if (this.data.member) openReferencePanel(this, 'dossier'); else { this.setData({ showEdit: true }); wx.pageScrollTo({ selector: '#profile-editor', duration: 180 }); } },
+  dossier() { if (this.data.member) openReferencePanel(this, 'dossier'); else this.openEdit(); },
   dossierQueue() { if (this.data.isOwner) wx.navigateTo({ url: '/pages/dossier/index?mode=queue' }); },
   safety() { openReferencePanel(this, 'learning'); },
   basicSkills() { openReferencePanel(this, 'skills', { level: 'basic' }); },
@@ -252,7 +284,11 @@ Page({
   core() { openReferencePanel(this, 'core'); },
   rules() { openReferencePanel(this, 'rules'); },
   contacts() { openReferencePanel(this, 'contact'); },
-  closeReference(event: WechatMiniprogram.CustomEvent<{ changed?: boolean }>) { closeReferencePanel(this); if (event.detail?.changed) void this.load(); },
+  closeReference(event: WechatMiniprogram.CustomEvent<{ changed?: boolean; login?: boolean }>) {
+    closeReferencePanel(this);
+    if (event.detail?.login) { this.openEdit(); return; }
+    if (event.detail?.changed) void this.load();
+  },
   async logout() {
     if (this.data.saving || !await this.verifyIdentity()) return;
     const member = this.data.member, version = this.data.profileVersion, role = mockRole();

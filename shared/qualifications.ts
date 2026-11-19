@@ -2,7 +2,7 @@ import { Context, paginated, parseCursor, refreshRankings, syncProfileProjection
 import { requireThat, text } from './errors';
 import { key, shanghaiYear } from './models';
 import type { Membership, Qualification } from './models';
-import { BASIC_QUALIFICATION } from './ranking-board';
+import { BASIC_QUALIFICATION, normalizeQualificationType } from './ranking-board';
 
 export async function listQualifications(ctx: Context, own = false) {
   const memberId = await ctx.store.transaction(async (tx) => {
@@ -24,7 +24,7 @@ export async function reviewQualification(ctx: Context) {
     const member = await tx.get<Membership>('memberships', text(p.memberId, 'memberId', 100));
     requireThat(member?.clubId === ctx.clubId, 'FORBIDDEN', '成员不可访问');
     requireThat(p.decision === 'approved' || p.decision === 'rejected', 'INVALID_INPUT', '资格结论不正确');
-    const type = text(p.type, '资格类型', 60);
+    const type = normalizeQualificationType(text(p.type, '资格类型', 60));
     const id = key('qualification', ctx.clubId, member.id, type);
     const existing = await tx.get<Qualification>('qualifications', id);
     ctx.revision({ revision: existing?.revision ?? 0 });

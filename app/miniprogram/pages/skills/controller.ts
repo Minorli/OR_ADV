@@ -1,7 +1,7 @@
 import { defineReferencePage } from '../../services/reference-controller';
-import { closeReferenceLeaf, markReferenceChanged } from '../../services/reference-ui';
+import { closeReferenceLeaf, markReferenceChanged, navigateToReferenceLogin } from '../../services/reference-ui';
 import { ApiError, call, currentMember, errorMessage, isMock, mockRole, confirm, toast } from '../../services/api';
-import { chooseAndUploadMemberVideo, hasMemberMediaDrafts, memberMediaDrafts, MemberMediaError, resolveMemberMedia, retryMemberMediaDraft } from '../../services/member-media';
+import { chooseAndUploadMemberVideo, discardMemberMediaDraft, hasMemberMediaDrafts, memberMediaDrafts, MemberMediaError, resolveMemberMedia, retryMemberMediaDraft } from '../../services/member-media';
 import type { MemberMediaDraft } from '../../services/member-media';
 import type { MemberSummary, PageResult } from '../../../../shared/types';
 import type { SkillHistoryEntry, SkillQueueRow, SkillView } from '../../../../shared/learning-types';
@@ -23,7 +23,9 @@ export const controller = defineReferencePage({
     historyLoaded: false, historyMode: 'own', historyTitle: '', historyMissing: 0, historyVideoUrl: '',
     loading: false, busy: false, error: '', notice: '', loadVersion: 0, loadedRole: '',
   },
-  onLoad(options: Record<string, string>) { this.setData({ level: options.level === 'advanced' ? 'advanced' : 'basic', reviewMode: options.mode === 'review' }); },
+  onLoad(options: Record<string, string>) {
+    this.setData({ level: options.level === 'advanced' ? 'advanced' : 'basic', reviewMode: options.mode === 'review' });
+  },
   onShow() { return this.resume(); },
   onUnload() { this.clearPrivate(); },
   clearPrivate() {
@@ -143,7 +145,10 @@ export const controller = defineReferencePage({
       const uploaded = await chooseAndUploadMemberVideo('skill', this.data.selected.title);
       await this.assertViewer(fence);
       if (this.matches(fence) && this.data.selected?.id === skillId) this.setData({ assetId: uploaded.assetId, previewUrl: uploaded.previewUrl, notice: '视频已保存，点击提交后进入负责人复核。' });
-    } catch (error) { if (this.matches(fence) && !(error instanceof MemberMediaError && error.code === 'CANCELLED')) this.setData({ error: message(error) }); }
+    } catch (error) {
+      const cancelled = (error instanceof MemberMediaError && error.code === 'CANCELLED') || /cancel/i.test(String((error as { errMsg?: string })?.errMsg || (error as Error)?.message || ''));
+      if (this.matches(fence) && !cancelled) { const msg = message(error); this.setData({ error: msg }); toast(msg); }
+    }
     finally { if (this.matches(fence)) { this.setData({ busy: false }); await this.loadDrafts(); } }
   },
   async retryDraft(event: WechatMiniprogram.TouchEvent) {
@@ -153,7 +158,18 @@ export const controller = defineReferencePage({
     const fence = this.viewerFence(), skillId = this.data.selected.id;
     this.setData({ busy: true, error: '' });
     try { await this.assertViewer(fence); const result = await retryMemberMediaDraft(draft.id); await this.assertViewer(fence); if (this.matches(fence) && this.data.selected?.id === skillId) this.setData({ assetId: result.assetId, previewUrl: result.previewUrl }); }
-    catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
+    catch (error) { if (this.matches(fence)) { const msg = message(error); this.setData({ error: msg }); toast(msg); } }
+    finally { if (this.matches(fence)) { this.setData({ busy: false }); await this.loadDrafts(); } }
+  },
+  async discardDraft(event: WechatMiniprogram.TouchEvent) {
+    if (this.data.busy) return;
+    const draft = this.data.drafts.find(item => item.id === event.currentTarget.dataset.id);
+    if (!draft) return;
+    const fence = this.viewerFence();
+    if (!await confirm('移除本机短片草稿', '仅删除保存在当前设备上的未上传短片草稿，释放本地空间。') || !this.matches(fence)) return;
+    this.setData({ busy: true, error: '' });
+    try { await this.assertViewer(fence); await discardMemberMediaDraft(draft.id); if (this.matches(fence)) toast('草稿已移除'); }
+    catch (error) { if (this.matches(fence)) { const msg = message(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) { this.setData({ busy: false }); await this.loadDrafts(); } }
   },
   async submit() {
@@ -192,7 +208,7 @@ export const controller = defineReferencePage({
   },
   async toggleReview() {
     const fence = this.viewerFence();
-    try { await this.assertViewer(fence, true); if (this.matches(fence)) { this.setData({ reviewMode: !this.data.reviewMode, queue: [], reviewTarget: null, reviewVideoUrl: '' }); if (this.data.reviewMode) await this.loadQueue(); } }
+    try { await this.assertViewer(fence, true); if (this.matches(fence)) { const next = !this.data.reviewMode; this.setData({ reviewMode: next, queue: [], reviewTarget: null, reviewVideoUrl: '' }); if (next) await this.loadQueue(); } }
     catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
   },
   async loadQueue(append = false) {
@@ -280,7 +296,7 @@ export const controller = defineReferencePage({
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   videoFailed() { this.setData({ error: '视频暂时无法播放，请检查网络或联系负责人核对文件。' }); },
-  profile() { wx.switchTab({ url: '/pages/profile/index' }); },
+  profile() { navigateToReferenceLogin(this); },
   learning() { wx.navigateTo({ url: '/pages/learning/index' }); },
   retry() { void this.load(); },
 });

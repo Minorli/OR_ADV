@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.5.0-test.4",
+  "version": "0.5.0-test.5",
   "asOf": "2026-11-19",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -67,18 +67,18 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.5.0-test.4",
+    "sourceVersion": "0.5.0-test.5",
     "typecheck": "passed",
     "domainTests": "included_in_typescriptTests",
     "cloudTests": "included_in_typescriptTests",
     "buildAndTemplateTests": "included_in_typescriptTests",
-    "typescriptTests": 280,
+    "typescriptTests": 288,
     "nativePageTests": 136,
     "pythonToolTests": 14,
-    "totalTests": 430,
+    "totalTests": 438,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
-    "cloudAuditVulnerabilities": 0
+    "cloudAuditVulnerabilities": 1
   },
   "previewUpload": {
     "status": "official_cloud_preview_and_development_upload_success",
@@ -236,21 +236,22 @@
     "functionTimeoutSeconds": 30,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "9bbd909aa40dc88a292fab219dc331c294ce5eea558bfa0aa5a8c753e80e0857",
+    "functionBackendSha256": "7281754385757efa784a360be78269440d48cf115f9e5185de1dd2ae35c27fba",
     "currentFunction": {
       "envId": "local_config_only",
       "deployedOn": "2026-11-19",
       "action": "update",
-      "diagnosticBuild": "native-envelope-20261119.2",
-      "backendSha256": "9bbd909aa40dc88a292fab219dc331c294ce5eea558bfa0aa5a8c753e80e0857",
-      "remoteZipBytes": 9018571,
-      "remoteZipSha256": "9b6e45d583a3f70a5eb74cc8c995dc1ff0cc4d5f9997a10e3e23b1ea8c664120",
+      "diagnosticBuild": "native-envelope-20261119.3",
+      "backendSha256": "7281754385757efa784a360be78269440d48cf115f9e5185de1dd2ae35c27fba",
+      "remoteZipBytes": 9022504,
+      "remoteZipSha256": "618a1428df75b1ee3022698669458c6ed259faf6ecf36820524fc8c7b247edaf",
       "wxAppIdAssociatedOnTencentSide": true,
       "phoneCloudCallVerified": true,
       "businessRecordsPresent": true,
       "documentDatabase": "PostgreSQL_DocumentExt",
       "walletSchemaV4V5Applied": true,
-      "syntheticReadonlyRpcVerified": 7,
+      "syntheticReadonlyRpcVerified": 9,
+      "pgStoragePrivateBucketsVerified": 3,
       "ownerAndManagerBootstrappedOn": "2026-11-19"
     },
     "nativeEventCompatibility": {
@@ -292,11 +293,11 @@
   },
   "developmentUpload": {
     "status": "officially_compiled_and_uploaded",
-    "version": "0.5.0-test.4",
+    "version": "0.5.0-test.5",
     "mode": "cloud",
     "uploadedOn": "2026-11-19",
     "envId": "local_config_only",
-    "zipBufferBytes": 1732649,
+    "zipBufferBytes": 1684903,
     "formalReviewSubmitted": false,
     "published": false,
     "experienceSelectionByVersionManager": "same_ci_robot_slot_auto_updated_from_verified_test.3"
@@ -404,7 +405,7 @@
       2,
       3
     ],
-    "ordinaryNextNumber": 4,
+    "ordinaryNextNumber": 10,
     "internalIdsAndPointsChanged": false
   },
   "cloudFixtureDataset": {
@@ -533,9 +534,9 @@
     "requireActualVersionReadback": true,
     "mustReportEffectiveVersion": true,
     "developmentUploadIsNotExperienceRelease": true,
-    "sourceVersion": "0.5.0-test.4",
-    "developmentVersion": "0.5.0-test.4",
-    "effectiveExperienceVersion": "0.5.0-test.4",
+    "sourceVersion": "0.5.0-test.5",
+    "developmentVersion": "0.5.0-test.5",
+    "effectiveExperienceVersion": "0.5.0-test.5",
     "effectiveOnlineVersion": null
   },
   "visualParityV2": {
@@ -567,7 +568,7 @@
       "writes": 0
     },
     "backendIndependentReview": "passed_no_high_or_critical",
-    "backendBuildCandidate": "native-envelope-20261119.2",
+    "backendBuildCandidate": "native-envelope-20261119.3",
     "componentBrowserStates": 39,
     "componentBrowserUiEvents": 52,
     "componentBrowserScreenshots": 95,

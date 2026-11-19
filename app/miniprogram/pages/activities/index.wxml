@@ -1,11 +1,11 @@
 <view class="page reference-v2 home-reference" style="padding-top:{{v2Chrome.top}}px">
-  <view class="hero" style="margin-top:-{{v2Chrome.top}}px">
+  <view class="hero" style="margin-top:-{{v2Chrome.top}}px" bindtouchstart="heroTouchStart" bindtouchend="heroTouchEnd">
     <view wx:for="{{heroSlides}}" wx:key="id" class="slide {{heroCurrent === index ? 'on' : ''}}">
           <view class="img reference-cover-fallback"><image wx:if="{{!coverErrors[item.cover]}}" class="reference-cover hero-fit" src="{{item.cover}}" mode="aspectFill" data-src="{{item.cover}}" binderror="coverError"/><view class="reference-hero-shade"></view></view>
           <view class="cap"><view class="kicker">{{item.kicker}}</view><view class="h2">{{item.title}}</view><view class="p">{{item.caption}}</view></view>
     </view>
-    <view class="bar" style="top:{{v2Chrome.top + 16}}px"><image class="brand-logo" src="/assets/brand/logo.png" mode="aspectFit"/></view>
-    <view class="dots"><view wx:for="{{heroSlides}}" wx:key="id" class="i {{heroCurrent === index ? 'on' : ''}}"></view></view>
+    <view class="bar" style="top:{{v2Chrome.top + 8}}px"><image class="brand-logo" src="/assets/brand/logo.png" mode="aspectFit"/></view>
+    <view class="dots"><view wx:for="{{heroSlides}}" wx:key="id" class="i {{heroCurrent === index ? 'on' : ''}}" data-index="{{index}}" bindtap="heroDot"></view></view>
   </view>
 
   <scroll-view scroll-x class="reference-slogans" show-scrollbar="{{false}}"><view class="slogan-strip">
@@ -17,6 +17,7 @@
 
   <view class="reference-home-body">
     <view class="card-h"><text class="h3">近期活动</text><button class="link a" bindtap="history">查看往期 ›</button></view>
+    <scroll-view scroll-x class="reference-activity-filters mb" show-scrollbar="{{false}}"><view class="months"><button wx:for="{{filters}}" wx:key="value" class="{{filter === item.value ? 'on' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view></scroll-view>
     <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重新加载</button></view>
     <view wx:for="{{displayItems}}" wx:key="id" class="act" data-id="{{item.id}}" bindtap="open">
       <view class="thumb reference-cover-fallback">
@@ -42,7 +43,6 @@
     <view wx:if="{{nextTrip}}" class="card reference-next-trip"><view class="between"><text class="h3">我的本场同行</text><text class="tag o">{{nextTrip.stateText}}</text></view><view class="reference-next-title">{{nextTrip.title}}</view><view class="muted">{{nextTrip.dateText}}</view><view class="muted mt">{{nextTrip.nextAction}}</view><button class="btn primary mt" bindtap="trip">{{nextTrip.buttonLabel}}</button></view>
     <view wx:elif="{{member}}" class="reference-welcome">{{member.nickname}}，下一场见。<button class="link a" bindtap="profile">我的记录 ›</button></view>
     <view wx:if="{{personalError}}" class="notice error">{{personalError}}<button class="text-button" bindtap="retry">重试</button></view>
-    <scroll-view scroll-x class="reference-activity-filters" show-scrollbar="{{false}}"><view class="months"><button wx:for="{{filters}}" wx:key="value" class="{{filter === item.value ? 'on' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view></scroll-view>
   </view>
   <reference-overlay kind="{{refPanel}}" params="{{refParams}}" bindclose="closeReference"/>
 </view>

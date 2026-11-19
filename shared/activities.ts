@@ -1,10 +1,12 @@
-import { Context, paginated, parseCursor, publicActivity } from './context';
+import { Context, collect, paginated, parseCursor, publicActivity } from './context';
 import { integer, requireThat, text } from './errors';
-import type { Activity } from './types';
+import { key } from './models';
+import type { Activity, Checkin, Registration } from './models';
 import { BETA_MAX_CAPACITY } from './limits';
 import { publicClub } from './club';
 import { activityWalletReward, validateActivityWalletReward } from './points-wallet';
 import { activityDisplayFields } from './activity-display';
+import { normalizeQualificationType } from './ranking-board';
 
 const publicStates = ['published','closed','in_progress','ended','settled','cancelled'];
 export async function listActivities(ctx: Context, staff = false) {
@@ -69,7 +71,8 @@ export async function saveActivity(ctx: Context) {
     const capacity = integer(value.capacity, '名额', 1);
     requireThat(capacity <= BETA_MAX_CAPACITY, 'INVALID_INPUT', `测试版每场最多${BETA_MAX_CAPACITY}人`);
     const qualifications = value.requiredQualifications ?? [];
-    requireThat(Array.isArray(qualifications) && qualifications.length <= 10 && qualifications.every((item) => typeof item === 'string' && item.length > 0 && item.length <= 60), 'INVALID_INPUT', '资格条件不正确');
+    requireThat(Array.isArray(qualifications) && qualifications.length <= 10 && qualifications.every((item) => typeof item === 'string' && item.trim().length > 0 && item.trim().length <= 60), 'INVALID_INPUT', '资格条件不正确');
+    const normalizedQualifications = [...new Set((qualifications as string[]).map(normalizeQualificationType))];
     const points = value.pointsRule as Record<string, unknown>;
     requireThat(points && typeof points === 'object' && !Array.isArray(points), 'INVALID_INPUT', '请设置活动积分草案');
     requireThat(Object.keys(points).every(field => ['growth', 'annual', 'redeemable', 'walletPolicyVersion'].includes(field)), 'INVALID_INPUT', '积分规则包含不支持的字段');
@@ -81,7 +84,7 @@ export async function saveActivity(ctx: Context) {
     const activity: Activity = { id, clubId: ctx.clubId, title: text(value.title, '标题', 80), description: text(value.description, '活动介绍', 4000),
       location: text(value.location, '公开区域', 100), difficulty: text(value.difficulty ?? '入门', '难度', 30), state: 'draft',
       startAt, endAt, applicationClosesAt: deadline, capacity, reservedSeats: 0,
-      minGrowthPoints: integer(value.minGrowthPoints ?? 0, '成长门槛'), requiredQualifications: qualifications as string[], requiresReview: value.requiresReview !== false,
+      minGrowthPoints: integer(value.minGrowthPoints ?? 0, '成长门槛'), requiredQualifications: normalizedQualifications, requiresReview: value.requiresReview !== false,
       ruleVersion: existing?.ruleVersion ?? 1, revision: (existing?.revision ?? 0) + 1,
       pointsRule: { growth, annual, ...walletRule },
       nextQueueSeq: 0, actualCompletedAt: null, safetyNotice: text(value.safetyNotice, '风险说明', 2000), equipment: text(value.equipment, '装备要求', 1000),
@@ -116,9 +119,13 @@ export async function saveActivityContent(ctx: Context) {
 }
 
 export async function changeActivity(ctx: Context, operation: string) {
+  const activityId = text(ctx.request.payload.activityId, 'activityId', 100);
+  const checkedIn = operation === 'end'
+    ? await collect<Registration>(ctx.store, 'registrations', { clubId: ctx.clubId, activityId, state: 'checked_in' })
+    : [];
   return ctx.store.transaction(async (tx) => {
-    const actor = await ctx.staff(tx, ['owner','operator'], text(ctx.request.payload.activityId, 'activityId', 100));
-    const activity = await ctx.activity(tx, ctx.request.payload.activityId);
+    const actor = await ctx.staff(tx, ['owner','operator'], activityId);
+    const activity = await ctx.activity(tx, activityId);
     ctx.revision(activity);
     const transitions: Record<string, { from: string[]; to: Activity['state'] }> = {
       publish: { from: ['draft'], to: 'published' }, close: { from: ['published'], to: 'closed' },
@@ -141,6 +148,16 @@ export async function changeActivity(ctx: Context, operation: string) {
     const next: Activity = { ...activity, state: transition.to, actualCompletedAt: completedAt, revision: activity.revision + 1,
       ...(operation === 'start' ? { actualStartedAt: ctx.now } : {}) };
     await tx.set('activities', next.id, next);
+    if (operation === 'end') {
+      for (const candidate of checkedIn) {
+        const current = await tx.get<Registration>('registrations', candidate.id);
+        if (!current || current.state !== 'checked_in' || !current.lastDepartureDay) continue;
+        const returnCheckin = await tx.get<Checkin>('checkins', key('checkin', ctx.clubId, next.id, current.memberId, 'return', current.lastDepartureDay));
+        if (returnCheckin?.result === 'present') {
+          await tx.set('registrations', current.id, { ...current, state: 'pending_settlement', lastReturnDay: current.lastDepartureDay, revision: current.revision + 1, updatedAt: ctx.now });
+        }
+      }
+    }
     await ctx.audit(tx, actor, 'activity', next.id, { from: activity.state, to: next.state, revision: next.revision,
       ...(operation === 'start' ? { actualStartedAt: ctx.now, earlyStart: ctx.now < activity.startAt } : {}) }, String(ctx.request.payload.reason ?? ''));
     return publicActivity(next);

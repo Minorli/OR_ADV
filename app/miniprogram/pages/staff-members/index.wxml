@@ -3,10 +3,10 @@
   <view wx:if="{{loading}}" class="loading">正在核对管理权限…</view>
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="load">刷新</button></view>
   <view wx:if="{{notice}}" class="notice">{{notice}}</view>
-  <view wx:if="{{!authorized && !loading}}" class="empty">仅主理人和车队经理可管理此处资料。<button class="secondary full mt" bindtap="back">返回工作台</button></view>
-  <block wx:if="{{authorized}}"><view class="member-admin-banner"><text>{{adminTitle}}</text><text>业务身份与工作权限分开设置</text></view>
-    <view class="filter-row"><button class="pill {{pane === 'members' ? 'active' : ''}}" data-pane="members" bindtap="pane">会员管理</button><button class="pill {{pane === 'settings' ? 'active' : ''}}" data-pane="settings" bindtap="pane">公开联络设置</button><button class="pill {{pane === 'hero' ? 'active' : ''}}" data-pane="hero" bindtap="pane">首页轮播图</button></view>
-    <block wx:if="{{pane === 'members'}}">
+  <view wx:if="{{!authorized && !canManageHero && !loading}}" class="empty">仅主理人、车队经理与内容管理员可管理此处资料。<button class="secondary full mt" bindtap="back">返回工作台</button></view>
+  <block wx:if="{{authorized || canManageHero}}"><view class="member-admin-banner"><text>{{adminTitle || '内容管理员'}}</text><text>{{authorized ? '业务身份与工作权限分开设置' : '管理俱乐部首页轮播图展示'}}</text></view>
+    <view class="filter-row"><button wx:if="{{authorized}}" class="pill {{pane === 'members' ? 'active' : ''}}" data-pane="members" bindtap="pane">会员管理</button><button wx:if="{{authorized}}" class="pill {{pane === 'settings' ? 'active' : ''}}" data-pane="settings" bindtap="pane">公开联络设置</button><button class="pill {{pane === 'hero' ? 'active' : ''}}" data-pane="hero" bindtap="pane">首页轮播图</button></view>
+    <block wx:if="{{authorized && pane === 'members'}}">
       <view class="search-row"><input value="{{query}}" maxlength="30" bindinput="query" bindconfirm="search" placeholder="搜索昵称或完整成员编号"/><button class="secondary" bindtap="search">查找</button></view>
       <view class="small muted mt">查看成员资料。成员身份不授予员工权限，俱乐部成员与创始合伙人使用同一套安全核验标准。</view>
       <view wx:if="{{!loadingMore && !items.length}}" class="empty">没有找到匹配会员。</view>
@@ -34,7 +34,7 @@
         <view class="actions"><button class="primary grow" data-decision="approved" disabled="{{!!busy}}" bindtap="reviewQualification">实际核验通过</button><button class="secondary" data-decision="rejected" disabled="{{!!busy}}" bindtap="reviewQualification">核验未通过</button></view>
       </view>
     </block>
-    <view wx:if="{{pane === 'settings'}}" class="card">
+    <view wx:if="{{authorized && pane === 'settings'}}" class="card">
       <view class="card-title">俱乐部公开联络信息</view><view class="notice">只填写经本人同意可公开、真实可用的信息。未知号码请留空核实，不使用示例号码代替。</view>
       <view class="field"><text class="field-label">公开名称</text><input value="{{settings.name}}" data-field="name" bindinput="settingsField" maxlength="60"/></view>
       <view class="field"><text class="field-label">公开联络人称呼</text><input value="{{settings.contactName}}" data-field="contactName" bindinput="settingsField" maxlength="30"/></view>

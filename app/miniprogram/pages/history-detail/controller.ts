@@ -209,6 +209,10 @@ export const controller = defineReferencePage({
   async saveStory() {
     if (!this.data.story || this.data.busy || !this.data.canManageContent) return;
     const version = this.data.loadVersion, role = mockRole(), choices = this.data.honorChoices;
+    if ((this.data.honor0Label.trim() && !choices[this.data.honor0Index]?.value) || (this.data.honor1Label.trim() && !choices[this.data.honor1Index]?.value)) {
+      toast('填写荣誉称号后，请同时选择已公开授权的评价车手');
+      return;
+    }
     const honors = [0, 1].flatMap(slot => {
       const index = slot === 0 ? this.data.honor0Index : this.data.honor1Index, label = slot === 0 ? this.data.honor0Label : this.data.honor1Label, selected = choices[index];
       return selected?.value ? [{ reviewPublicId: selected.value, label }] : [];
@@ -219,8 +223,8 @@ export const controller = defineReferencePage({
       if (!this.valid(version, role)) return;
       await call('staff.history.save', { activityId: this.data.activityId, intro: this.data.intro, photoAssetIds: this.data.photoAssetIds, documentaryUrl: this.data.documentaryInput,
         documentaryTitle: this.data.documentaryTitle, videoRightsAcknowledged: this.data.filmRights, published: this.data.published, reason: this.data.reason, honors }, this.data.story.revision);
-      if (this.valid(version, role)) { markReferenceChanged(this); await this.load(); this.setData({ notice: '本场回顾已保存。' }); }
-    } catch (error) { if (this.valid(version, role)) this.setData({ error: errorMessage(error) }); }
+      if (this.valid(version, role)) { markReferenceChanged(this); await this.load(); this.setData({ notice: '本场回顾已保存。' }); toast('本场回顾已保存'); }
+    } catch (error) { if (this.valid(version, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.valid(version, role)) this.setData({ busy: false }); }
   },
   async moderate(event: WechatMiniprogram.TouchEvent) {
@@ -231,8 +235,8 @@ export const controller = defineReferencePage({
       await this.assertViewer(true);
       if (!this.valid(version, role)) return;
       await call('staff.history.review', { activityId: this.data.activityId, reviewId: row.id, decision: event.currentTarget.dataset.decision, reason: this.data.reviewReasons[row.id] ?? '' }, row.revision);
-      if (this.valid(version, role)) { markReferenceChanged(this); await this.loadManage(); this.setData({ notice: '评价处理结果已保存。' }); }
-    } catch (error) { if (this.valid(version, role)) this.setData({ error: errorMessage(error) }); }
+      if (this.valid(version, role)) { markReferenceChanged(this); await this.loadManage(); this.setData({ notice: '评价处理结果已保存。' }); toast('评价处理已保存'); }
+    } catch (error) { if (this.valid(version, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.valid(version, role)) this.setData({ busy: false }); }
   },
   preview(event: WechatMiniprogram.TouchEvent) { const url = event.currentTarget.dataset.url; if (this.data.photos.some(row => row.url === url)) void wx.previewImage({ current: url, urls: this.data.photos.map(row => row.url) }); },
@@ -241,6 +245,6 @@ export const controller = defineReferencePage({
   videoPlaying() { if (this.data.documentaryUrl) this.setData({ playing: true }); },
   videoStopped() { this.setData({ playing: false }); },
   manage() { wx.navigateTo({ url: `/pages/history-detail/index?activityId=${encodeURIComponent(this.data.activityId)}&mode=manage` }); },
-  profile() { wx.switchTab({ url: '/pages/profile/index' }); },
+  profile() { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); },
   retry() { void this.load(); },
 });

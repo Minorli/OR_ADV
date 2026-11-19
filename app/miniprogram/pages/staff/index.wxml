@@ -30,11 +30,11 @@
         <view class="field"><text class="field-label">活动封面</text><picker range="{{coverChoices}}" range-key="label" value="{{coverIndex}}" bindchange="cover" disabled="{{!!busy}}"><view class="picker">{{coverChoices[coverIndex].label}} ▾</view></picker><image src="{{coverChoices[coverIndex].cover}}" mode="aspectFill" style="width:100%;height:220rpx;display:block;border-radius:14rpx;margin-top:14rpx"/></view>
         <view class="field"><text class="field-label">路线里程（选填，公里）</text><input type="number" value="{{form.distanceKm}}" data-field="distanceKm" bindinput="field" placeholder="仅作路线介绍，不计入成员实际骑行里程" disabled="{{!!busy}}"/></view>
         <view class="field-label">分段行程（选填，最多30段）</view>
-        <view wx:for="{{form.itinerary}}" wx:key="index" class="card mt">
-          <view class="field"><text class="field-label">分段标记</text><input value="{{item.dayLabel}}" data-index="{{index}}" data-field="dayLabel" maxlength="20" bindinput="itineraryField" disabled="{{!!busy}}"/></view>
-          <view class="field"><text class="field-label">分段标题</text><input value="{{item.title}}" data-index="{{index}}" data-field="title" maxlength="100" bindinput="itineraryField" disabled="{{!!busy}}"/></view>
-          <view class="field"><text class="field-label">分段说明</text><textarea value="{{item.description}}" data-index="{{index}}" data-field="description" maxlength="400" bindinput="itineraryField" disabled="{{!!busy}}"/></view>
-          <button class="text-button" data-index="{{index}}" bindtap="removeStage" disabled="{{!!busy}}">移除此分段</button>
+        <view wx:for="{{form.itinerary}}" wx:for-index="stageIdx" wx:key="stageIdx" class="card mt">
+          <view class="field"><text class="field-label">分段标记</text><input value="{{item.dayLabel}}" data-index="{{stageIdx}}" data-field="dayLabel" maxlength="20" bindinput="itineraryField" disabled="{{!!busy}}"/></view>
+          <view class="field"><text class="field-label">分段标题</text><input value="{{item.title}}" data-index="{{stageIdx}}" data-field="title" maxlength="100" bindinput="itineraryField" disabled="{{!!busy}}"/></view>
+          <view class="field"><text class="field-label">分段说明</text><textarea value="{{item.description}}" data-index="{{stageIdx}}" data-field="description" maxlength="400" bindinput="itineraryField" disabled="{{!!busy}}"/></view>
+          <button class="text-button" data-index="{{stageIdx}}" bindtap="removeStage" disabled="{{!!busy}}">移除此分段</button>
         </view><button class="secondary full mt" bindtap="addStage" disabled="{{!!busy || form.itinerary.length >= 30}}">＋ 添加分段行程</button>
         <block wx:if="{{editorKind === 'draft'}}">
         <view class="form-grid"><view class="field"><text class="field-label">公开地点 / 区域</text><input value="{{form.location}}" maxlength="80" data-field="location" bindinput="field"/></view><view class="field"><text class="field-label">难度</text><input value="{{form.difficulty}}" maxlength="20" data-field="difficulty" bindinput="field"/></view></view>

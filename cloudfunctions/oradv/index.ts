@@ -5,9 +5,11 @@ import { createCloudHandler } from './handler';
 import { CloudStore, type CloudDatabase } from './store';
 import { createAvatarStorage } from './avatar-storage';
 import { createMemberMediaStorage } from './member-media-storage';
+import { createPgCompatibleStorageSdk } from './pg-storage-sdk';
 
 let store: Store | undefined;
 let service: ReturnType<typeof createService> | undefined;
+let storageSdk: ReturnType<typeof createPgCompatibleStorageSdk> | undefined;
 
 function getStore(): Store {
   if (!store) {
@@ -30,7 +32,8 @@ export const main = createCloudHandler({
   }),
   store: getStore,
   invoke: async (request, identity, traceId) => {
-    service ??= createService(getStore(), { clubId: 'oradv', avatarStorage: createAvatarStorage(cloud), memberMediaStorage: createMemberMediaStorage(cloud),
+    storageSdk ??= createPgCompatibleStorageSdk({ envId: () => process.env.ORADV_ENV_ID, classicSdk: cloud });
+    service ??= createService(getStore(), { clubId: 'oradv', avatarStorage: createAvatarStorage(storageSdk), memberMediaStorage: createMemberMediaStorage(storageSdk),
       log: (entry) => console.warn(JSON.stringify(entry)) });
     return service.handle(request, identity, traceId);
   },

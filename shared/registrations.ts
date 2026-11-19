@@ -7,11 +7,14 @@ import { WAITLIST_RECHECK_BATCH } from './limits';
 import { effectiveMemberKind } from './member-identity';
 import { publicClub } from './club';
 import { readMemberNumber } from './member-number';
+import { BASIC_QUALIFICATION, normalizeQualificationType, passedBasicAssessment } from './ranking-board';
 
 export async function checkEligibility(ctx: Context, tx: Transaction, activity: Activity, memberId: string) {
   const growth = await tx.get<MemberStats>('member_stats', statsIdFor(ctx.clubId, memberId, null));
   requireThat((growth?.points ?? 0) >= activity.minGrowthPoints, 'SCORE_TOO_LOW', '成长积分未达到本场门槛');
-  for (const type of activity.requiredQualifications) {
+  for (const rawType of activity.requiredQualifications) {
+    const type = normalizeQualificationType(rawType);
+    if (type === BASIC_QUALIFICATION && await passedBasicAssessment(tx, ctx.clubId, memberId, ctx.now)) continue;
     const qualification = await tx.get<Qualification>('qualifications', key('qualification', ctx.clubId, memberId, type));
     requireThat(qualification?.clubId === ctx.clubId && qualification.memberId === memberId && qualification.decision === 'approved', 'QUALIFICATION_REQUIRED', '请先完成所需技能核验');
     requireThat(!qualification.expiresAt || qualification.expiresAt > ctx.now, 'QUALIFICATION_EXPIRED', '技能资格已过期，请重新核验');
@@ -242,7 +245,7 @@ export async function recordCheckin(ctx: Context) {
       requireThat(lastDepartureDay === day, 'STATE_CONFLICT', '需要当日出发核验');
       const plannedDays = Math.round((Date.parse(shanghaiDay(activity.endAt)) - Date.parse(shanghaiDay(activity.startAt))) / 86400000);
       const finalDay = new Date(Date.parse(shanghaiDay(activity.actualStartedAt ?? activity.startAt)) + plannedDays * 86400000).toISOString().slice(0, 10);
-      state = p.result === 'safe_exit' ? 'safe_exit' : day < finalDay ? 'checked_in' : 'pending_settlement';
+      state = p.result === 'safe_exit' ? 'safe_exit' : (activity.state !== 'ended' && day < finalDay) ? 'checked_in' : 'pending_settlement';
       if (state === 'safe_exit') reason = text(p.reason, '退出原因', 500);
     }
     const checkin: Checkin = { id, clubId: ctx.clubId, activityId: activity.id, memberId: registration.memberId,

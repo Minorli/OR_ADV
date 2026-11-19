@@ -37,7 +37,7 @@ Component({
       this.setData({ mounts: kind ? [{ key: `reference-${state.serial}`, kind, params }] : [], isSheet: kind === 'activity' || kind === 'core' });
     },
     stop() {},
-    async requestClose() {
+    async requestClose(event?: WechatMiniprogram.CustomEvent<{ login?: boolean }>) {
       const state = states.get(this), mount = this.data.mounts[0];
       if (!state?.attached || state.closing || !mount) return;
       const child = this.selectComponent('#reference-leaf') as { referenceRequestClose?: () => Promise<{ allowed: boolean; changed: boolean }> } | null;
@@ -45,7 +45,9 @@ Component({
       state.closing = true;
       try {
         const result = await child.referenceRequestClose();
-        if (result.allowed && state.attached && this.data.mounts[0]?.key === mount.key) this.triggerEvent('close', { changed: result.changed === true });
+        if (result.allowed && state.attached && this.data.mounts[0]?.key === mount.key) {
+          this.triggerEvent('close', { changed: result.changed === true, ...(event?.detail?.login ? { login: true } : {}) });
+        }
       } finally { state.closing = false; }
     },
   },

@@ -60,11 +60,15 @@ Page({
   filter(event: WechatMiniprogram.TouchEvent) { this.setData({ metric: event.currentTarget.dataset.value, items: [], nextCursor: null }); void this.load(); },
   retry() { void this.load(); },
   more() { void this.load(true); },
-  profile() { wx.switchTab({ url: '/pages/profile/index' }); },
+  profile() { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); },
   points() { wx.navigateTo({ url: '/pages/points/index' }); },
   duties() { openReferencePanel(this, 'core'); },
   rules() { openReferencePanel(this, 'rules'); },
-  closeReference() { closeReferencePanel(this); },
+  closeReference(event?: WechatMiniprogram.CustomEvent<{ changed?: boolean; login?: boolean }>) {
+    closeReferencePanel(this);
+    if (event?.detail?.login) { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); return; }
+    if (event?.detail?.changed) void this.load();
+  },
   contact() { void contactPerson(this.data.contact.contactMethod, this.data.contact.contactValue); },
   async certify(event: WechatMiniprogram.TouchEvent) {
     const member = this.data.member, role = mockRole(), version = this.data.requestVersion;

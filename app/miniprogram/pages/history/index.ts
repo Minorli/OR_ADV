@@ -79,7 +79,11 @@ Page({
   videoFailed(event: WechatMiniprogram.CustomEvent) { const id = String(event.currentTarget.dataset.id || ''); this.setData({ playingVideoId: '', videoErrors: { ...this.data.videoErrors, [id]: true } }); },
   open(event: WechatMiniprogram.TouchEvent) { wx.navigateTo({ url: `/pages/history-detail/index?activityId=${encodeURIComponent(event.currentTarget.dataset.id)}` }); },
   explore() { wx.switchTab({ url: '/pages/activities/index' }); },
-  closeReference() { closeReferencePanel(this); },
+  closeReference(event?: WechatMiniprogram.CustomEvent<{ changed?: boolean; login?: boolean }>) {
+    closeReferencePanel(this);
+    if (event?.detail?.login) { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); return; }
+    if (event?.detail?.changed) void this.load();
+  },
   more() { void this.load(true); },
   retry() { void this.load(); },
 });

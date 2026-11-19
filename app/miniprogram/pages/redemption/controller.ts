@@ -1,6 +1,6 @@
 import { defineReferencePage } from '../../services/reference-controller';
-import { closeReferenceLeaf, markReferenceChanged } from '../../services/reference-ui';
-import { ApiError, call, confirm, errorMessage, isMock, mockRole, runtime } from '../../services/api';
+import { closeReferenceLeaf, markReferenceChanged, navigateToReferenceLogin } from '../../services/reference-ui';
+import { ApiError, call, confirm, errorMessage, isMock, mockRole, runtime, toast } from '../../services/api';
 import { dateText } from '../../services/presentation';
 import { sha256 } from '../../../../shared/hash';
 import type { MemberSummary } from '../../../../shared/types';
@@ -251,7 +251,9 @@ export const controller = defineReferencePage({
       let payload: ItemPayload;
       if (this.data.itemIntent) payload = this.data.itemIntent.payload;
       else {
-        if (!form.name.trim() || !form.reason.trim()) throw new ApiError('INVALID_INPUT', '请填写项目名称和修改原因');
+        if (!form.name.trim() || !form.description.trim() || !form.fulfillmentInstructions.trim() || !form.reason.trim()) {
+          throw new ApiError('INVALID_INPUT', '请完整填写项目名称、说明、交付办法和修改原因');
+        }
         payload = { submissionId: nonce(), kind: form.kindIndex === 0 ? 'goods' : 'service', name: form.name.trim(), description: form.description.trim(), fulfillmentInstructions: form.fulfillmentInstructions.trim(),
           pointsCost: number(form.pointsCost, '兑换积分'), totalStock: number(form.totalStock, '库存或服务名额'), sortOrder: number(form.sortOrder, '显示顺序'), reason: form.reason.trim() };
       }
@@ -266,7 +268,7 @@ export const controller = defineReferencePage({
       if (!this.matches(fence)) return;
       if (!form.id) wx.removeStorageSync(intentKey('item', fence.memberId, fence.environment));
       this.setData({ itemIntent: null, editor: false, itemDirty: false }); await this.reloadAfter(fence, `项目已保存 · ${saved.status === 'published' ? '已发布' : saved.status === 'archived' ? '已归档' : '草稿'}`);
-    } catch (error) { if (this.matches(fence)) { if (!form.id && !recovering && knownRejection(error)) { try { wx.removeStorageSync(intentKey('item', fence.memberId, fence.environment)); this.setData({ itemIntent: null }); } catch { /* Retain the locked creation intent. */ } } this.setData({ error: errorMessage(error) }); } }
+    } catch (error) { if (this.matches(fence)) { if (!form.id && !recovering && knownRejection(error)) { try { wx.removeStorageSync(intentKey('item', fence.memberId, fence.environment)); this.setData({ itemIntent: null }); } catch { /* Retain the locked creation intent. */ } } const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   async itemStatus(event: WechatMiniprogram.TouchEvent) {
@@ -335,5 +337,5 @@ export const controller = defineReferencePage({
   async retry() { if (this.data.itemDirty || this.data.policyDirty) { const fence = this.fence(); if (!await confirm('刷新兑换记录', '当前修改尚未保存，是否放弃？') || !this.matches(fence)) return; } await this.load(); },
   points() { wx.navigateTo({ url: '/pages/points/index' }); },
   consultation() { wx.navigateTo({ url: '/pages/club-content/index?section=redemption' }); },
-  profile() { wx.switchTab({ url: '/pages/profile/index' }); },
+  profile() { navigateToReferenceLogin(this); },
 });

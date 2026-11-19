@@ -1,13 +1,14 @@
 <view class="page reference-v2 history-reference" style="padding-top:{{v2Chrome.top}}px">
+  <view class="status-guard" style="height:{{v2Chrome.top}}px"></view>
   <view class="topbar" style="top:{{v2Chrome.top}}px;padding-right:{{v2Chrome.right}}px"><text class="h1">往期活动</text><view class="tb-actions"><text class="tag">{{year}}</text></view></view>
-  <view class="filterbar" style="top:{{v2Chrome.top + 49.5}}px">
+  <view class="filterbar" style="top:calc({{v2Chrome.top}}px + 95rpx)">
     <scroll-view scroll-x class="reference-month-scroll" show-scrollbar="{{false}}"><view class="months"><button wx:for="{{months}}" wx:key="value" class="{{month === item.value ? 'on' : ''}}" data-month="{{item.value}}" bindtap="selectMonth">{{item.label}}</button></view></scroll-view>
     <view class="search"><view class="reference-search-icon"></view><input value="{{query}}" maxlength="60" bindinput="search" placeholder="搜索活动名称 / 地点" placeholder-class="reference-search-placeholder" aria-label="搜索往期活动"/></view>
   </view>
   <view class="reference-history-body">
     <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
     <view wx:for="{{visibleItems}}" wx:key="id" class="card hist">
-      <view class="thumb reference-cover-fallback" data-id="{{item.id}}" bindtap="open"><image wx:if="{{!coverErrors[item.id]}}" class="reference-cover" src="{{item.cover}}" mode="aspectFill" lazy-load data-id="{{item.id}}" binderror="coverFailed"/><view class="reference-history-shade"></view><view class="dt">{{item.title}}</view><view class="km">🏍 {{item.distanceText}}</view></view>
+      <view class="thumb reference-cover-fallback" data-id="{{item.id}}" bindtap="open"><image wx:if="{{!coverErrors[item.id]}}" class="reference-cover" src="{{item.cover}}" mode="aspectFill" lazy-load data-id="{{item.id}}" binderror="coverFailed"/><view class="reference-history-shade"></view><view class="dt">{{item.dateText}}</view><view class="km">🏍 {{item.distanceText}}</view></view>
       <view class="bd">
         <view class="h3" data-id="{{item.id}}" bindtap="open">{{item.title}}</view><view class="where">{{item.location}} · {{item.dateText}}</view>
         <view wx:if="{{item.intro}}" class="hist-intro">{{item.intro}}</view>

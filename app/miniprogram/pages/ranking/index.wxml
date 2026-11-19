@@ -1,9 +1,10 @@
 <view class="page reference-v2 ranking-reference" style="padding-top:{{v2Chrome.top}}px">
+  <view class="status-guard" style="height:{{v2Chrome.top}}px"></view>
   <view class="topbar" style="top:{{v2Chrome.top}}px;padding-right:{{v2Chrome.right}}px"><text class="h1">积分排行</text><view class="tb-actions"><text class="tag o">{{year}}赛季</text></view></view>
   <view class="reference-ranking-body">
     <view class="rank-head">
-      <view class="muted reference-score-label">我的积分</view>
-      <view class="pt" bindtap="points"><text class="b">{{member ? member.growthPoints : '—'}}</text><text class="span">分 · 留下每一次同行的记录</text></view>
+      <view class="muted reference-score-label">{{metric === 'completed_count' ? '我的完成次数' : metric === 'annual' ? '我的年度积分' : '我的积分'}}</view>
+      <view class="pt" bindtap="points"><text class="b">{{member ? (metric === 'completed_count' ? member.completedCount : metric === 'annual' ? member.annualPoints : member.growthPoints) : '—'}}</text><text class="span">{{metric === 'completed_count' ? '次 · 留下每一次同行的记录' : '分 · 留下每一次同行的记录'}}</text></view>
       <view class="myrank" wx:if="{{member && ownRanking && ownRanking.rank !== null}}">当前排名 <text class="b">第 {{ownRanking.rank}} 名</text> / 共 {{ownRanking.publicCount}} 人</view>
       <view class="myrank" wx:elif="{{member && ownRanking}}">完成基础控车考核后进入榜单 · 当前 {{ownRanking.publicCount || 0}} 人在榜</view>
       <view class="myrank" wx:elif="{{ownRankingError}}">{{ownRankingError}}<button class="link a" bindtap="retryOwnRanking">重试</button></view>

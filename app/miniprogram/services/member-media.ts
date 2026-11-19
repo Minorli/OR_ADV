@@ -22,12 +22,15 @@ export async function chooseAndUploadMemberImage(purpose: MemberMediaPurpose, la
   if (!(info.width > 0 && info.height > 0)) throw new MemberMediaError('INVALID_INPUT', '无法读取这张图片，请重新选择');
   const fs = wx.getFileSystemManager();
   let compressedPath = '';
-  for (const [maximum, quality] of [[1024, 65], [768, 60], [512, 55], [256, 45]]) {
+  for (const [maximum, quality] of [[1024, 65], [768, 60], [512, 55], [256, 45], [192, 40]]) {
     const ratio = Math.min(1, maximum / Math.max(info.width, info.height));
     const image = await wx.compressImage({ src: original, quality, compressedWidth: Math.max(1, Math.round(info.width * ratio)), compressedHeight: Math.max(1, Math.round(info.height * ratio)) });
     const stat = fs.statSync(image.tempFilePath);
     if (Array.isArray(stat) || stat.size <= 0) throw new MemberMediaError('INVALID_INPUT', '无法读取压缩后的图片');
-    if (stat.size <= 65_536) { validateAvatarImage(fs.readFileSync(image.tempFilePath, 'base64')); compressedPath = image.tempFilePath; break; }
+    if (stat.size <= 65_536) {
+      try { validateAvatarImage(fs.readFileSync(image.tempFilePath, 'base64')); compressedPath = image.tempFilePath; break; }
+      catch { /* Keep stepping down if dimensions still exceed bounds. */ }
+    }
   }
   if (!compressedPath) throw new MemberMediaError('INVALID_INPUT', '图片压缩后仍超过64KB，请换一张较简单的图片');
   await activeMember(member.id);
@@ -95,6 +98,9 @@ export async function retryMemberMediaDraft(draftId: string): Promise<{ assetId:
     const preview = await resolveMemberMedia(asset.id);
     await activeMember(member.id);
     wx.setStorageSync(DRAFTS_KEY, allDrafts().filter(item => item.id !== draft.id));
+    if (!isMock && draft.kind === 'image') {
+      try { wx.getFileSystemManager().removeSavedFile({ filePath: draft.localPath, success: () => {}, fail: () => {} }); } catch { /* Best-effort local quota cleanup. */ }
+    }
     return { assetId: asset.id, previewUrl: preview.url };
   } catch (error) {
     const detail = error as { code?: string; message?: string };

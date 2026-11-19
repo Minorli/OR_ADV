@@ -2,7 +2,7 @@ import { call, currentMember, errorMessage, confirm, toast, isMock, mockRole, ru
 import type { MemberSummary, PageResult, Role, Activity } from '../../../../shared/types';
 import { memberNumberText } from '../../services/member-number';
 import { chooseAndUploadMemberImage, MemberMediaError } from '../../services/member-media';
-import { businessAdminTitle } from '../../../../shared/permissions';
+import { businessAdminTitle, canManagePublicContent } from '../../../../shared/permissions';
 import type { ClubHeroSlideView, ClubHeroView } from '../../../../shared/club-hero';
 
 interface RoleGrant { role: Role; revision: number; enabled: boolean; activityIds: string[] | null; expiresAt: string | null; designation?: 'manager' }
@@ -27,7 +27,7 @@ const roleBadges = (row: Pick<MemberRow, 'staffRoles' | 'isPrimaryOwner'>) => (r
 
 Page({
   data: {
-    isMock, member: null as MemberSummary | null, authorized: false, adminTitle: '', pane: 'members', loading: false, loadingMore: false, busy: '', error: '', notice: '', version: 0, selectionVersion: 0, loadedRole: '', loadedEnvironment: '',
+    isMock, member: null as MemberSummary | null, authorized: false, canManageHero: false, adminTitle: '', pane: 'members', requestedPane: '', loading: false, loadingMore: false, busy: '', error: '', notice: '', version: 0, selectionVersion: 0, loadedRole: '', loadedEnvironment: '',
     query: '', items: [] as MemberRow[], nextCursor: null as string | null, requestVersion: 0, selected: null as MemberRow | null,
     reason: '', expiryDate: '', priority: '0', roleLabels, roleValues: roles, roleIndex: 0, roleEnabled: true, roleExpiryDate: '', roleScoped: false, roleProtected: false, roleManager: false, scopeIds: [] as string[], activities: [] as Activity[], scopeOptions: [] as (Activity & { checked: boolean })[],
     qualifications: [] as Qualification[], qualificationCursor: null as string | null, qualificationType: '', qualificationDate: '', qualificationRevision: 0,
@@ -35,16 +35,21 @@ Page({
     contactLabels, contactIndex: 0, settingsDirty: false,
     heroSlides: [] as ClubHeroSlideView[], heroRevision: 0, heroDirty: false, heroRights: false, heroLoaded: false,
   },
+  onLoad(options?: Record<string, string | undefined>) {
+    if (options?.pane && ['members', 'settings', 'hero'].includes(options.pane)) {
+      this.setData({ pane: options.pane, requestedPane: options.pane });
+    }
+  },
   onShow() { return this.resume(); },
   onUnload() { this.clearPrivate(); },
-  async resume() { if (this.data.selected || this.data.settingsDirty || this.data.heroDirty || this.data.busy) { await this.verifyOwner(); return; } await this.load(); },
+  async resume() { if (this.data.selected || this.data.settingsDirty || this.data.heroDirty || this.data.busy) { await (this.data.pane === 'hero' ? this.verifyHeroAccess() : this.verifyOwner()); return; } await this.load(); },
   fence(): OwnerFence { return { version: this.data.version, memberId: this.data.member?.id || '', role: this.data.loadedRole, environment: this.data.loadedEnvironment }; },
   matches(fence: OwnerFence) {
     if (fence.version === this.data.version && (fence.environment !== environmentScope() || isMock && fence.role !== mockRole())) { this.clearPrivate(); return false; }
-    return fence.version === this.data.version && !!fence.memberId && this.data.member?.id === fence.memberId && this.data.authorized && this.data.loadedEnvironment === fence.environment;
+    return fence.version === this.data.version && !!fence.memberId && this.data.member?.id === fence.memberId && (this.data.authorized || this.data.canManageHero) && this.data.loadedEnvironment === fence.environment;
   },
   clearPrivate() {
-    this.setData({ version: this.data.version + 1, requestVersion: this.data.requestVersion + 1, selectionVersion: this.data.selectionVersion + 1, member: null, authorized: false, adminTitle: '', loading: false, loadingMore: false,
+    this.setData({ version: this.data.version + 1, requestVersion: this.data.requestVersion + 1, selectionVersion: this.data.selectionVersion + 1, member: null, authorized: false, canManageHero: false, adminTitle: '', loading: false, loadingMore: false,
       selected: null, items: [], nextCursor: null, qualifications: [], qualificationCursor: null, activities: [], scopeOptions: [], scopeIds: [], busy: '', reason: '', expiryDate: '', roleExpiryDate: '', roleProtected: false, roleManager: false, query: '', priority: '0',
       qualificationType: '', qualificationDate: '', qualificationRevision: 0, notice: '', settingsDirty: false, settings: { clubId: 'oradv', name: '原始拉力', contactName: '', contactMethod: 'wechat', contactValue: '', contactInstructions: '', revision: 0, configured: false },
       heroSlides: [], heroRevision: 0, heroDirty: false, heroRights: false, heroLoaded: false });
@@ -61,6 +66,18 @@ Page({
       this.setData({ member, adminTitle: businessAdminTitle(member) }); return true;
     } catch (error) { if (fence.version === this.data.version) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } return false; }
   },
+  async verifyHeroAccess() {
+    const fence = this.fence();
+    if (!this.matches(fence)) { this.clearPrivate(); await this.load(); return false; }
+    try {
+      const member = await currentMember();
+      if (!this.matches(fence) || member?.id !== fence.memberId || !canManagePublicContent(member)) {
+        if (fence.version === this.data.version) { this.clearPrivate(); await this.load(); this.setData({ error: '当前管理身份已变化，请重新核对后操作' }); }
+        return false;
+      }
+      this.setData({ member, adminTitle: businessAdminTitle(member) }); return true;
+    } catch (error) { if (fence.version === this.data.version) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } return false; }
+  },
   selectionMatches(fence: OwnerFence, selectedId: string) { return this.matches(fence) && this.data.selected?.id === selectedId; },
   async load() {
     this.clearPrivate();
@@ -71,9 +88,13 @@ Page({
       if (version !== this.data.version) return;
       if (environmentScope() !== environment || isMock && mockRole() !== role) { this.clearPrivate(); await this.load(); return; }
       const authorized = !!member?.roles.includes('owner');
-      this.setData({ member, authorized, adminTitle: businessAdminTitle(member) });
-      if (!authorized) { this.setData({ items: [], selected: null, qualifications: [] }); return; }
+      const canManageHero = canManagePublicContent(member);
+      const nextPane = !authorized && canManageHero ? 'hero' : (this.data.requestedPane || this.data.pane);
+      this.setData({ member, authorized, canManageHero, pane: nextPane, adminTitle: businessAdminTitle(member) });
+      if (!authorized && !canManageHero) { this.setData({ items: [], selected: null, qualifications: [] }); return; }
+      if (!authorized) { await this.loadHero(); return; }
       await this.loadMembers();
+      if (nextPane === 'hero') await this.loadHero();
       const fence = this.fence(); if (!this.matches(fence)) return;
       const settings = await call<ClubSettings>('club.public');
       if (!this.matches(fence)) return;
@@ -267,7 +288,7 @@ Page({
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async loadHero() {
-    if (!this.data.authorized) return;
+    if (!this.data.canManageHero) return;
     const fence = this.fence();
     try {
       const hero = await call<ClubHeroView>('staff.club.hero.get');
@@ -275,7 +296,7 @@ Page({
     } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
   },
   async uploadHeroSlide() {
-    if (this.data.busy || !await this.verifyOwner()) return;
+    if (this.data.busy || !await this.verifyHeroAccess()) return;
     if (this.data.heroSlides.length >= 6) { toast('最多上传 6 张轮播图'); return; }
     const fence = this.fence();
     this.setData({ busy: 'hero-upload', error: '', notice: '' });
@@ -320,18 +341,18 @@ Page({
   },
   heroRights(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { this.setData({ heroRights: event.detail.value.includes('accepted') }); },
   async saveHero() {
-    if (this.data.busy || !await this.verifyOwner()) return;
+    if (this.data.busy || !await this.verifyHeroAccess()) return;
     const fence = this.fence(), slides = this.data.heroSlides;
     if (slides.some(slide => !slide.title.trim())) { toast('请为每张轮播图填写主标题'); return; }
     if (slides.length > 0 && !this.data.heroRights) { toast('请勾选公开展示授权确认'); return; }
     if (!await confirm(slides.length ? '发布首页轮播图' : '恢复默认轮播图', slides.length ? `将这 ${slides.length} 张轮播图发布到小程序首页。` : '当前未保留自定义图片，保存后首页将恢复默认 4 张轮播图。')) return;
-    if (!await this.verifyOwner() || !this.matches(fence)) return;
+    if (!await this.verifyHeroAccess() || !this.matches(fence)) return;
     this.setData({ busy: 'hero-save', error: '', notice: '' });
     try {
       const payload = slides.map(slide => ({ id: slide.id, assetId: slide.assetId, kicker: slide.kicker.trim() || 'ORIGINAL RALLY', title: slide.title.trim(), caption: slide.caption.trim() }));
       const saved = await call<ClubHeroView>('staff.club.hero.save', { slides: payload, rightsAcknowledged: slides.length > 0 && this.data.heroRights }, this.data.heroRevision);
-      if (this.matches(fence)) this.setData({ heroSlides: saved.slides || [], heroRevision: saved.revision, heroDirty: false, heroRights: false, heroLoaded: true, notice: saved.configured ? '首页轮播图已更新生效。' : '已恢复默认首页轮播图。' });
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+      if (this.matches(fence)) { this.setData({ heroSlides: saved.slides || [], heroRevision: saved.revision, heroDirty: false, heroRights: false, heroLoaded: true, notice: saved.configured ? '首页轮播图已更新生效。' : '已恢复默认首页轮播图。' }); toast(saved.configured ? '首页轮播图已发布' : '已恢复默认轮播图'); }
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
 });

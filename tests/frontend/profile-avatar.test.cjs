@@ -53,10 +53,6 @@ test('native profile keeps optional avatars private, durable and scoped to the c
   const memberId = page.data.member.id;
   assert.equal(page.data.showEdit, true, 'first login immediately offers the native nickname and avatar editor');
   assert.equal(page.data.nickname, '', 'the default club label does not occupy the WeChat nickname input');
-  page.nicknameBlur({ detail: { value: '微信填写的昵称' } });
-  assert.equal(page.data.nickname, '微信填写的昵称', 'nickname blur reads the native fill-in value');
-  await page.save();
-  assert.notEqual((await api.currentMember()).nickname, '微信填写的昵称', 'unreviewed nickname is not sent');
   page.nicknameReview({ detail: { pass: false, timeout: false } });
   page.nicknameBlur({ detail: { value: '' } });
   await page.save();
@@ -64,8 +60,15 @@ test('native profile keeps optional avatars private, durable and scoped to the c
   assert.equal(page.data.showEdit, true);
   page.nickname({ detail: { value: '检测超时的称呼' } }); page.nicknameReview({ detail: { pass: true, timeout: true } });
   await page.save(); assert(page.data.nicknameError); assert.notEqual((await api.currentMember()).nickname, '检测超时的称呼');
-  page.nickname({ detail: { value: '内测小周' } }); page.nicknameBlur({ detail: { value: '内测小周' } });
+  // Real iOS WeChat autofill fires bindnicknamereview BEFORE bindblur; blur must not overwrite passed back to pending.
   page.nicknameReview({ detail: { pass: true, timeout: false } });
+  page.nicknameBlur({ detail: { value: '微信填充昵称' } });
+  assert.equal(page.data.nicknameStatus, 'passed');
+  await page.save();
+  assert.equal((await api.currentMember()).nickname, '微信填充昵称');
+  // Manual typing (where WeChat PC / Android keyboards may not emit bindnicknamereview) and <form bindsubmit> also save cleanly.
+  page.openEdit();
+  page.nickname({ detail: { value: '内测小周' } }); page.nicknameBlur({ detail: { value: '内测小周' } });
   page.setData({ showEdit: false });
   await page.chooseAvatar({ detail: { avatarUrl: '/temp/choice.png' } });
   assert.equal(page.data.showEdit, true, 'choosing from the header opens the save controls');

@@ -1,4 +1,4 @@
-export type ReferencePanel = 'activity' | 'core' | 'rules' | 'contact' | 'handbook' | 'business' | 'partners' | 'dossier' | 'learning' | 'skills';
+export type ReferencePanel = 'activity' | 'core' | 'rules' | 'contact' | 'handbook' | 'business' | 'partners' | 'dossier' | 'learning' | 'skills' | 'history-detail' | 'redemption';
 interface ReferenceHost {
   data: { refPanel?: string; embedded?: boolean; referenceChanged?: boolean };
   setData(values: Record<string, unknown>): void;
@@ -30,7 +30,13 @@ export function closeReferencePanel(host: object) {
 export function closeReferenceLeaf(host: object) {
   const page = host as ReferenceHost;
   if (page.data.embedded && page.triggerEvent) page.triggerEvent('requestclose', { changed: !!page.data.referenceChanged });
+  else if (typeof getCurrentPages === 'function' && getCurrentPages().length <= 1) wx.switchTab({ url: '/pages/activities/index' });
   else wx.navigateBack({ delta: 1 });
+}
+export function navigateToReferenceLogin(host: object) {
+  const page = host as ReferenceHost;
+  if (page.data.embedded && page.triggerEvent) page.triggerEvent('requestclose', { changed: !!page.data.referenceChanged, login: true });
+  else { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); }
 }
 export function markReferenceChanged(host: object) {
   const page = host as ReferenceHost;

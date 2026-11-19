@@ -1,6 +1,6 @@
 import { defineReferencePage } from '../../services/reference-controller';
-import { closeReferenceLeaf, markReferenceChanged } from '../../services/reference-ui';
-import { ApiError, call, confirm, currentMember, errorMessage, isMock, mockRole, runtime } from '../../services/api';
+import { closeReferenceLeaf, markReferenceChanged, navigateToReferenceLogin } from '../../services/reference-ui';
+import { ApiError, call, confirm, currentMember, errorMessage, isMock, mockRole, runtime, toast } from '../../services/api';
 import { sha256 } from '../../../../shared/hash';
 import { contactPerson, emptyContact } from '../../services/member';
 import type { ClubContact } from '../../services/member';
@@ -127,7 +127,7 @@ export const controller = defineReferencePage({
     const row = this.data.contactRows[Number(event.currentTarget.dataset.index)];
     if (row) await contactPerson(row.method, row.value);
   },
-  profile() { wx.switchTab({ url: '/pages/profile/index' }); },
+  profile() { navigateToReferenceLogin(this); },
   points() { wx.navigateTo({ url: '/pages/points/index' }); },
   ruleSections(content: ClubContentView) {
     const headings = [{ title: '积分获取', match: /获取|奖励|结算/ }, { title: '积分用途', match: /用途|成长|年度/ }, { title: '成员状态', match: /成员|状态|观察|准入/ }, { title: '兑换规则', match: /兑换|预留|交付/ }];
@@ -162,7 +162,11 @@ export const controller = defineReferencePage({
   addPerson() { if (this.canEdit() && this.data.section === 'core' && this.data.draft.people.length < 8) this.editDraft({ ...this.data.draft, people: [...this.data.draft.people, { name: '', duty: '', introduction: '', responsibilities: [] }] }); },
   personField(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const { index, field } = event.currentTarget.dataset;
-    if (this.canEdit() && ['name', 'duty', 'introduction', 'avatarText', 'experience', 'distanceKm', 'serviceText'].includes(field)) this.editDraft({ ...this.data.draft, people: this.data.draft.people.map((row, i) => i === Number(index) ? { ...row, [field]: field === 'distanceKm' ? event.detail.value.trim() === '' ? null : Number(event.detail.value) : event.detail.value } : row) });
+    if (!this.canEdit() || !['name', 'duty', 'introduction', 'avatarText', 'experience', 'distanceKm', 'serviceText'].includes(field)) return;
+    const raw = event.detail.value;
+    const digits = raw.replace(/\D+/g, '');
+    const value = field === 'distanceKm' ? (digits === '' ? null : Number(digits)) : raw;
+    this.editDraft({ ...this.data.draft, people: this.data.draft.people.map((row, i) => i === Number(index) ? { ...row, [field]: value } : row) });
   },
   addResponsibility(event: WechatMiniprogram.CustomEvent) {
     const index = Number(event.currentTarget.dataset.index);
@@ -212,7 +216,8 @@ export const controller = defineReferencePage({
       if (!this.matches(version, viewerId, role)) return;
       markReferenceChanged(this);
       this.setData({ content, draft: copy(editable(content)), editorDirty: false, rights: false, notice: status === 'published' ? '栏目已公开发布。' : '草稿已保存，本栏目暂未公开。' }); this.showContacts();
-    } catch (error) { if (this.matches(version, viewerId, role)) this.setData({ error: errorMessage(error) }); }
+      toast(status === 'published' ? '栏目已公开发布' : '草稿已保存');
+    } catch (error) { if (this.matches(version, viewerId, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(version, viewerId, role)) this.setData({ busy: false }); }
   },
   restoreForm() {
