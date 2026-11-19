@@ -298,7 +298,7 @@
     "zipBufferBytes": 1717233,
     "formalReviewSubmitted": false,
     "published": false,
-    "experienceSelectionByVersionManager": "officially_read_back_0.5.0-test.1"
+    "experienceSelectionByVersionManager": "officially_read_back_0.5.0-test.3_2026-11-19"
   },
   "newPrototypeIteration": {
     "allFourTabsAndLeafFlowsImplemented": true,
@@ -534,7 +534,7 @@
     "developmentUploadIsNotExperienceRelease": true,
     "sourceVersion": "0.5.0-test.3",
     "developmentVersion": "0.5.0-test.3",
-    "effectiveExperienceVersion": "0.5.0-test.1",
+    "effectiveExperienceVersion": "0.5.0-test.3",
     "effectiveOnlineVersion": null
   },
   "visualParityV2": {
