@@ -1,5 +1,5 @@
 <view class="page reference-v2 redemption-page {{embedded ? 'is-embedded' : ''}}"><view class="v2-modal-content"><view class="shd"><text class="h3">积分兑换</text><button class="x" bindtap="referenceClose" aria-label="关闭积分兑换">✕</button></view><view class="bdy">
-<view class="redemption-heading"><text class="muted">用已获得的兑换积分，申请俱乐部物品与服务。</text><button class="text-button" bindtap="points">积分明细 ›</button></view>
+<view class="redemption-heading"><text class="muted">用已获得的兑换积分，申请俱乐部物品与服务。</text><button wx:if="{{member}}" class="text-button" bindtap="points">积分明细 ›</button></view>
   <view wx:if="{{loading}}" class="loading">正在整理兑换记录…</view>
   <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry" disabled="{{busy}}">刷新</button></view><view wx:if="{{notice}}" class="notice">{{notice}}</view>
   <view wx:if="{{!loading && !member}}" class="empty">登录后查看可用积分和本人申请。<button class="btn primary full mt" bindtap="profile">前往登录</button></view>
@@ -22,7 +22,7 @@
     <block wx:if="{{mode === 'mine'}}">
       <view wx:if="{{!loading && !mine.length}}" class="empty">还没有兑换申请。<button class="btn ghost secondary full mt" data-mode="catalog" bindtap="switchView">看看可以兑换什么</button></view>
       <view wx:for="{{mine}}" wx:key="id" class="card redemption-request"><view class="row"><text class="tag">{{item.stateText}}</text><text class="redemption-request-cost">{{item.totalCost}} 分</text></view><view class="card-title mt">{{item.itemName}}</view><view class="small muted mt">{{item.itemDescription}}</view><view class="small mt">{{item.fulfillmentInstructions}}</view><view wx:if="{{item.reason}}" class="redemption-request-reason">处理说明：{{item.reason}}</view><view class="tiny muted mt">{{item.dateText}}</view><view wx:if="{{item.state === 'pending' || item.state === 'approved'}}" class="small muted mt">本次积分和名额已预留，尚未扣除。</view><view wx:if="{{item.state === 'refunded'}}" class="small muted mt">本笔兑换积分已退回，{{item.refundRestocked ? '库存／名额已恢复' : '库存／名额未恢复'}}。</view><button wx:if="{{item.canCancel}}" class="btn ghost secondary full mt" data-id="{{item.id}}" bindtap="cancel" disabled="{{busy}}">取消未交付申请</button></view>
-      <view wx:if="{{mine.length}}" class="field"><text class="field-label">取消说明（选填）</text><input value="{{cancelReason}}" maxlength="500" bindinput="reason" placeholder="如需取消，可先补充说明" disabled="{{busy}}"/></view>
+      <view wx:if="{{hasCancellable}}" class="field"><text class="field-label">取消说明（选填）</text><input value="{{cancelReason}}" maxlength="500" bindinput="reason" placeholder="如需取消，可先补充说明" disabled="{{busy}}"/></view>
     </block>
 
     <block wx:if="{{mode === 'manage' && isOwner}}">

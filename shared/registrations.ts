@@ -206,8 +206,9 @@ export async function recordCheckin(ctx: Context) {
   const p = ctx.request.payload;
   requireThat(['departure','return'].includes(String(p.phase)), 'INVALID_INPUT', '核验阶段不正确');
   requireThat(['present','safe_exit','no_show'].includes(String(p.result)), 'INVALID_INPUT', '核验结果不正确');
-  const day = p.day === undefined ? shanghaiDay(ctx.now) : text(p.day, '核验日期', 10);
-  requireThat(/^\d{4}-\d{2}-\d{2}$/.test(day) && day === shanghaiDay(ctx.now), 'INVALID_INPUT', '现场核验须使用当日日期');
+  const today = shanghaiDay(ctx.now);
+  const requestedDay = p.day === undefined ? undefined : text(p.day, '核验日期', 10);
+  if (requestedDay !== undefined) requireThat(/^\d{4}-\d{2}-\d{2}$/.test(requestedDay), 'INVALID_INPUT', '现场核验须使用当日日期');
   return ctx.store.transaction(async (tx) => {
     await ctx.staff(tx, ['owner','operator','leader','checkin']);
     const registration = await readRegistration(ctx, tx, p.registrationId);
@@ -215,6 +216,11 @@ export async function recordCheckin(ctx: Context) {
     const activity = await ctx.activity(tx, registration.activityId);
     const allowedAfterEnd = activity.state === 'ended' && (p.phase === 'return' || p.result === 'no_show');
     requireThat(activity.state === 'in_progress' || allowedAfterEnd, 'STATE_CONFLICT', '活动当前未进行或已停止核验');
+    const priorDepartureDay = (registration as Registration & { lastDepartureDay?: string }).lastDepartureDay;
+    const unclosedDeparture = p.phase === 'return' && registration.state === 'checked_in'
+      && !!priorDepartureDay && registration.lastReturnDay !== priorDepartureDay && priorDepartureDay <= today;
+    const day = requestedDay ?? (unclosedDeparture ? priorDepartureDay! : today);
+    requireThat(day === today || (unclosedDeparture && day === priorDepartureDay), 'INVALID_INPUT', '现场核验须使用当日日期');
     const id = key('checkin', ctx.clubId, activity.id, registration.memberId, String(p.phase), day);
     const previous = await tx.get<Checkin>('checkins', id);
     if (previous) {

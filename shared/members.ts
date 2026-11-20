@@ -61,8 +61,9 @@ export async function listMembers(ctx: Context) {
     requireThat(!seen.has(number), 'STATE_CONFLICT', '成员编号重复，请联系主理人核对');
     seen.add(number);
   }
-  const numericQuery = query !== '' && /^\d+$/.test(query);
-  const numberQuery = numericQuery ? Number(query) : undefined;
+  const numMatch = /^(?:#|no\.?\s*)?(\d+)$/i.exec(query);
+  const numericQuery = numMatch !== null;
+  const numberQuery = numericQuery ? Number(numMatch![1]) : undefined;
   const rows = all.filter(member => !query || (numericQuery ? member.memberNumber === numberQuery : member.nickname.toLocaleLowerCase().includes(query)))
     .sort((a, b) => {
       if (a.memberNumber !== b.memberNumber) {

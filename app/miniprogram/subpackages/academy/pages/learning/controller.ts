@@ -2,11 +2,20 @@ import { defineReferencePage } from '../../../../services/reference-controller';
 import { closeReferenceLeaf, markReferenceChanged, navigateToReferenceLogin } from '../../../../services/reference-ui';
 import { ApiError, call, confirm, currentMember, errorMessage, isMock, mockRole, runtime, toast } from '../../../../services/api';
 import type { LearningBank, PracticeView, SafetyQuestion } from '../../../../../../shared/learning-types';
+import { starterSafetyQuestions } from '../../../../../../shared/learning-content';
 import type { MemberSummary } from '../../../../../../shared/types';
 import { canManagePublicContent } from '../../../../../../shared/permissions';
 
 interface QuestionDraft { id: string; prompt: string; option0: string; option1: string; option2: string; option3: string; rightIndex: number; explanation: string }
-const emptyQuestion = (): QuestionDraft => ({ id: '', prompt: '', option0: '', option1: '', option2: '', option3: '', rightIndex: 0, explanation: '' });
+const emptyQuestion = (id = ''): QuestionDraft => ({ id, prompt: '', option0: '', option1: '', option2: '', option3: '', rightIndex: 0, explanation: '' });
+function nextQuestionId(questions: SafetyQuestion[] = []): string {
+  const taken = new Set(questions.map(q => q.id));
+  for (let n = questions.length + 1; n <= 999; n++) {
+    const candidate = `club-${String(n).padStart(2, '0')}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `club-${Date.now().toString(36)}`;
+}
 interface Catalog { configured: boolean; title: string; questionCount: number; fixtureOnly: boolean; policyStatus: string }
 const environmentScope = () => JSON.stringify([runtime.mode, runtime.appId, runtime.envId]);
 interface ViewerFence { version: number; memberId: string; role: string; environment: string }
@@ -16,7 +25,7 @@ export const controller = defineReferencePage({
     displayQuestion: null as PracticeView['question'], feedback: null as (NonNullable<PracticeView['feedback']> & { rightText: string }) | null,
     selectedIndex: -1, optionLabels: ['A', 'B', 'C', 'D'], questionNumber: 1, progress: 0,
     loading: false, busy: false, error: '', notice: '', loadVersion: 0, loadedRole: '', loadedEnvironment: '', autoStartAttempted: false,
-    isOwner: false, canManageContent: false, editor: false, bank: null as LearningBank | null, bankTitle: '', questionLabels: [] as string[],
+    isOwner: false, canManageContent: false, editor: false, editorDirty: false, bank: null as LearningBank | null, bankTitle: '', questionLabels: [] as string[],
     draft: emptyQuestion(), reason: '', instructorConfirmed: false,
   },
   onShow() { return this.resume(); },
@@ -24,7 +33,7 @@ export const controller = defineReferencePage({
   clearPrivate() {
     this.setData({ loadVersion: this.data.loadVersion + 1, loadedRole: '', loadedEnvironment: '', member: null, practice: null, displayQuestion: null, feedback: null,
       selectedIndex: -1, questionNumber: 1, progress: 0, bank: null, bankTitle: '', questionLabels: [], draft: emptyQuestion(), reason: '',
-      instructorConfirmed: false, isOwner: false, canManageContent: false, editor: false, busy: false, loading: false, error: '', notice: '' });
+      instructorConfirmed: false, isOwner: false, canManageContent: false, editor: false, editorDirty: false, busy: false, loading: false, error: '', notice: '' });
   },
   viewerFence(): ViewerFence { return { version: this.data.loadVersion, memberId: this.data.member?.id || '', role: this.data.loadedRole, environment: this.data.loadedEnvironment }; },
   matches(fence: ViewerFence) {
@@ -129,7 +138,10 @@ export const controller = defineReferencePage({
   next() { if (this.localViewer() && !this.data.busy) this.showPractice(this.data.practice); },
   retry() { void this.load(); },
   profile() { navigateToReferenceLogin(this); },
-  skills() { wx.navigateTo({ url: '/subpackages/academy/pages/skills/index?level=basic' }); },
+  skills() {
+    if (typeof getCurrentPages === 'function' && getCurrentPages()[getCurrentPages().length - 2]?.route === 'subpackages/academy/pages/skills/index') { wx.navigateBack({ delta: 1 }); return; }
+    wx.navigateTo({ url: '/subpackages/academy/pages/skills/index?level=basic' });
+  },
   async toggleEditor() {
     const fence = this.viewerFence();
     try { await this.assertViewer(fence, true); if (this.matches(fence)) { this.setData({ editor: !this.data.editor }); if (this.data.editor) await this.loadBank(); } }
@@ -140,24 +152,43 @@ export const controller = defineReferencePage({
     try {
       const bank: LearningBank = await this.verifiedCall(fence, 'staff.learning.catalog.get', {}, undefined, true);
       if (!this.matches(fence) || !this.data.canManageContent) return;
-      this.setData({ bank, bankTitle: bank.title || '安全穿越知识练习', questionLabels: bank.questions.map((question, index) => `${index + 1}. ${question.prompt}`) });
+      this.setData({ bank, bankTitle: bank.title || '安全穿越知识练习', editorDirty: false,
+        ...(!this.data.draft.id ? { draft: emptyQuestion(nextQuestionId(bank.questions)) } : {}),
+        questionLabels: bank.questions.map((question, index) => `${index + 1}. ${question.prompt}`) });
     } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
   },
   chooseQuestion(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     if (!this.localViewer(true)) return;
     const question = this.data.bank?.questions[Number(event.detail.value)];
-    if (question) this.setData({ draft: { id: question.id, prompt: question.prompt, option0: question.options[0], option1: question.options[1], option2: question.options[2], option3: question.options[3], rightIndex: question.rightIndex, explanation: question.explanation } });
+    if (question) this.setData({ editorDirty: false, draft: { id: question.id, prompt: question.prompt, option0: question.options[0], option1: question.options[1], option2: question.options[2], option3: question.options[3], rightIndex: question.rightIndex, explanation: question.explanation } });
   },
-  newQuestion() { if (this.localViewer(true)) this.setData({ draft: emptyQuestion(), reason: '', instructorConfirmed: false }); },
+  newQuestion() { if (this.localViewer(true)) this.setData({ draft: emptyQuestion(nextQuestionId(this.data.bank?.questions)), instructorConfirmed: false, editorDirty: false }); },
   field(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     if (!this.localViewer(true)) return;
     const field = String(event.currentTarget.dataset.field);
-    if (['id', 'prompt', 'option0', 'option1', 'option2', 'option3', 'explanation'].includes(field)) this.setData({ [`draft.${field}`]: event.detail.value });
-    else if (field === 'reason') this.setData({ reason: event.detail.value });
-    else if (field === 'bankTitle') this.setData({ bankTitle: event.detail.value });
+    if (['id', 'prompt', 'option0', 'option1', 'option2', 'option3', 'explanation'].includes(field)) this.setData({ [`draft.${field}`]: event.detail.value, editorDirty: true });
+    else if (field === 'reason') this.setData({ reason: event.detail.value, editorDirty: true });
+    else if (field === 'bankTitle') this.setData({ bankTitle: event.detail.value, editorDirty: true });
   },
-  rightAnswer(event: WechatMiniprogram.CustomEvent<{ value: string }>) { if (this.localViewer(true)) this.setData({ 'draft.rightIndex': Number(event.detail.value) }); },
-  instructor(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { if (this.localViewer(true)) this.setData({ instructorConfirmed: event.detail.value.includes('confirmed') }); },
+  rightAnswer(event: WechatMiniprogram.CustomEvent<{ value: string }>) { if (this.localViewer(true)) this.setData({ 'draft.rightIndex': Number(event.detail.value), editorDirty: true }); },
+  instructor(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { if (this.localViewer(true)) this.setData({ instructorConfirmed: event.detail.value.includes('confirmed'), editorDirty: true }); },
+  async importStarterBank() {
+    if (!this.data.bank || this.data.busy) return;
+    const fence = this.viewerFence();
+    if (!await confirm('导入参考题库草稿', '将向草稿中补充25道安全穿越与同行规则参考题（不会自动对外发布），之后可逐题审阅修改或直接核定发布。') || !this.matches(fence)) return;
+    const title = this.data.bankTitle.trim() || '安全穿越知识练习';
+    const reason = this.data.reason.trim() || '导入俱乐部安全穿越参考题草稿待指导人员核定';
+    this.setData({ busy: true, error: '' });
+    try {
+      await this.verifiedCall(fence, 'staff.learning.catalog.save', { title, questions: starterSafetyQuestions(), published: false, reason }, this.data.bank.revision, true);
+      if (!this.matches(fence)) return;
+      this.setData({ draft: emptyQuestion(), reason, notice: '已导入25道参考题草稿。可选择题目逐条调整，勾选下方核定确认后即可发布。', editorDirty: false });
+      toast('已导入25道参考题草稿');
+      await this.loadBank();
+      const catalog = await call<Catalog>('learning.catalog'); if (this.matches(fence)) this.setData({ catalog });
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
+    finally { if (this.matches(fence)) this.setData({ busy: false }); }
+  },
   async saveQuestion() {
     if (!this.data.bank || this.data.busy) return;
     const draft = this.data.draft;
@@ -168,7 +199,7 @@ export const controller = defineReferencePage({
     try {
       await this.verifiedCall(fence, 'staff.learning.catalog.save', { question, ...(title ? { title } : {}), published: false, reason: this.data.reason.trim() }, this.data.bank.revision, true);
       if (!this.matches(fence)) return;
-      this.setData({ notice: '题目已保存为草稿。核定并发布后，车友才能开始新的练习。' });
+      this.setData({ draft: emptyQuestion(), editorDirty: false, notice: '题目已保存为草稿。核定并发布后，车友才能开始新的练习。' });
       toast('题目已保存为草稿');
       await this.loadBank();
       const catalog = await call<Catalog>('learning.catalog'); if (this.matches(fence)) this.setData({ catalog });

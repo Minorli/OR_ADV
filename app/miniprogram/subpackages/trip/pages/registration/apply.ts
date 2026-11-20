@@ -2,10 +2,18 @@ import { call, currentMember, errorMessage, isMock, toast } from '../../../../se
 import { activityCard, registrationStates } from '../../../../services/presentation';
 import { emptyContact, contactPerson, memberKindText, needsOfflineArrangement, tripNextAction } from '../../../../services/member';
 import type { ClubContact } from '../../../../services/member';
-import type { Activity, MemberSummary, Registration } from '../../../../../../shared/types';
+import type { Activity, MemberSummary, PageResult, Registration } from '../../../../../../shared/types';
 Page({
-  data: { isMock, id: '', activity: null as ReturnType<typeof activityCard> | null, member: null as MemberSummary | null, contact: emptyContact, kindLabel: '游客', result: null as Registration | null, feeHint: false, successMessage: '', nickname: '', identityConsent: false, ruleConsent: false, loading: false, submitting: false, error: '', success: '' },
+  data: { isMock, id: '', activity: null as ReturnType<typeof activityCard> | null, member: null as MemberSummary | null, contact: emptyContact, kindLabel: '游客', result: null as Registration | null, feeHint: false, successMessage: '', nickname: '', identityConsent: false, ruleConsent: false, showPrivacy: false, loading: false, submitting: false, error: '', success: '' },
   onLoad(options: Record<string, string>) { this.setData({ id: options.id || '' }); void this.load(); },
+  async onShow() {
+    if (!this.data.id || !this.data.success || this.data.submitting) return;
+    try {
+      const own = await call<PageResult<Registration>>('registration.mine', { activityId: this.data.id });
+      const active = own.items.find(item => item.activityId === this.data.id && item.state !== 'cancelled');
+      if (!active) { this.setData({ result: null, success: '', successMessage: '', feeHint: false }); await this.load(); }
+    } catch { /* Keep current view if offline. */ }
+  },
   async load() {
     this.setData({ loading: true, error: '' });
     try {
@@ -18,7 +26,7 @@ Page({
   nickname(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.setData({ nickname: event.detail.value }); },
   identityConsent(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { this.setData({ identityConsent: event.detail.value.includes('accepted') }); },
   ruleConsent(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { this.setData({ ruleConsent: event.detail.value.includes('accepted') }); },
-  privacy() { wx.setStorageSync('oradv-open-privacy', true); wx.switchTab({ url: '/pages/profile/index' }); },
+  privacy() { this.setData({ showPrivacy: !this.data.showPrivacy }); },
   mine() { wx.navigateTo({ url: `/subpackages/trip/pages/trip/detail?id=${encodeURIComponent(this.data.id)}` }); },
   contact() { void contactPerson(this.data.contact.contactMethod, this.data.contact.contactValue); },
   async submit() {
@@ -34,7 +42,7 @@ Page({
       }
       const registration = await call<Registration>('registration.apply', { activityId: activity.id, acceptedRuleVersion: activity.ruleVersion });
       this.setData({ result: registration, success: registrationStates[registration.state] || registration.state, feeHint: needsOfflineArrangement(registration, this.data.member), successMessage: tripNextAction(registration, this.data.member) });
-    } catch (error) { this.setData({ error: errorMessage(error) }); }
+    } catch (error) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); }
     finally { this.setData({ submitting: false }); }
   },
 });

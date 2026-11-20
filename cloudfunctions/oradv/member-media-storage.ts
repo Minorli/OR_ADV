@@ -15,8 +15,8 @@ const stagingPattern = /^(member-evidence|club-public-assets)\/_staging\/(member
 function checkFileId(fileId: string) { if (!canonical.test(fileId)) throw new Error('Invalid evidence namespace'); }
 
 /** Only server-held, validated media bytes reach these fresh canonical objects. */
-export function createMemberMediaStorage(sdk: MemberMediaCloudSdk): MemberMediaStorage {
-  const supportsVideo = typeof sdk.createSignedUploadUrl === 'function' && typeof sdk.downloadFile === 'function';
+export function createMemberMediaStorage(sdk: MemberMediaCloudSdk, fallbackEnvId?: string): MemberMediaStorage {
+  const supportsVideo = typeof sdk.downloadFile === 'function' && (typeof sdk.createSignedUploadUrl === 'function' || Boolean(fallbackEnvId));
   return {
     mode: 'cloud',
     async saveImage(memberId, assetId, imageBase64, purpose = 'dossier') {
@@ -36,8 +36,15 @@ export function createMemberMediaStorage(sdk: MemberMediaCloudSdk): MemberMediaS
         if (!/^member_[a-f0-9]{64}$/.test(memberId) || !/^media_[a-f0-9]{64}$/.test(assetId)) throw new Error('Invalid evidence identity');
         const bucket = purpose === 'club_public' ? 'club-public-assets' : 'member-evidence';
         const storagePrefix = `${bucket}/_staging/${memberId}/${assetId}/${randomUUID()}.${extension}`;
-        const signed = await sdk.createSignedUploadUrl!({ cloudPath: storagePrefix, maxAge: 300 });
-        return { uploadUrl: signed.uploadUrl, storagePrefix: signed.fileID };
+        if (typeof sdk.createSignedUploadUrl === 'function') {
+          try {
+            const signed = await sdk.createSignedUploadUrl({ cloudPath: storagePrefix, maxAge: 300 });
+            return { uploadUrl: signed.uploadUrl, storagePrefix: signed.fileID };
+          } catch {
+            if (!fallbackEnvId) throw new Error('Signed video upload unavailable');
+          }
+        }
+        return { storagePrefix: `cloud://${fallbackEnvId}/${storagePrefix}` };
       },
       async saveVideoChunk(storagePrefix, index, chunkBytes) {
         const match = /^cloud:\/\/[^/]+\/(.+)$/.exec(storagePrefix);
@@ -51,20 +58,27 @@ export function createMemberMediaStorage(sdk: MemberMediaCloudSdk): MemberMediaS
         const envId = match[1], relPath = match[2];
         const parsed = stagingPattern.exec(relPath);
         if (!parsed) throw new Error('Invalid video staging path');
+        if (!(expectedBytes > 0 && expectedBytes <= maxBytes)) throw new Error('Video byte size out of bounds');
         const [, bucket, memberId, assetId, , declaredExt] = parsed;
         const cleanupIds: string[] = [];
         let videoBytes: Buffer;
         if (totalChunks && totalChunks > 0) {
           const partIds = Array.from({ length: totalChunks }, (_, idx) => `cloud://${envId}/${relPath}.part${String(idx).padStart(4, '0')}.bin`);
           cleanupIds.push(...partIds);
-          const parts = await Promise.all(partIds.map(async id => {
+          videoBytes = Buffer.allocUnsafe(expectedBytes);
+          let offset = 0;
+          for (const id of partIds) {
             const downloaded = await sdk.downloadFile!({ fileID: id });
             if (!downloaded || downloaded.statusCode < 200 || downloaded.statusCode >= 300 || !downloaded.fileContent.length) {
               throw new Error('Missing uploaded video chunk');
             }
-            return downloaded.fileContent;
-          }));
-          videoBytes = Buffer.concat(parts);
+            if (offset + downloaded.fileContent.length > expectedBytes) {
+              throw new Error('Video byte size mismatch');
+            }
+            downloaded.fileContent.copy(videoBytes, offset);
+            offset += downloaded.fileContent.length;
+          }
+          if (offset !== expectedBytes) throw new Error('Video byte size mismatch');
         } else {
           cleanupIds.push(storagePrefix);
           const downloaded = await sdk.downloadFile!({ fileID: storagePrefix });

@@ -14,10 +14,18 @@ function parameters(kind: string, value: unknown): Record<string, string> {
   return params;
 }
 
+function computeModalInsetStyle(): string {
+  const info = typeof wx !== 'undefined' && typeof wx.getWindowInfo === 'function' ? wx.getWindowInfo() : null;
+  const menu = typeof wx !== 'undefined' && typeof wx.getMenuButtonBoundingClientRect === 'function' ? wx.getMenuButtonBoundingClientRect() : null;
+  const topPx = Math.max(menu?.bottom ? menu.bottom + 10 : 0, (info?.statusBarHeight ?? 44) + 12);
+  const bottomPx = Math.max(info?.safeArea ? Math.max(0, info.screenHeight - info.safeArea.bottom) + 12 : 0, 16);
+  return `padding-top:${topPx}px;padding-bottom:${bottomPx}px;box-sizing:border-box`;
+}
+
 Component({
   options: { styleIsolation: 'apply-shared' },
   properties: { kind: { type: String, value: '' }, params: { type: Object, value: {} } },
-  data: { mounts: [] as Mount[], isSheet: false },
+  data: { mounts: [] as Mount[], isSheet: false, modalStyle: computeModalInsetStyle() },
   observers: {
     'kind, params'() { if (states.get(this)?.attached) this.syncPanel(); },
   },
@@ -34,7 +42,7 @@ Component({
       state.signature = signature; state.serial++;
       // A different route gets a different native component instance. Old async
       // work remains attached to its disposed controller, never the new route.
-      this.setData({ mounts: kind ? [{ key: `reference-${state.serial}`, kind, params }] : [], isSheet: kind === 'activity' || kind === 'core' });
+      this.setData({ mounts: kind ? [{ key: `reference-${state.serial}`, kind, params }] : [], isSheet: kind === 'activity' || kind === 'core', modalStyle: computeModalInsetStyle() });
     },
     stop() {},
     async requestClose(event?: WechatMiniprogram.CustomEvent<{ login?: boolean }>) {

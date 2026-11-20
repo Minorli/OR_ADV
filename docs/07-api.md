@@ -72,11 +72,11 @@ profile.update只允许昵称及两类公开同意，不接收成员身份或员
 |---|---|
 | media.image.save / get / cancel | 保存用途与实际图片，不接收客户端fileID；get返回获准的短期URL，cancel仅本人未绑定资产 |
 | media.video.save | 仅本机mock接收真实持久文件；云端练习与示范短片改走 `media.video.begin / chunk / complete` |
-| media.video.begin / chunk / complete | 云端 MP4/MOV 视频上传（优先网关签名直传 PUT，受域名限制时自动回退 2MiB 分片中转）；校验 ISO BMFF/QuickTime 文件头、字节数与权限，固化服务端新路径并清理 `_staging` 临时对象；练习短片上限 25MiB，管理员公开示范视频（`club_public`）仅限 `owner`/`manager`/`content_admin` 且上限 50MiB |
+| media.video.begin / chunk / complete | 云端 MP4/MOV 视频上传（优先网关签名直传 PUT，受域名限制时自动回退 512KiB 分片中转以低于微信客户端 `callFunction` 1MB 上限，并拥有独立每分钟 240 片限流桶）；校验 ISO BMFF/QuickTime 文件头、字节数与权限，单缓冲区拼装固化服务端新路径并清理 `_staging` 临时对象；练习短片上限 25MiB，管理员公开示范视频（`club_public`）仅限 `owner`/`manager`/`content_admin` 且上限 50MiB |
 | dossier.mine / save / submit | 本人部分草稿（含选填年龄、血型、队服尺码，禁收身份证号/驾驶证/行驶证/病史）、revision、明确用途同意；提交冻结快照并绑定照片 |
-| staff.dossier.list / get / review | 仅owner待审队列；读取提交快照，审核绑定revision与submissionRevision，不能审核旧草稿 |
+| staff.dossier.list / get / review | 仅owner/manager访问；默认待审队列，支持按 `status` 筛选已通过/已退回档案并通过 `includeReviewed: true` 调阅已交快照（未提交私人草稿始终拒绝读取）；审核绑定revision与submissionRevision |
 | learning.catalog / mine / start / answer | 公共题库摘要；本人服务端抽20题、逐题锁定答案与成绩，不提前返回答案库 |
-| staff.learning.catalog.get / save | owner维护题库，发布须至少20题及指导人员核定确认 |
+| staff.learning.catalog.get / save | owner/manager/content_admin 维护题库（支持单题或批量 `questions` 导入参考草稿），发布须至少20题及指导人员核定确认 |
 | skills.mine / submit / cancel / history | 本人实际视频资产、当前状态与有界版本归档，动态签发已绑定云端示范视频的 Range 播放链接 |
 | staff.skills.queue / review / history / reference.save | owner人工复核练习视频；`owner`/`manager`/`content_admin` 可上传绑定云端示范视频（`assetId`）或保存核实的 HTTPS 示范链接 |
 
@@ -102,7 +102,7 @@ profile.update只允许昵称及两类公开同意，不接收成员身份或员
 | media.video.chunk | 4194304 | 4194304 |
 | staff.learning.catalog.save | 262144 | 262144 |
 | profile.avatar.save、media.image.save | 131072 | 131072 |
-| dossier.save、staff.club.content.save、staff.club.hero.save、staff.history.save、staff.briefing.save、staff.activity.backfill、staff.redemption.catalog.save | 65536 | 65536 |
+| dossier.save、staff.club.content.save、staff.club.hero.save、staff.history.save、staff.briefing.save、staff.activity.backfill、staff.redemption.catalog.save、staff.skills.reference.save | 65536 | 65536 |
 | 其他RPC | 16384 | 20000 |
 
 头像和资料图片解码后均最多64KiB，独立校验JPEG/PNG及尺寸；云入口另限头像5次／分钟、资料图片20次／分钟，并保留每个可信身份120次／分钟的总限制。新文件与事务关联分开，保存前后复核账号及版本；未知结果不得删除可能已绑定的文件。

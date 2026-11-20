@@ -79,7 +79,10 @@ Page({
   retry() { return this.load(); },
   more() { return this.load(true); },
   activity(event: WechatMiniprogram.TouchEvent) { wx.navigateTo({ url: `/subpackages/trip/pages/trip/detail?id=${encodeURIComponent(event.currentTarget.dataset.id)}` }); },
-  redemption() { wx.navigateTo({ url: '/subpackages/rider/pages/redemption/index' }); },
+  redemption() {
+    if (typeof getCurrentPages === 'function' && getCurrentPages()[getCurrentPages().length - 2]?.route === 'subpackages/rider/pages/redemption/index') { wx.navigateBack({ delta: 1 }); return; }
+    wx.navigateTo({ url: '/subpackages/rider/pages/redemption/index' });
+  },
   profile() { wx.switchTab({ url: '/pages/profile/index' }); },
   explore() { wx.switchTab({ url: '/pages/activities/index' }); },
 });

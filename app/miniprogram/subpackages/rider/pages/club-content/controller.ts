@@ -1,6 +1,7 @@
 import { defineReferencePage } from '../../../../services/reference-controller';
 import { closeReferenceLeaf, markReferenceChanged, navigateToReferenceLogin } from '../../../../services/reference-ui';
 import { ApiError, call, confirm, currentMember, errorMessage, isMock, mockRole, runtime, toast } from '../../../../services/api';
+import { dateText } from '../../../../services/presentation';
 import { sha256 } from '../../../../../../shared/hash';
 import { contactPerson, emptyContact } from '../../../../services/member';
 import type { ClubContact } from '../../../../services/member';
@@ -94,7 +95,11 @@ export const controller = defineReferencePage({
         call<ClubContact>('club.public'),
       ]);
       if (!this.readMatches(snapshot)) return;
-      this.setData({ content, draft: copy(editable(content)), primary, editorDirty: false, rights: false, rulesSections: this.ruleSections(content) });
+      const enrichedContent = {
+        ...content,
+        people: (content.people || []).map(p => ({ ...p, shortAvatar: p.avatarText || Array.from((p.name || 'OR').trim()).slice(0, 2).join('') || 'OR' })),
+      };
+      this.setData({ content: enrichedContent, draft: copy(editable(content)), primary, editorDirty: false, rights: false, rulesSections: this.ruleSections(content) });
       this.showContacts();
       if (member && this.data.mode === 'view' && inquiryKind(this.data.section)) this.restoreForm();
       await inquiries;
@@ -130,7 +135,7 @@ export const controller = defineReferencePage({
   profile() { navigateToReferenceLogin(this); },
   points() { wx.navigateTo({ url: '/subpackages/trip/pages/points/index' }); },
   ruleSections(content: ClubContentView) {
-    const headings = [{ title: '积分获取', match: /获取|奖励|结算/ }, { title: '积分用途', match: /用途|成长|年度/ }, { title: '成员状态', match: /成员|状态|观察|准入/ }, { title: '兑换规则', match: /兑换|预留|交付/ }];
+    const headings = [{ title: '积分获取', match: /获取|奖励|结算/ }, { title: '积分用途', match: /用途|成长|年度|门槛/ }, { title: '成员状态', match: /成员|状态|观察|准入/ }, { title: '兑换规则', match: /兑换|预留|交付/ }];
     const used = new Set<number>();
     const rows = headings.map(section => ({ title: section.title, body: content.blocks.filter((block, index) => { if (used.has(index) || !section.match.test(block.heading)) return false; used.add(index); return true; }).map(block => block.body).join('\n\n') }));
     return [...rows, ...content.blocks.filter((_, index) => !used.has(index)).map(block => ({ title: block.heading, body: block.body }))];
@@ -205,7 +210,7 @@ export const controller = defineReferencePage({
   publish() { return this.saveContent('published'); },
   async saveContent(status: 'draft' | 'published') {
     if (this.data.mode !== 'manage' || !this.data.canManageContent || this.data.busy || !await this.verifyCurrent() || !this.canEdit()) return;
-    if (status === 'published' && !this.data.rights) { this.setData({ error: '请确认信息已核实并取得公开所需授权' }); return; }
+    if (status === 'published' && !this.data.rights) { const msg = '请确认信息已核实并取得公开所需授权'; this.setData({ error: msg }); toast(msg); return; }
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
     if (status === 'draft' && this.data.content?.status === 'published'
       && (!await confirm('保存为草稿', '这会暂停本栏目的公开展示。准备好后可重新确认授权并发布。') || !this.matches(version, viewerId, role))) return;
@@ -252,7 +257,7 @@ export const controller = defineReferencePage({
   },
   async submitInquiry() {
     if (this.data.mode !== 'view' || this.data.busy || !this.data.member || !inquiryKind(this.data.section) || !await this.verifyCurrent()) return;
-    if (!this.data.inquiryConsent) { this.setData({ error: '请同意将本次咨询和所留联系方式交给组织方处理' }); return; }
+    if (!this.data.inquiryConsent) { const msg = '请同意将本次咨询和所留联系方式交给组织方处理'; this.setData({ error: msg }); toast(msg); return; }
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
     const submissionId = this.data.submissionId || nonce();
     const submittedDraftKey = formKey(viewerId, this.data.section);
@@ -265,17 +270,22 @@ export const controller = defineReferencePage({
       if (!this.matches(version, viewerId, role)) return;
       markReferenceChanged(this);
       this.setData({ inquiries: [result, ...this.data.inquiries.filter(item => item.id !== result.id)], inquiryContact: '', inquiryMessage: '', selectedOffer: '', submissionId: '', formLocked: false,
-        inquiryConsent: false, notice: '咨询已收到，可在下方查看处理记录。此记录不代表费用、兑换或合作已获确认。' }); this.showInquiries();
+        inquiryConsent: false, notice: '咨询已收到，可在下方查看处理记录。此记录不代表费用、兑换或合作已获确认。' }); this.showInquiries(); toast('咨询已提交');
       try { wx.removeStorageSync(submittedDraftKey); }
       catch { this.setData({ notice: '咨询已收到，旧草稿暂时无法清除。请勿重复提交，重试会保留原记录。' }); }
     } catch (error) {
       if (!this.matches(version, viewerId, role)) return;
       const knownRejection = !sent || error instanceof ApiError && ['INVALID_INPUT', 'CONSENT_REQUIRED', 'RATE_LIMITED', 'NOT_FOUND', 'UNAUTHENTICATED', 'FORBIDDEN'].includes(error.code);
-      this.setData({ error: errorMessage(error), formLocked: !knownRejection });
+      const msg = errorMessage(error);
+      this.setData({ error: msg, formLocked: !knownRejection });
+      toast(msg);
       try { this.persistForm(); } catch { this.setData({ error: '暂时无法确认提交结果。请保留当前页面，检查网络和设备存储后重试。' }); }
     } finally { if (this.matches(version, viewerId, role)) this.setData({ busy: false }); }
   },
-  showInquiries() { this.setData({ shownInquiries: this.data.mode === 'manage' ? this.data.inquiries : this.data.inquiries.filter(item => item.kind === this.data.section) }); },
+  showInquiries() {
+    const source = this.data.mode === 'manage' ? this.data.inquiries : this.data.inquiries.filter(item => item.kind === this.data.section);
+    this.setData({ shownInquiries: source.map(item => ({ ...item, createdText: dateText(item.createdAt) })) });
+  },
   async loadInquiries(append = false) {
     if (!this.data.member || this.data.inquiryLoading || (this.data.mode === 'manage' ? !this.data.isOwner : !inquiryKind(this.data.section)) || !await this.verifyCurrent()) return;
     await this.readInquiries(this.readSnapshot(), append);
@@ -299,8 +309,8 @@ export const controller = defineReferencePage({
     if (!await confirm('撤回这条咨询', '保留提交与撤回记录，组织方将不再按待处理咨询办理。') || !this.matches(version, viewerId, role)) return;
     if (!await this.verifyCurrent() || !this.matches(version, viewerId, role)) return;
     this.setData({ busy: true, error: '' });
-    try { const result = await call<ClubInquiry>('club.inquiry.withdraw', { id: row.id }, row.revision); if (this.matches(version, viewerId, role)) { markReferenceChanged(this); this.setData({ inquiries: this.data.inquiries.map(item => item.id === result.id ? result : item) }); this.showInquiries(); } }
-    catch (error) { if (this.matches(version, viewerId, role)) this.setData({ error: errorMessage(error) }); }
+    try { const result = await call<ClubInquiry>('club.inquiry.withdraw', { id: row.id }, row.revision); if (this.matches(version, viewerId, role)) { markReferenceChanged(this); this.setData({ inquiries: this.data.inquiries.map(item => item.id === result.id ? result : item) }); this.showInquiries(); toast('咨询已撤回'); } }
+    catch (error) { if (this.matches(version, viewerId, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(version, viewerId, role)) this.setData({ busy: false }); }
   },
   inquiryReply(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
@@ -309,15 +319,15 @@ export const controller = defineReferencePage({
   async reviewInquiry(event: WechatMiniprogram.CustomEvent) {
     const row = this.data.inquiries.find(item => item.id === event.currentTarget.dataset.id), reply = this.data.replies[row?.id || '']?.trim();
     if (!row || row.state !== 'open' || this.data.mode !== 'manage' || !this.data.isOwner || this.data.busy || !await this.verifyCurrent() || !this.canEdit()) return;
-    if (!reply) { this.setData({ error: '请填写本次处理说明' }); return; }
+    if (!reply) { const msg = '请填写本次处理说明'; this.setData({ error: msg }); toast(msg); return; }
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
     this.setData({ busy: true, error: '' });
     try {
       const result = await call<ClubInquiry>('staff.club.inquiry.review', { id: row.id, reply }, row.revision);
       if (!this.matches(version, viewerId, role)) return;
       markReferenceChanged(this);
-      this.setData({ inquiries: this.data.inquiries.map(item => item.id === result.id ? result : item), replies: { ...this.data.replies, [row.id]: '' } }); this.showInquiries();
-    } catch (error) { if (this.matches(version, viewerId, role)) this.setData({ error: errorMessage(error) }); }
+      this.setData({ inquiries: this.data.inquiries.map(item => item.id === result.id ? result : item), replies: { ...this.data.replies, [row.id]: '' } }); this.showInquiries(); toast('回复已保存');
+    } catch (error) { if (this.matches(version, viewerId, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(version, viewerId, role)) this.setData({ busy: false }); }
   },
 });

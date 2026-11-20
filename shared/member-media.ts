@@ -217,7 +217,7 @@ export async function uploadMemberMediaVideoChunk(ctx: Context): Promise<{ recei
   const assetId = text(p.assetId, '资料编号', 100);
   const index = integer(p.index, '分片序号', 0);
   const totalChunks = integer(p.totalChunks, '总分片数', 1);
-  requireThat(totalChunks <= 40 && index < totalChunks, 'INVALID_INPUT', '分片序号超出范围');
+  requireThat(totalChunks <= 110 && index < totalChunks, 'INVALID_INPUT', '分片序号超出范围');
   requireThat(typeof p.chunkBase64 === 'string' && p.chunkBase64.length > 0 && p.chunkBase64.length <= Math.ceil(CLOUD_VIDEO_CHUNK_BYTES * 4 / 3) + 64,
     'INVALID_INPUT', '单个视频分片大小超出限制');
   const chunkBytes = Buffer.from(p.chunkBase64, 'base64');
@@ -238,7 +238,7 @@ export async function completeMemberMediaVideo(ctx: Context): Promise<MemberMedi
   requireThat(Object.keys(p).every(field => ['assetId', 'totalChunks'].includes(field)), 'INVALID_INPUT', '包含不支持的确认字段');
   const assetId = text(p.assetId, '资料编号', 100);
   const totalChunks = p.totalChunks === undefined ? undefined : integer(p.totalChunks, '总分片数', 1);
-  if (totalChunks !== undefined) requireThat(totalChunks <= 40, 'INVALID_INPUT', '分片数量超出上限');
+  if (totalChunks !== undefined) requireThat(totalChunks <= 110, 'INVALID_INPUT', '分片数量超出上限');
   const provider = storage(ctx);
   if (provider.mode !== 'cloud' || !provider.completeVideo) throw new DomainError('MEDIA_VIDEO_UNAVAILABLE', '云端视频确认暂不可用', true);
   const initial = await ctx.store.transaction(async tx => {

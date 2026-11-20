@@ -21,7 +21,7 @@ Page({
   async load(append = false) {
     if (append && (this.data.loading || !this.data.nextCursor)) return;
     const requestVersion = this.data.requestVersion + 1, role = mockRole(), year = currentYear();
-    this.setData({ loading: true, error: '', ownRankingError: '', requestVersion, year });
+    this.setData({ loading: true, error: '', ownRankingError: '', requestVersion, year, ...(append ? {} : { member: null, ownRanking: null, signedIn: false, canCertify: false, items: [], nextCursor: null }) });
     try {
       const member = await currentMember();
       if (this.data.requestVersion !== requestVersion || isMock && mockRole() !== role) return;
@@ -57,7 +57,7 @@ Page({
   retry() { void this.load(); },
   more() { void this.load(true); },
   profile() { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); },
-  points() { wx.navigateTo({ url: '/subpackages/trip/pages/points/index' }); },
+  points() { if (this.data.member) wx.navigateTo({ url: '/subpackages/trip/pages/points/index' }); else this.profile(); },
   duties() { openReferencePanel(this, 'core'); },
   rules() { openReferencePanel(this, 'rules'); },
   closeReference(event?: WechatMiniprogram.CustomEvent<{ changed?: boolean; login?: boolean }>) {

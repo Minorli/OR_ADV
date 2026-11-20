@@ -124,7 +124,7 @@ export async function chooseAndUploadMemberImage(purpose: MemberMediaPurpose, la
   const info = await wx.getImageInfo({ src: original });
   if (!(info.width > 0 && info.height > 0)) throw new MemberMediaError('INVALID_INPUT', '无法读取这张图片，请重新选择');
   const fs = wx.getFileSystemManager();
-  let compressedPath = '';
+  let compressedPath = '', lastValidationMessage = '';
   for (const [maximum, quality] of [[1024, 65], [768, 60], [512, 55], [256, 45], [192, 40]]) {
     const ratio = Math.min(1, maximum / Math.max(info.width, info.height));
     const image = await wx.compressImage({ src: original, quality, compressedWidth: Math.max(1, Math.round(info.width * ratio)), compressedHeight: Math.max(1, Math.round(info.height * ratio)) });
@@ -132,10 +132,10 @@ export async function chooseAndUploadMemberImage(purpose: MemberMediaPurpose, la
     if (Array.isArray(stat) || stat.size <= 0) throw new MemberMediaError('INVALID_INPUT', '无法读取压缩后的图片');
     if (stat.size <= 65_536) {
       try { validateAvatarImage(fs.readFileSync(image.tempFilePath, 'base64')); compressedPath = image.tempFilePath; break; }
-      catch { /* Keep stepping down if dimensions still exceed bounds. */ }
+      catch (err) { lastValidationMessage = err instanceof Error ? err.message : ''; }
     }
   }
-  if (!compressedPath) throw new MemberMediaError('INVALID_INPUT', '图片压缩后仍超过64KB，请换一张较简单的图片');
+  if (!compressedPath) throw new MemberMediaError('INVALID_INPUT', lastValidationMessage || '图片压缩后仍超过64KB，请换一张较简单的图片');
   await activeMember(member.id);
   const draft = await keepDraft(member.id, purpose, 'image', label, compressedPath, rightsAcknowledged);
   return retryMemberMediaDraft(draft.id);
@@ -231,10 +231,28 @@ export async function chooseAndUploadMemberVideo(purpose: 'skill', label: string
   const info = await wx.getVideoInfo({ src: prepared.filePath });
   if (!(info.duration > 0 && info.duration <= 60)) throw new MemberMediaError('INVALID_INPUT', '请选择60秒以内的短片');
   await activeMember(member.id);
-  if (!isMock && prepared.size > MEMBER_MEDIA_VIDEO_MAX_BYTES) {
-    return uploadCloudVideo(member.id, prepared.filePath, purpose, label, false);
+  if (!isMock) {
+    currentDraftScope();
+    if (prepared.size > MEMBER_MEDIA_VIDEO_MAX_BYTES) {
+      return uploadCloudVideo(member.id, prepared.filePath, purpose, label, false);
+    }
+    try {
+      return await uploadCloudVideo(member.id, prepared.filePath, purpose, label, false);
+    } catch (error) {
+      const detail = error as { code?: string; message?: string };
+      const code = typeof detail?.code === 'string' ? detail.code : 'MEDIA_SAVE_PENDING';
+      const fallbackMessage = code === 'MEDIA_VIDEO_UNAVAILABLE'
+        ? '真实环境视频直传尚在开通，本机原片已保留，尚未提交审核'
+        : (typeof detail?.code === 'string' && detail.message ? detail.message : '资料尚未保存完成，本机草稿已保留，请重试');
+      try {
+        const draft = await keepDraft(member.id, purpose, 'video', label, prepared.filePath);
+        throw new MemberMediaError(code, fallbackMessage, draft.id);
+      } catch (draftError) {
+        if (draftError instanceof MemberMediaError) throw draftError;
+        throw new MemberMediaError(code, typeof detail?.message === 'string' && detail.message ? detail.message : '短片尚未上传完成，请重试');
+      }
+    }
   }
-  // saveFile persists an actual selected file before a cloud-capability error.
   const draft = await keepDraft(member.id, purpose, 'video', label, prepared.filePath);
   return retryMemberMediaDraft(draft.id);
 }

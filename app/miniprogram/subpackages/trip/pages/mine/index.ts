@@ -12,7 +12,7 @@ Page({
   async load(append = false) {
     if (append && this.data.loading) return;
     const requestVersion = this.data.requestVersion + 1;
-    this.setData({ loading: true, error: '', requestVersion });
+    this.setData({ loading: true, error: '', requestVersion, ...(append ? {} : { member: null, items: [], visibleItems: [], nextCursor: null }) });
     try {
       const member = await currentMember();
       if (this.data.requestVersion !== requestVersion) return;
@@ -40,7 +40,7 @@ Page({
     try {
       await call<Registration>('registration.cancel', { registrationId: registration.id, reason: '车友主动取消申请' }, registration.revision);
       toast('申请已取消'); await this.load();
-    } catch (error) { this.setData({ error: errorMessage(error) }); }
+    } catch (error) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); }
     finally { this.setData({ busy: '' }); }
   },
 });

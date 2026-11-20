@@ -39,7 +39,7 @@ const demoPrompts: [string, string, string][] = [
   ['经过居民活动区域，应遵循什么原则？', '尊重居民与现场管理要求', '同行活动应减少对他人的影响。'],
   ['拍摄到他人清晰影像后应怎样发布？', '先确认对方同意及使用范围', '参与活动不等于同意公开所有影像。'],
   ['群内转发他人联系方式前应怎样做？', '先取得本人同意', '联系方式不应因参加活动被任意传播。'],
-  ['公开积分榜应如何参与？', '本人了解范围后自愿同意', '公开展示与报名权益分别处理。'],
+  ['公开积分榜应如何进入？', '登录并完成基础控车考核后自动入榜', '积分榜按积分、参与次数与名字首字母统一排序。'],
   ['上传技能视频时，应提交什么？', '本人实际练习的真实片段', '他人视频不能代表本人的练习情况。'],
   ['视频上传中断后应怎样判断？', '查看结果并确认是否真正保存', '进度开始不等于已成功保存。'],
   ['技能视频通过复核，是否等于所有活动均可参加？', '仍需满足具体活动的参加要求', '练习记录与本场准入条件分别判断。'],
@@ -78,6 +78,14 @@ export function demoSafetyQuestions(): SafetyQuestion[] {
     const rightIndex = index % 4;
     options.splice(rightIndex, 0, answer);
     return { id: `demo-${String(index + 1).padStart(2, '0')}`, prompt, options, rightIndex, explanation };
+  });
+}
+export function starterSafetyQuestions(): SafetyQuestion[] {
+  return demoPrompts.slice(0, 25).map(([prompt, answer, explanation], index) => {
+    const options = ['无需确认，直接自行出发', '只参考过往群聊旧截图', '由其他成员代为口头确认'];
+    const rightIndex = index % 4;
+    options.splice(rightIndex, 0, answer);
+    return { id: `club-${String(index + 1).padStart(2, '0')}`, prompt, options, rightIndex, explanation };
   });
 }
 export function seedLearningDemo(snapshot: StoreSnapshot): StoreSnapshot {

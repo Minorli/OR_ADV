@@ -123,7 +123,11 @@ export const controller = defineReferencePage({
       referenceReason: '', referenceVerified: false,
       historyItems: [], historyCursor: null, historyLoaded: false, historyVideoUrl: '', notice: '' });
   },
-  close() { if (this.localViewer() && !this.data.busy) this.setData({ selected: null }); },
+  async close() {
+    if (!this.localViewer() || this.data.busy) return;
+    if (this.data.assetId && !await confirm('返回项目列表', '当前已上传但尚未提交审核的练习视频将不会自动提交，确认返回列表？')) return;
+    this.setData({ selected: null, assetId: '', previewUrl: '', historyLoaded: false, historyItems: [], historyCursor: null, historyVideoUrl: '' });
+  },
   field(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     if (!this.localViewer()) return;
     const field = String(event.currentTarget.dataset.field);
@@ -184,8 +188,8 @@ export const controller = defineReferencePage({
     try {
       await this.verifiedCall(fence, 'skills.submit', { skillId: selected.id, assetId: this.data.assetId, note: this.data.note.trim() }, selected.submission?.revision ?? 0);
       if (!this.matches(fence)) return;
-      this.setData({ assetId: '', previewUrl: '', notice: '练习记录已提交，等待负责人复核。' }); await this.load();
-    } catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
+      this.setData({ assetId: '', previewUrl: '', notice: '练习记录已提交，等待负责人复核。' }); toast('练习记录已提交'); await this.load();
+    } catch (error) { if (this.matches(fence)) { const msg = message(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   async viewOwnVideo() {
@@ -193,7 +197,7 @@ export const controller = defineReferencePage({
     if (!assetId) return;
     const fence = this.viewerFence();
     try { await this.assertViewer(fence); const resolved = await resolveMemberMedia(assetId); await this.assertViewer(fence); if (this.matches(fence) && this.data.selected?.submission?.assetId === assetId) this.setData({ previewUrl: resolved.url }); }
-    catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
+    catch (error) { if (this.matches(fence)) { const msg = message(error); this.setData({ error: msg }); toast(msg); } }
   },
   async cancel() {
     const selected = this.data.selected;
@@ -204,9 +208,9 @@ export const controller = defineReferencePage({
       await this.assertViewer(fence);
       if (!await confirm('撤回练习记录', '撤回后不再显示为已复核记录。已发生的提交与审核操作仍保留。')) return;
       await this.verifiedCall(fence, 'skills.cancel', { skillId: selected.id, reason: '成员主动撤回本次练习记录' }, selected.submission.revision);
-      if (this.matches(fence)) { this.setData({ notice: '练习记录已撤回。' }); await this.load(); }
+      if (this.matches(fence)) { this.setData({ notice: '练习记录已撤回。' }); toast('练习记录已撤回'); await this.load(); }
     }
-    catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
+    catch (error) { if (this.matches(fence)) { const msg = message(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   async toggleReview() {
@@ -246,8 +250,8 @@ export const controller = defineReferencePage({
     if (!this.data.reviewVideoUrl) { toast('请先打开并核对提交的视频'); return; }
     const fence = this.viewerFence();
     this.setData({ busy: true, error: '' });
-    try { await this.verifiedCall(fence, 'staff.skills.review', { submissionId: row.id, decision, reason: this.data.reviewReason.trim() }, row.revision, true); if (this.matches(fence)) { this.setData({ reviewTarget: null, reviewVideoUrl: '', notice: '复核记录已保存。活动资格仍单独核定。' }); await this.load(); } }
-    catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
+    try { await this.verifiedCall(fence, 'staff.skills.review', { submissionId: row.id, decision, reason: this.data.reviewReason.trim() }, row.revision, true); if (this.matches(fence)) { this.setData({ reviewTarget: null, reviewVideoUrl: '', notice: '复核记录已保存。活动资格仍单独核定。' }); toast('复核记录已保存'); await this.load(); } }
+    catch (error) { if (this.matches(fence)) { const msg = message(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   async toggleReference() {
@@ -340,8 +344,11 @@ export const controller = defineReferencePage({
     } catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
-  videoFailed() { this.setData({ error: '视频暂时无法播放，请检查网络或联系负责人核对文件。' }); },
+  videoFailed() { const msg = '视频暂时无法播放，请检查网络或联系负责人核对文件。'; this.setData({ error: msg }); toast(msg); },
   profile() { navigateToReferenceLogin(this); },
-  learning() { wx.navigateTo({ url: '/subpackages/academy/pages/learning/index' }); },
+  learning() {
+    if (typeof getCurrentPages === 'function' && getCurrentPages()[getCurrentPages().length - 2]?.route === 'subpackages/academy/pages/learning/index') { wx.navigateBack({ delta: 1 }); return; }
+    wx.navigateTo({ url: '/subpackages/academy/pages/learning/index' });
+  },
   retry() { void this.load(); },
 });

@@ -1,7 +1,7 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.5.0-test.7",
-  "asOf": "2026-11-20",
+  "version": "0.5.0-test.8",
+  "asOf": "2026-11-21",
   "product": "OriginalRally原始拉力",
   "repository": {
     "url": "https://github.com/Minorli/OR_ADV",
@@ -67,15 +67,15 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.5.0-test.7",
+    "sourceVersion": "0.5.0-test.8",
     "typecheck": "passed",
     "domainTests": "included_in_typescriptTests",
     "cloudTests": "included_in_typescriptTests",
     "buildAndTemplateTests": "included_in_typescriptTests",
-    "typescriptTests": 295,
+    "typescriptTests": 298,
     "nativePageTests": 138,
     "pythonToolTests": 15,
-    "totalTests": 448,
+    "totalTests": 451,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 1

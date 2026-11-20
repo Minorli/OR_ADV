@@ -65,7 +65,7 @@ async function catalog(ctx: Context, staff = false) {
   });
 }
 async function saveCatalog(ctx: Context) {
-  fields(ctx, ['title', 'question', 'removeQuestionId', 'published', 'instructorConfirmed', 'reason']);
+  fields(ctx, ['title', 'question', 'questions', 'removeQuestionId', 'published', 'instructorConfirmed', 'reason']);
   return ctx.store.transaction(async tx => {
     const actor = await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const previous = await tx.get<LearningBank>('learning_catalog', bankId(ctx)) ?? emptyBank(ctx);
@@ -74,6 +74,13 @@ async function saveCatalog(ctx: Context) {
     const reason = text(p.reason, '内容核定说明', 500);
     requireThat(p.published === undefined || typeof p.published === 'boolean', 'INVALID_INPUT', '发布状态不正确');
     let questions = [...previous.questions];
+    if (p.questions !== undefined) {
+      requireThat(Array.isArray(p.questions) && p.questions.length > 0 && p.questions.length <= 100, 'INVALID_INPUT', '批量题目数量须在1至100题之间');
+      for (const raw of p.questions) {
+        const validated = validQuestion(raw);
+        questions = [...questions.filter(item => item.id !== validated.id), validated];
+      }
+    }
     if (p.question !== undefined) {
       const question = validQuestion(p.question);
       questions = [...questions.filter(item => item.id !== question.id), question];

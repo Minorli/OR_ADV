@@ -226,8 +226,8 @@ Page({
     try {
       const briefing = await call<Briefing>('staff.briefing.save', { activityId: activity.id, meetingPoint: form.meetingPoint.trim(), meetingTime: meeting.toISOString(), contactName: form.contactName.trim(), contactMethod: ['wechat', 'phone', 'other'][this.data.briefingContactIndex], contactValue: form.contactValue.trim(), checklist: this.data.briefingChecklist.split('\n').map(value => value.trim()).filter(Boolean), notes: form.notes.trim() }, form.revision);
       if (!this.matches(fence) || this.data.selected?.id !== activity.id) return;
-      this.setData({ briefing, briefingDirty: false, notice: '行前说明已更新，请提醒已确认的车友查看最新版本。' });
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+      this.setData({ briefing, briefingDirty: false, notice: '行前说明已更新，请提醒已确认的车友查看最新版本。' }); toast('行前说明已保存');
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   reason(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.setData({ operationReason: event.detail.value }); },
@@ -251,8 +251,8 @@ Page({
         ? await call<Activity>('staff.activity.content.save', { activityId: form.id, title: form.title.trim(), description: form.description.trim(), reason: form.reason.trim(), ...display }, form.revision)
         : await call<Activity>('staff.activity.save', { ...(form.id ? { id: form.id } : {}), ...display, title: form.title.trim(), description: form.description.trim(), location: form.location.trim(), difficulty: form.difficulty.trim(), startAt: start.toISOString(), endAt: end.toISOString(), applicationClosesAt: deadline.toISOString(), capacity, minGrowthPoints, pointsRule: { growth, annual, ...(redeemable === undefined ? {} : { redeemable }) }, requiredQualifications: form.requiredQualifications.split(/[,，]/).map(value => value.trim()).filter(Boolean), requiresReview: form.requiresReview, equipment: form.equipment.trim(), safetyNotice: form.safetyNotice.trim() }, form.id ? form.revision : undefined);
       if (!this.matches(fence)) return;
-      this.setData({ selected: activityCard(activity), editor: false, formDirty: false, busy: '', pane: 'roster', notice: contentOnly ? '活动内容已更新，修改原因已记录。' : '草稿已保存。可先预览，再发布招募。' }); await this.load();
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+      this.setData({ selected: activityCard(activity), editor: false, formDirty: false, busy: '', pane: 'roster', notice: contentOnly ? '活动内容已更新，修改原因已记录。' : '草稿已保存。可先预览，再发布招募。' }); toast(contentOnly ? '活动内容已更新' : '草稿已保存'); await this.load();
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async lifecycle(event: WechatMiniprogram.TouchEvent) {
@@ -263,14 +263,15 @@ Page({
     const labels: Record<string, string> = { publish: '发布招募', close: '关闭报名', start: '开始活动', end: '结束活动', cancel: '取消活动' };
     const messages: Record<string, string> = { publish: `发布「${activity.title}」？发布后冻结本场规则 v${activity.ruleVersion}，成长奖励 ${activity.pointsRule.growth} 分、年度奖励 ${activity.pointsRule.annual} 分、兑换奖励 ${activity.pointsRule.redeemable ?? 0} 分。`, close: '关闭后停止新的报名与自动候补提升，已确认人员继续保留。', start: `计划开始时间为 ${activity.dateText}（北京时间）。确认现在开始？本次操作记录实际开始时间，并开放现场出发核验。请先核对天气、场地、人员与安全条件。`, end: '以当前时刻作为实际完成时间，积分年度按北京时间归属。请先核对实际结束情况，再逐人完成结束核验。', cancel: '取消后停止报名和现场核验，保留申请与操作记录。请另行通知相关车友。' };
     if (action === 'cancel' && !this.data.operationReason.trim()) { toast('请先填写取消原因'); return; }
+    if (this.data.formDirty && !await confirm('未保存的表单修改', '当前活动编辑表单有未保存的修改。继续操作将按上次已保存版本执行，是否继续？')) return;
     if (!await confirm(labels[action], messages[action])) return;
     if (!await this.verifyIdentity(true) || !this.matches(fence) || this.data.selected?.id !== activity.id || this.data.selected.revision !== activity.revision) return;
     this.setData({ busy: action, error: '', notice: '' });
     try {
       await call<Activity>(`staff.activity.${action}`, { activityId: activity.id, actualCompletedAt: action === 'end' ? new Date().toISOString() : undefined, reason: this.data.operationReason.trim() || undefined }, activity.revision);
       if (!this.matches(fence)) return;
-      this.setData({ busy: '', notice: `${labels[action]}已完成` }); await this.load();
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+      this.setData({ busy: '', editor: false, formDirty: false, notice: `${labels[action]}已完成` }); toast(`${labels[action]}已完成`); await this.load();
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async promote() {
@@ -280,8 +281,8 @@ Page({
     if (!activity || this.data.busy || !await confirm('提升最早有效候补', '将重新核对名额、截止时间和资格。候补提升后仍需联系本人，再确认参加。')) return;
     if (!await this.verifyIdentity(true) || !this.matches(fence) || this.data.selected?.id !== activity.id) return;
     this.setData({ busy: 'promote', error: '' });
-    try { await call('staff.waitlist.promote', { activityId: activity.id }, activity.revision); if (!this.matches(fence)) return; this.setData({ busy: '', notice: '候补处理已完成，以最新名单为准。' }); await this.load(); }
-    catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    try { await call('staff.waitlist.promote', { activityId: activity.id }, activity.revision); if (!this.matches(fence)) return; this.setData({ busy: '', notice: '候补处理已完成，以最新名单为准。' }); toast('候补处理已完成'); await this.load(); }
+    catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async registrationAction(event: WechatMiniprogram.TouchEvent) {
@@ -302,8 +303,8 @@ Page({
       else if (action === 'confirm') await call('staff.registration.confirm', { registrationId: registration.id }, registration.revision);
       else await call('staff.checkin.record', { registrationId: registration.id, phase: ['return', 'safe_exit'].includes(action) ? 'return' : 'departure', result: action === 'safe_exit' ? 'safe_exit' : action === 'no_show' ? 'no_show' : 'present', reason }, registration.revision);
       if (!this.matches(fence)) return;
-      this.setData({ busy: '', notice: '人员状态已更新。' }); await this.load();
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+      this.setData({ busy: '', notice: '人员状态已更新。' }); toast('人员状态已更新'); await this.load();
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async preview() {
@@ -316,7 +317,7 @@ Page({
       const preview = await call<SettlementPreview>('staff.settlement.preview', { activityId: activity.id, ruleVersion: activity.ruleVersion }, activity.revision);
       if (!this.matches(fence) || this.data.selected?.id !== activity.id) return;
       this.setData({ preview, previewRows: preview.items.map(item => registrationCard({ ...item, nickname: this.data.registrations.find(reg => reg.id === item.id)?.nickname || item.nickname })), pane: 'settlement' });
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async settle() {
@@ -329,8 +330,8 @@ Page({
     try {
       const settlement = await call<SettlementResult>('staff.settlement.run', { activityId: activity.id, ruleVersion: preview.ruleVersion }, activity.revision);
       if (!this.matches(fence)) return;
-      this.setData({ busy: '', settlement, notice: '请核对结算结果与待处理事项。' }); await this.load();
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+      this.setData({ busy: '', settlement, notice: '请核对结算结果与待处理事项。' }); toast('本场结算已执行'); await this.load();
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   prepareReverse(event: WechatMiniprogram.TouchEvent) {
@@ -370,16 +371,18 @@ Page({
       });
       if (!this.matches(fence)) return;
       this.setData({ notice: `已补录「${pastTitle.trim()}」，可以在下方按成员编号补记积分。`, pastActivityId: saved.id, pastTitle: '', pastLocation: '', pastDescription: '', pastDate: '', pastEndDate: '' });
+      toast('已完成活动已补录');
       await this.load();
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async grantPast() {
     if (this.data.busy || !await this.verifyIdentity() || !this.data.isOwner) return;
     const fence = this.fence();
     const choice = this.data.settledChoices.find(item => item.id === this.data.pastActivityId);
-    const memberNumber = this.data.pastMemberNumber.trim(), reason = this.data.pastReason.trim();
-    if (!choice || !/^\d{1,9}$/.test(memberNumber) || !reason) { toast('请选择补录活动，并填写成员编号和依据'); return; }
+    const numMatch = /^(?:#|no\.?\s*)?(\d{1,9})$/i.exec(this.data.pastMemberNumber.trim()), reason = this.data.pastReason.trim();
+    if (!choice || !numMatch || !reason) { toast('请选择补录活动，并填写成员编号和依据'); return; }
+    const memberNumber = numMatch[1];
     const growth = this.data.grantGrowth.trim() === '' ? choice.growth : pointValue(this.data.grantGrowth);
     const annual = this.data.grantAnnual.trim() === '' ? choice.annual : pointValue(this.data.grantAnnual);
     if (growth === null || annual === null) { toast('积分请填写 0 到 1000 的整数'); return; }
@@ -389,8 +392,9 @@ Page({
     try {
       const result = await call<{ idempotent: boolean }>('staff.points.backfill', { activityId: choice.id, memberNumber: Number(memberNumber), reason, growth, annual });
       if (!this.matches(fence)) return;
-      this.setData({ notice: result.idempotent ? `${memberNumber} 号本场积分已经记过，没有重复加分。` : `已给 ${memberNumber} 号补记「${choice.title}」积分。`, pastMemberNumber: '', pastReason: '' });
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+      const msg = result.idempotent ? `${memberNumber} 号本场积分已经记过，没有重复加分。` : `已给 ${memberNumber} 号补记「${choice.title}」积分。`;
+      this.setData({ notice: msg, pastMemberNumber: '', pastReason: '' }); toast(result.idempotent ? '本场积分已记过' : '补记积分已完成');
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async reverse() {
@@ -401,8 +405,8 @@ Page({
     if (!await confirm('冲正原完成记录', '冲正保留原流水，新建相反增量并同步有效完成次数。请确认这是已核实的错误完成记录，此操作留有审计。')) return;
     if (!await this.verifyIdentity() || !this.data.isOwner || !this.matches(fence)) return;
     this.setData({ busy: 'reverse', error: '' });
-    try { await call('staff.points.reverse', { ledgerId, reason }); if (this.matches(fence)) this.setData({ notice: '冲正已完成，请核对原会员成长记录。', ledgerId: '', reversalReason: '', reversalTarget: '' }); }
-    catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    try { await call('staff.points.reverse', { ledgerId, reason }); if (this.matches(fence)) { this.setData({ notice: '冲正已完成，请核对原会员成长记录。', ledgerId: '', reversalReason: '', reversalTarget: '' }); toast('冲正已完成'); await this.load(); } }
+    catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
 });

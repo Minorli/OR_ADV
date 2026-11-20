@@ -63,7 +63,11 @@ Page({
   },
   contact() { void contactPerson(this.data.contact.contactMethod, this.data.contact.contactValue); },
   leader() { if (this.data.briefing) void contactPerson(this.data.briefing.contactMethod, this.data.briefing.contactValue); },
-  publicActivity() { wx.navigateTo({ url: `/subpackages/trip/pages/activity/detail?id=${encodeURIComponent(this.data.id)}` }); },
+  publicActivity() {
+    const url = `/subpackages/trip/pages/activity/detail?id=${encodeURIComponent(this.data.id)}`;
+    if (typeof getCurrentPages === 'function' && getCurrentPages()[getCurrentPages().length - 2]?.route === 'subpackages/trip/pages/activity/detail') { wx.navigateBack({ delta: 1 }); return; }
+    wx.navigateTo({ url });
+  },
   points() { wx.navigateTo({ url: '/subpackages/trip/pages/points/index' }); },
   profile() { wx.switchTab({ url: '/pages/profile/index' }); },
   async cancel() {
@@ -71,7 +75,7 @@ Page({
     if (!registration || !this.data.canCancel || this.data.busy || !await confirm('取消本次申请', '取消后释放预留名额，不再提供参加者专属资料，也不能继续现场核验。')) return;
     this.setData({ busy: true, error: '' });
     try { await call('registration.cancel', { registrationId: registration.id, reason: '车友主动取消申请' }, registration.revision); toast('申请已取消'); await this.load(); }
-    catch (error) { this.setData({ error: errorMessage(error) }); }
+    catch (error) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); }
     finally { this.setData({ busy: false }); }
   },
 });

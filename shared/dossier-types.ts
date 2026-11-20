@@ -25,10 +25,11 @@ export interface MemberDossier {
   status: 'draft' | 'pending' | 'approved' | 'returned'; draft: DossierDraft;
   submission: DossierSubmission | null; review: DossierReview | null;
   createdAt: string; updatedAt: string;
+  memberNickname?: string; memberNumber?: number;
 }
 export interface DossierQueueItem {
   memberId: string; nickname: string; memberNumber?: number; revision: number;
-  submissionRevision: number; submittedAt: string;
+  submissionRevision: number; submittedAt: string; status?: 'pending' | 'approved' | 'returned';
 }
 export function emptyDossierDraft(): DossierDraft {
   return { riderName: '', age: '', bloodType: '', jerseySize: '', ridingExperience: '', contactMethod: 'wechat', contactValue: '', emergencyContact: null,

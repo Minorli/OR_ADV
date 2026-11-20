@@ -719,7 +719,8 @@
       "action": "staff.dossier.list",
       "authorization": "owner",
       "input": [
-        "cursor"
+        "cursor",
+        "status_optional"
       ],
       "output": [
         "items",
@@ -731,7 +732,8 @@
       "action": "staff.dossier.get",
       "authorization": "owner_submitted_only",
       "input": [
-        "memberId"
+        "memberId",
+        "includeReviewed_optional"
       ],
       "output": [
         "submitted_dossier"
@@ -809,6 +811,7 @@
       "input": [
         "title",
         "question_optional",
+        "questions_optional",
         "removeQuestionId_optional",
         "published",
         "instructorConfirmed",

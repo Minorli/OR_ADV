@@ -8,8 +8,8 @@ export const MEMBER_MEDIA_VIDEO_MAX_BYTES = 8 * 1024 * 1024;
 export const CLOUD_SKILL_VIDEO_MAX_BYTES = 25 * 1024 * 1024;
 /** Configurable cloud video cap for high-privilege admin demonstration videos (50 MiB). */
 export const CLOUD_PUBLIC_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
-/** Per-chunk raw byte size when falling back to Cloud Function chunked relay (2 MiB). */
-export const CLOUD_VIDEO_CHUNK_BYTES = 2 * 1024 * 1024;
+/** Per-chunk raw byte size when falling back to Cloud Function chunked relay (512 KiB -> ~683 KB Base64 < WeChat 1 MB client callFunction cap). */
+export const CLOUD_VIDEO_CHUNK_BYTES = 512 * 1024;
 
 export function maxCloudVideoBytes(purpose: MemberMediaPurpose): number {
   return purpose === 'club_public' ? CLOUD_PUBLIC_VIDEO_MAX_BYTES : CLOUD_SKILL_VIDEO_MAX_BYTES;

@@ -44,7 +44,7 @@ export const controller = defineReferencePage({
   data: { embedded: false,
     member: null as MemberSummary | null, wallet: null as WalletOverview | null, policy: noPolicy, isOwner: false, identityReady: false,
     mode: 'catalog', managePane: 'items', version: 0, loadedEnvironment: '', loadedRole: '', loading: false, busy: false, suspended: false, error: '', notice: '',
-    items: [] as PublicRedemptionItem[], cursor: null as string | null, mine: [] as RequestRow[], adminItems: [] as RedemptionItem[], queue: [] as RequestRow[],
+    items: [] as PublicRedemptionItem[], cursor: null as string | null, mine: [] as RequestRow[], hasCancellable: false, adminItems: [] as RedemptionItem[], queue: [] as RequestRow[],
     selected: null as PublicRedemptionItem | null, orderIntent: null as OrderIntent | null, cancelReason: '',
     editor: false, itemForm: emptyForm(), itemDirty: false, itemContentDirty: false, itemIntent: null as ItemIntent | null, kindLabels: ['俱乐部物品', '俱乐部服务'],
     policyHead: null as WalletPolicy | null, policyEnabled: false, rewardModeIndex: 0, rewardModes: ['新活动默认与成长奖励相同', '新活动默认不发兑换积分'], policyText: '', policyReason: '', policyDirty: false,
@@ -60,7 +60,7 @@ export const controller = defineReferencePage({
     && environment() === fence.environment && this.data.isOwner === fence.owner && (!isMock || mockRole() === fence.role); },
   clearPrivate() {
     this.setData({ version: this.data.version + 1, member: null, wallet: null, isOwner: false, identityReady: false, loadedEnvironment: '', loadedRole: '',
-      items: [], mine: [], adminItems: [], queue: [], cursor: null, selected: null, orderIntent: null, cancelReason: '', editor: false, itemForm: emptyForm(), itemDirty: false, itemContentDirty: false, itemIntent: null,
+      items: [], mine: [], hasCancellable: false, adminItems: [], queue: [], cursor: null, selected: null, orderIntent: null, cancelReason: '', editor: false, itemForm: emptyForm(), itemDirty: false, itemContentDirty: false, itemIntent: null,
       policy: noPolicy, policyHead: null, policyEnabled: false, policyText: '', policyReason: '', policyDirty: false, target: null, targetAccount: null, adminReason: '', restockIndex: 0,
       loading: false, busy: false, suspended: false, error: '', notice: '' });
   },
@@ -130,7 +130,8 @@ export const controller = defineReferencePage({
     } else if (this.data.mode === 'mine') {
       const result = await call<{ member: MemberSummary; items: RedemptionView[]; nextCursor: string | null }>('redemption.mine', { cursor });
       if (!this.matches(fence)) return; if (result.member.id !== fence.memberId) throw new ApiError('STALE_IDENTITY', '申请所属身份已变化');
-      this.setData({ mine: [...(append ? this.data.mine : []), ...rows(result.items)], cursor: result.nextCursor });
+      const nextMine = [...(append ? this.data.mine : []), ...rows(result.items)];
+      this.setData({ mine: nextMine, hasCancellable: nextMine.some(item => item.canCancel), cursor: result.nextCursor });
     } else if (this.data.managePane === 'items') {
       const result = await call<{ member: MemberSummary; policy: PublicWalletPolicy; items: RedemptionItem[]; nextCursor: string | null }>('staff.redemption.catalog.get', { cursor });
       if (!this.matches(fence)) return; if (result.member.id !== fence.memberId || !result.member.roles.includes('owner')) throw new ApiError('FORBIDDEN', '兑换管理权限已变化');
@@ -196,7 +197,7 @@ export const controller = defineReferencePage({
     } catch (error) {
       if (this.matches(fence)) {
         if (knownRejection(error)) { try { wx.removeStorageSync(intentKey('order', fence.memberId, fence.environment)); this.setData({ orderIntent: null }); } catch { /* Keep the original request for recovery. */ } }
-        this.setData({ error: errorMessage(error) });
+        const msg = errorMessage(error); this.setData({ error: msg }); toast(msg);
       }
     } finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
@@ -228,7 +229,7 @@ export const controller = defineReferencePage({
       if (!await this.confirmViewer(fence, '取消兑换申请', `${row.itemName}\n取消后释放本次预留积分和名额。`)) return;
       await call('redemption.cancel', { redemptionId: row.id, reason: this.data.cancelReason.trim() || '本人取消未交付的兑换申请' }, row.revision);
       if (this.matches(fence)) await this.reloadAfter(fence, '申请已取消，预留已释放。');
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   newItem() { if (this.data.isOwner && this.data.identityReady && !this.data.busy && !this.data.itemIntent) this.setData({ editor: true, itemForm: emptyForm(), itemDirty: false, itemContentDirty: false, error: '' }); },
@@ -274,15 +275,15 @@ export const controller = defineReferencePage({
   async itemStatus(event: WechatMiniprogram.TouchEvent) {
     const action = String(event.currentTarget.dataset.action), form = this.data.itemForm;
     if (!['publish', 'archive'].includes(action) || !form.id || !this.data.isOwner || !this.data.identityReady || this.data.busy || this.data.itemIntent) return;
-    if (this.data.itemContentDirty) { this.setData({ error: '请先保存项目修改，再发布或归档' }); return; }
-    if (!form.reason.trim()) { this.setData({ error: '请填写本次操作原因' }); return; }
+    if (this.data.itemContentDirty) { const msg = '请先保存项目修改，再发布或归档'; this.setData({ error: msg }); toast(msg); return; }
+    if (!form.reason.trim()) { const msg = '请填写本次操作原因'; this.setData({ error: msg }); toast(msg); return; }
     const fence = this.fence(); this.setData({ busy: true, error: '' });
     try {
       await this.assertViewer(fence, true);
       if (!await this.confirmViewer(fence, action === 'publish' ? '发布兑换项目' : '归档兑换项目', action === 'publish' ? '请确认积分、库存和交付说明已核实。' : '归档后停止新申请，已有申请继续处理。', true)) return;
       await call(`staff.redemption.catalog.${action}`, { itemId: form.id, reason: form.reason.trim() }, form.revision);
       if (this.matches(fence)) await this.reloadAfter(fence, action === 'publish' ? '项目已发布。' : '项目已归档。');
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   policyField(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
@@ -293,7 +294,7 @@ export const controller = defineReferencePage({
   rewardMode(event: WechatMiniprogram.CustomEvent<{ value: string }>) { const index = Number(event.detail.value); if ([0, 1].includes(index) && this.data.isOwner && this.data.identityReady && !this.data.busy) this.setData({ rewardModeIndex: index, policyDirty: true }); },
   async savePolicy() {
     if (!this.data.isOwner || !this.data.identityReady || this.data.busy || !this.data.policyHead) return;
-    if (!this.data.policyReason.trim() || !this.data.policyText.trim()) { this.setData({ error: '请填写积分规则和变更原因' }); return; }
+    if (!this.data.policyReason.trim() || !this.data.policyText.trim()) { const msg = '请填写积分规则和变更原因'; this.setData({ error: msg }); toast(msg); return; }
     const fence = this.fence(), revision = this.data.policyHead.revision;
     const payload = { enabled: this.data.policyEnabled, defaultRewardMode: this.data.rewardModeIndex === 0 ? 'growth' : 'zero', ruleText: this.data.policyText.trim(), reason: this.data.policyReason.trim() };
     this.setData({ busy: true, error: '' });
@@ -302,7 +303,7 @@ export const controller = defineReferencePage({
       if (!await this.confirmViewer(fence, '保存兑换规则', '新规则不换算历史积分，不修改已发布活动的完成奖励。', true)) return;
       await call('staff.points.policy.save', payload, revision);
       if (this.matches(fence)) { this.setData({ policyDirty: false }); await this.reloadAfter(fence, '兑换规则已保存。'); }
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   async queueState(event: WechatMiniprogram.CustomEvent<{ value: string }>) { const index = Number(event.detail.value); if (!Number.isInteger(index) || index < 0 || index >= states.length || this.data.busy || this.data.loading) return; this.setData({ queueStateIndex: index }); await this.load(); },
@@ -322,7 +323,7 @@ export const controller = defineReferencePage({
   async process(event: WechatMiniprogram.TouchEvent) {
     const action = String(event.currentTarget.dataset.action), target = this.data.target;
     if (!target || !this.data.isOwner || !this.data.identityReady || this.data.busy || !['approve', 'reject', 'fulfill', 'refund'].includes(action)) return;
-    if (!this.data.adminReason.trim() || action === 'refund' && ![1, 2].includes(this.data.restockIndex)) { this.setData({ error: action === 'refund' ? '请填写退回原因，并明确是否恢复库存' : '请填写本次处理依据' }); return; }
+    if (!this.data.adminReason.trim() || action === 'refund' && ![1, 2].includes(this.data.restockIndex)) { const msg = action === 'refund' ? '请填写退回原因，并明确是否恢复库存' : '请填写本次处理依据'; this.setData({ error: msg }); toast(msg); return; }
     const fence = this.fence(), reason = this.data.adminReason.trim(), restock = this.data.restockIndex === 1;
     const labels: Record<string, string> = { approve: '批准申请', reject: '拒绝申请', fulfill: '确认交付并核销', refund: '整笔退回兑换积分' };
     this.setData({ busy: true, error: '' });
@@ -331,11 +332,14 @@ export const controller = defineReferencePage({
       if (!await this.confirmViewer(fence, labels[action], `${target.nickname || '成员'} · ${target.itemName}\n${target.totalCost} 分${action === 'refund' ? restock ? '，同时恢复库存／名额。' : '，不恢复库存／名额。' : action === 'fulfill' ? '。请确认物品或服务已经实际交付。' : '。本次处理将保留记录。'}`, true)) return;
       await call(`staff.redemption.${action}`, { redemptionId: target.id, reason, ...(action === 'refund' ? { restock } : {}) }, target.revision);
       if (this.matches(fence)) await this.reloadAfter(fence, `${labels[action]}已完成。`);
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   async retry() { if (this.data.itemDirty || this.data.policyDirty) { const fence = this.fence(); if (!await confirm('刷新兑换记录', '当前修改尚未保存，是否放弃？') || !this.matches(fence)) return; } await this.load(); },
-  points() { wx.navigateTo({ url: '/subpackages/trip/pages/points/index' }); },
+  points() {
+    if (typeof getCurrentPages === 'function' && getCurrentPages()[getCurrentPages().length - 2]?.route === 'subpackages/trip/pages/points/index') { wx.navigateBack({ delta: 1 }); return; }
+    wx.navigateTo({ url: '/subpackages/trip/pages/points/index' });
+  },
   consultation() { wx.navigateTo({ url: '/subpackages/rider/pages/club-content/index?section=redemption' }); },
   profile() { navigateToReferenceLogin(this); },
 });

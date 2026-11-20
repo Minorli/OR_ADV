@@ -34,6 +34,10 @@ export const controller = defineReferencePage({
   coverError() { this.setData({ coverFailed: true }); },
   retry() { void this.load(); },
   apply() { wx.navigateTo({ url: `/subpackages/trip/pages/registration/apply?id=${encodeURIComponent(this.data.id)}` }); },
-  mine() { wx.navigateTo({ url: `/subpackages/trip/pages/trip/detail?id=${encodeURIComponent(this.data.id)}` }); },
+  mine() {
+    const url = `/subpackages/trip/pages/trip/detail?id=${encodeURIComponent(this.data.id)}`;
+    if (typeof getCurrentPages === 'function' && getCurrentPages()[getCurrentPages().length - 2]?.route === 'subpackages/trip/pages/trip/detail') { wx.navigateBack({ delta: 1 }); return; }
+    wx.navigateTo({ url });
+  },
   contact() { void contactPerson(this.data.contact.contactMethod, this.data.contact.contactValue); },
 });

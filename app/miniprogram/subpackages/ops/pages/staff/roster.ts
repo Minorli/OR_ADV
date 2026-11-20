@@ -24,9 +24,11 @@ export function rosterPresentation<T extends StaffRegistration>(items: T[], toda
     };
   });
   const needle = query.trim().toLocaleLowerCase();
-  const numericQuery = /^\d+$/.test(needle);
+  const numMatch = /^(?:#|no\.?\s*)?(\d+)$/i.exec(needle);
+  const numericQuery = numMatch !== null;
+  const parsedNumber = numericQuery ? Number(numMatch![1]) : NaN;
   const visible = cards.filter((item) => (!needle || (numericQuery
-    ? Number.isSafeInteger(Number(needle)) && item.memberNumber === Number(needle)
+    ? Number.isSafeInteger(parsedNumber) && item.memberNumber === parsedNumber
     : (item.nickname || '').toLocaleLowerCase().includes(needle)))
     && (filter === 'all' || filter === 'unreturned' && item.unreturned
       || filter === 'pending' && ['pending_review', 'pending_confirmation'].includes(item.state)

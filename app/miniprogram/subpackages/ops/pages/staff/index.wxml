@@ -64,7 +64,7 @@
             <button wx:if="{{selected.state === 'published'}}" class="mini secondary" disabled="{{!!busy}}" bindtap="promote">提升候补</button>
             <button wx:if="{{selected.state === 'published' || selected.state === 'closed'}}" class="mini primary" data-action="start" disabled="{{!!busy}}" bindtap="lifecycle">开始活动</button>
             <button wx:if="{{selected.state === 'in_progress'}}" class="mini primary" data-action="end" disabled="{{!!busy}}" bindtap="lifecycle">结束活动</button>
-            <button wx:if="{{selected.state === 'published' || selected.state === 'closed'}}" class="mini danger" data-action="cancel" disabled="{{!!busy}}" bindtap="lifecycle">取消活动</button>
+            <button wx:if="{{selected.state === 'draft' || selected.state === 'published' || selected.state === 'closed'}}" class="mini danger" data-action="cancel" disabled="{{!!busy}}" bindtap="lifecycle">取消活动</button>
           </view>
         </view>
         <block wx:if="{{pane === 'roster'}}">

@@ -3,5 +3,5 @@ import { referenceComponent } from '../../../../services/reference-controller';
 
 Component(referenceComponent(controller, {
   isBusy: data => !!data.busy,
-  isDirty: data => !!data.editor || data.selectedIndex >= 0 && !data.feedback,
+  isDirty: data => !!data.editorDirty || data.selectedIndex >= 0 && !data.feedback,
 }));

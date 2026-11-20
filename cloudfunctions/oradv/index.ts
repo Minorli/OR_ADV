@@ -33,7 +33,7 @@ export const main = createCloudHandler({
   store: getStore,
   invoke: async (request, identity, traceId) => {
     storageSdk ??= createPgCompatibleStorageSdk({ envId: () => process.env.ORADV_ENV_ID, classicSdk: cloud });
-    service ??= createService(getStore(), { clubId: 'oradv', avatarStorage: createAvatarStorage(storageSdk), memberMediaStorage: createMemberMediaStorage(storageSdk),
+    service ??= createService(getStore(), { clubId: 'oradv', avatarStorage: createAvatarStorage(storageSdk), memberMediaStorage: createMemberMediaStorage(storageSdk, process.env.ORADV_ENV_ID),
       log: (entry) => console.warn(JSON.stringify(entry)) });
     return service.handle(request, identity, traceId);
   },

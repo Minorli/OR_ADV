@@ -6,6 +6,8 @@ import { businessAdminTitle, canManagePublicContent } from '../../../../../../sh
 import { MEMBER_BADGES, normalizeMemberBadges, resolveBadgeDetails } from '../../../../../../shared/member-badges';
 import type { MemberBadgeDisplay, MemberBadgeId, MemberBadgeSpec } from '../../../../../../shared/member-badges';
 import type { ClubHeroSlideView, ClubHeroView } from '../../../../../../shared/club-hero';
+import { normalizeQualificationType } from '../../../../../../shared/ranking-board';
+import { activityStates } from '../../../../services/presentation';
 
 interface RoleGrant { role: Role; revision: number; enabled: boolean; activityIds: string[] | null; expiresAt: string | null; designation?: 'manager' }
 interface MemberRow {
@@ -169,6 +171,26 @@ Page({
     this.setData({ qualificationType: type, qualificationDate: current?.expiresAt?.slice(0, 10) || '', qualificationRevision: current?.revision ?? 0 });
   },
   clearRoleExpiry() { this.setData({ roleExpiryDate: '' }); },
+  viewDossier() {
+    const selected = this.data.selected;
+    if (!selected || !this.data.authorized) return;
+    wx.navigateTo({ url: `/subpackages/rider/pages/dossier/index?mode=review&reviewed=1&memberId=${encodeURIComponent(selected.memberId || selected.id)}` });
+  },
+  applyUpdatedMember(updated: MemberRow) {
+    const prior = this.data.selected;
+    const badges = normalizeMemberBadges(updated.badges);
+    const merged: MemberRow = {
+      ...updated,
+      badges,
+      vBadges: resolveBadgeDetails(badges).items,
+      memberCode: memberNumberText(updated.memberNumber),
+      staffRoles: updated.staffRoles ?? prior?.staffRoles,
+      isPrimaryOwner: updated.isPrimaryOwner ?? prior?.isPrimaryOwner,
+      roleBadges: roleBadges({ staffRoles: updated.staffRoles ?? prior?.staffRoles, isPrimaryOwner: updated.isPrimaryOwner ?? prior?.isPrimaryOwner }),
+    };
+    const items = this.data.items.map(item => item.id === merged.id ? merged : item);
+    this.setData({ items, selected: merged, selectedBadges: badges, badgeOptions: badgeChecklist(badges), priority: String(merged.recommendationPriority || 0), expiryDate: merged.memberKindExpiresAt?.slice(0, 10) || '' });
+  },
   async refreshSelected() {
     const selected = this.data.selected, fence = this.fence();
     if (!selected) return;
@@ -197,9 +219,9 @@ Page({
     if (!await this.verifyOwner() || !this.selectionMatches(fence, selected.id)) return;
     this.setData({ busy: 'badges', error: '' });
     try {
-      await call('staff.member.badges.save', { memberId: selected.memberId || selected.id, badges, reason }, selected.revision);
+      const updated = await call<MemberRow>('staff.member.badges.save', { memberId: selected.memberId || selected.id, badges, reason }, selected.revision);
       if (!this.selectionMatches(fence, selected.id)) return;
-      await this.refreshSelected();
+      if (updated?.id) this.applyUpdatedMember(updated); else await this.refreshSelected();
       if (this.matches(fence)) { this.setData({ notice: '成员 +V 认证挂件已保存。', reason: '' }); toast('+V 认证挂件已更新'); }
     } catch (error) { if (this.selectionMatches(fence, selected.id)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
@@ -215,10 +237,11 @@ Page({
     if (!await this.verifyOwner() || !this.selectionMatches(fence, selected.id)) return;
     this.setData({ busy: 'kind', error: '' });
     try {
-      await call('staff.member.assign', { memberId: selected.memberId || selected.id, memberKind, reason: this.data.reason.trim(), expiresAt: memberKind === 'founder' && this.data.expiryDate ? `${this.data.expiryDate}T15:59:59.000Z` : null }, selected.revision);
+      const updated = await call<MemberRow>('staff.member.assign', { memberId: selected.memberId || selected.id, memberKind, reason: this.data.reason.trim(), expiresAt: memberKind === 'founder' && this.data.expiryDate ? `${this.data.expiryDate}T15:59:59.000Z` : null }, selected.revision);
       if (!this.selectionMatches(fence, selected.id)) return;
-      await this.refreshSelected(); if (this.matches(fence)) this.setData({ notice: '成员身份已更新。已有报名以本场参加记录为准。', reason: '' });
-    } catch (error) { if (this.selectionMatches(fence, selected.id)) this.setData({ error: errorMessage(error) }); }
+      if (updated?.id) this.applyUpdatedMember(updated); else await this.refreshSelected();
+      if (this.matches(fence)) { this.setData({ notice: '成员身份已更新。已有报名以本场参加记录为准。', reason: '' }); toast('成员身份已更新'); }
+    } catch (error) { if (this.selectionMatches(fence, selected.id)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async savePriority() {
@@ -229,19 +252,22 @@ Page({
     if (!Number.isInteger(priority) || priority < 0 || priority > 999 || !this.data.reason.trim()) { toast('推荐顺序需为 0–999，并填写调整原因'); return; }
     this.setData({ busy: 'recommendation', error: '' });
     try {
-      await call('staff.recommendation.save', { memberId: selected.memberId || selected.id, priority, reason: this.data.reason.trim() }, selected.revision);
+      const updated = await call<MemberRow>('staff.recommendation.save', { memberId: selected.memberId || selected.id, priority, reason: this.data.reason.trim() }, selected.revision);
       if (!this.selectionMatches(fence, selected.id)) return;
-      await this.refreshSelected(); if (this.matches(fence)) this.setData({ notice: '推荐顺序已保存。只有本人同意公开的资料会显示。', reason: '' });
-    } catch (error) { if (this.selectionMatches(fence, selected.id)) this.setData({ error: errorMessage(error) }); }
+      if (updated?.id) this.applyUpdatedMember(updated); else await this.refreshSelected();
+      if (this.matches(fence)) { this.setData({ notice: '推荐顺序已保存。只有本人同意公开的资料会显示。', reason: '' }); toast('推荐顺序已保存'); }
+    } catch (error) { if (this.selectionMatches(fence, selected.id)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   role(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.setData({ roleIndex: Number(event.detail.value) }); this.selectRole(); },
   selectRole() {
     const grant = this.data.selected?.staffRoles?.find(item => item.role === roles[this.data.roleIndex]);
     const scopeIds = grant?.activityIds || [];
-    const roleProtected = roles[this.data.roleIndex] === 'owner' && this.data.selected?.isPrimaryOwner === true;
-    this.setData({ roleProtected, roleScoped: ['leader', 'checkin'].includes(roles[this.data.roleIndex]), roleManager: grant?.designation === 'manager' && !roleProtected,
-      roleEnabled: roleProtected ? true : grant?.enabled ?? true, roleExpiryDate: roleProtected ? '' : grant?.expiresAt?.slice(0, 10) || '', scopeIds, scopeOptions: this.data.activities.map(item => ({ ...item, checked: scopeIds.includes(item.id) })) });
+    const roleProtected = roles[this.data.roleIndex] === 'owner' && (this.data.selected?.isPrimaryOwner === true || this.data.selected?.id === this.data.member?.id);
+    const scopeCandidates = this.data.activities.filter(item => scopeIds.includes(item.id) || (!(item as Activity & { backfill?: boolean }).backfill && item.state !== 'cancelled'));
+    this.setData({ roleProtected, roleScoped: ['leader', 'checkin'].includes(roles[this.data.roleIndex]), roleManager: grant?.designation === 'manager' && this.data.selected?.isPrimaryOwner !== true,
+      roleEnabled: roleProtected ? true : grant?.enabled ?? true, roleExpiryDate: roleProtected ? '' : grant?.expiresAt?.slice(0, 10) || '', scopeIds,
+      scopeOptions: scopeCandidates.map(item => ({ ...item, checked: scopeIds.includes(item.id), scopeLabel: `${item.title}（${activityStates[item.state] || item.state}）` })) });
   },
   roleEnabled(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) { this.setData({ roleEnabled: event.detail.value }); },
   roleManager(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) { if (!this.data.roleProtected && this.matches(this.fence())) this.setData({ roleManager: event.detail.value }); },
@@ -265,8 +291,12 @@ Page({
       if (!this.selectionMatches(fence, selected.id)) return;
       const result = await call<{ items: RoleGrant[]; isPrimaryOwner: boolean }>('staff.roles.list', { memberId: selected.memberId || selected.id });
       if (!this.selectionMatches(fence, selected.id)) return;
-      this.setData({ 'selected.staffRoles': result.items, 'selected.isPrimaryOwner': result.isPrimaryOwner, 'selected.roleBadges': roleBadges({ staffRoles: result.items, isPrimaryOwner: result.isPrimaryOwner }), notice: '员工授权已更新。', reason: '' }); this.selectRole();
-    } catch (error) { if (this.selectionMatches(fence, selected.id)) this.setData({ error: errorMessage(error) }); }
+      const nextRoleBadges = roleBadges({ staffRoles: result.items, isPrimaryOwner: result.isPrimaryOwner });
+      const items = this.data.items.map(item => item.id === selected.id ? { ...item, staffRoles: result.items, isPrimaryOwner: result.isPrimaryOwner, roleBadges: nextRoleBadges } : item);
+      this.setData({ items, 'selected.staffRoles': result.items, 'selected.isPrimaryOwner': result.isPrimaryOwner, 'selected.roleBadges': nextRoleBadges, notice: '员工授权已更新。', reason: '' });
+      toast('员工授权已更新');
+      this.selectRole();
+    } catch (error) { if (this.selectionMatches(fence, selected.id)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   qualification(event: WechatMiniprogram.TouchEvent) {
@@ -295,13 +325,15 @@ Page({
     if (!await this.verifyOwner() || !this.selectionMatches(fence, selected.id)) return;
     this.setData({ busy: 'qualification', error: '' });
     try {
-      const current = this.data.qualifications.find(item => item.type === this.data.qualificationType.trim());
-      await call('staff.qualification.review', { memberId: selected.memberId || selected.id, type: this.data.qualificationType.trim(), decision, expiresAt: this.data.qualificationDate ? `${this.data.qualificationDate}T15:59:59.000Z` : null, reason: this.data.reason.trim() }, current?.revision ?? 0);
+      const normalizedType = normalizeQualificationType(this.data.qualificationType.trim());
+      const current = this.data.qualifications.find(item => item.type === normalizedType);
+      await call('staff.qualification.review', { memberId: selected.memberId || selected.id, type: normalizedType, decision, expiresAt: this.data.qualificationDate ? `${this.data.qualificationDate}T15:59:59.000Z` : null, reason: this.data.reason.trim() }, current?.revision ?? 0);
       if (!this.selectionMatches(fence, selected.id)) return;
       const result = await call<PageResult<Qualification>>('staff.qualification.list', { memberId: selected.memberId || selected.id });
       if (!this.selectionMatches(fence, selected.id)) return;
       this.setData({ qualifications: result.items, qualificationCursor: result.nextCursor, notice: '技能核验已记录。', reason: '' });
-    } catch (error) { if (this.selectionMatches(fence, selected.id)) this.setData({ error: errorMessage(error) }); }
+      toast('技能核验已记录');
+    } catch (error) { if (this.selectionMatches(fence, selected.id)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   settingsField(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
@@ -320,8 +352,8 @@ Page({
     this.setData({ busy: 'settings', error: '' });
     try {
       const settings = await call<ClubSettings>('staff.club.save', { name: form.name.trim(), contactName: form.contactName.trim(), contactMethod: contactMethods[this.data.contactIndex], contactValue: form.contactValue.trim(), contactInstructions: form.contactInstructions.trim() }, form.revision);
-      if (this.matches(fence)) this.setData({ settings, settingsDirty: false, notice: '公开联络信息已更新。' });
-    } catch (error) { if (this.matches(fence)) this.setData({ error: errorMessage(error) }); }
+      if (this.matches(fence)) { this.setData({ settings, settingsDirty: false, notice: '公开联络信息已更新。' }); toast('公开联络信息已保存'); }
+    } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async loadHero() {
@@ -348,7 +380,9 @@ Page({
       this.setData({ heroSlides: [...this.data.heroSlides, slide], heroDirty: true, heroRights: false, notice: '轮播图已上传，请填写主标题后保存发布。' });
     } catch (error) {
       if (this.matches(fence) && (error as { code?: string })?.code !== 'CANCELLED' && !/cancel/i.test(String((error as { errMsg?: string })?.errMsg || (error as Error)?.message || ''))) {
-        this.setData({ error: error instanceof MemberMediaError ? error.message : errorMessage(error) });
+        const msg = error instanceof MemberMediaError ? error.message : errorMessage(error);
+        this.setData({ error: msg });
+        toast(msg);
       }
     } finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },

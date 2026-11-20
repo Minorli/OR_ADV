@@ -8,7 +8,10 @@ import { HISTORY_REVIEW_CONSENT_VERSION } from '../../../../../../shared/history
 import type { MemberSummary } from '../../../../../../shared/types';
 import { canManagePublicContent } from '../../../../../../shared/permissions';
 
-const dateText = (value: string) => new Date(Date.parse(value) + 8 * 3600000).toISOString().slice(0, 10).replace(/-/g, '.');
+const dateText = (value: string) => {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed + 8 * 3600000).toISOString().slice(0, 10).replace(/-/g, '.') : '时间待确认';
+};
 const environmentScope = () => JSON.stringify([runtime.mode, runtime.appId, runtime.envId]);
 interface HistoryReadSnapshot { version: number; role: string; memberId: string; isOwner: boolean; canManageContent: boolean; environment: string }
 interface ManagementRead { story: ActivityStory; items: StaffHistoryReview[]; nextCursor: string | null; photoUrls: Record<string, string> }
@@ -24,7 +27,7 @@ export const controller = defineReferencePage({
     documentaryInput: '', documentaryTitle: '', filmRights: false, photoRights: false, published: false, reason: '',
     queue: [] as (StaffHistoryReview & { starText: string })[], queueCursor: null as string | null, reviewReasons: {} as Record<string, string>,
     honorChoices: [{ label: '不设置', value: '' }], honor0Index: 0, honor1Index: 0, honor0Label: '', honor1Label: '',
-    loading: false, busy: false, dirty: false, error: '', notice: '', loadVersion: 0, loadedEnvironment: '',
+    loading: false, busy: false, dirty: false, storyDirty: false, error: '', notice: '', loadVersion: 0, loadedEnvironment: '',
   },
   onLoad(options: Record<string, string>) { this.setData({ activityId: options.activityId || options.id || '', manage: options.mode === 'manage' }); },
   onShow() { return this.resume(); },
@@ -42,7 +45,7 @@ export const controller = defineReferencePage({
   readMatches(snapshot: HistoryReadSnapshot) { return this.valid(snapshot.version, snapshot.role) && this.data.member?.id === snapshot.memberId && this.data.isOwner === snapshot.isOwner && this.data.canManageContent === snapshot.canManageContent && snapshot.environment === this.data.loadedEnvironment; },
   clearPrivate() {
     this.setData({ loadVersion: this.data.loadVersion + 1, member: null, isOwner: false, canManageContent: false, own: null, story: null, queue: [], photoUrls: {}, photoAssetIds: [],
-      loading: false, busy: false, dirty: false, comment: '', stars: 5, intro: '', documentaryInput: '', documentaryTitle: '', reason: '', reviewReasons: {}, queueCursor: null,
+      loading: false, busy: false, dirty: false, storyDirty: false, comment: '', stars: 5, intro: '', documentaryInput: '', documentaryTitle: '', reason: '', reviewReasons: {}, queueCursor: null,
       publishConsent: false, nicknameConsent: false, honorConsent: false, photoRights: false, filmRights: false, published: false, honor0Label: '', honor1Label: '',
       honorChoices: [{ label: '不设置', value: '' }], honor0Index: 0, honor1Index: 0 });
   },
@@ -120,15 +123,17 @@ export const controller = defineReferencePage({
     if (!this.readMatches(snapshot)) return;
     const { story } = result;
     this.setData({ story, intro: story.intro, photoAssetIds: story.photoAssetIds, documentaryInput: story.documentaryUrl, documentaryTitle: story.documentaryTitle,
-      filmRights: story.videoRightsAcknowledged, published: story.published, reason: '', queue: result.items.map(row => ({ ...row, starText: '★'.repeat(row.stars) + '☆'.repeat(5 - row.stars) })), queueCursor: result.nextCursor, photoUrls: result.photoUrls,
+      filmRights: story.videoRightsAcknowledged, published: story.published, reason: '', storyDirty: false, queue: result.items.map(row => ({ ...row, starText: '★'.repeat(row.stars) + '☆'.repeat(5 - row.stars) })), queueCursor: result.nextCursor, photoUrls: result.photoUrls,
       honor0Label: story.honors[0]?.label ?? '', honor1Label: story.honors[1]?.label ?? '' });
     this.honorOptions();
   },
-  honorOptions() {
+  honorOptions(preserveSelection = false) {
+    const prev0 = preserveSelection ? (this.data.honorChoices[this.data.honor0Index]?.value ?? '') : (this.data.story?.honors[0]?.reviewPublicId ?? '');
+    const prev1 = preserveSelection ? (this.data.honorChoices[this.data.honor1Index]?.value ?? '') : (this.data.story?.honors[1]?.reviewPublicId ?? '');
     const choices = [{ label: '不设置', value: '' }, ...this.data.queue.filter(row => row.status === 'approved' && row.honorConsent).map(row => ({ label: row.nickname, value: row.publicId }))];
     for (const honor of this.data.story?.honors ?? []) if (!choices.some(row => row.value === honor.reviewPublicId)) choices.push({ label: '已保存的作者', value: honor.reviewPublicId });
-    this.setData({ honorChoices: choices, honor0Index: Math.max(0, choices.findIndex(row => row.value === this.data.story?.honors[0]?.reviewPublicId)),
-      honor1Index: Math.max(0, choices.findIndex(row => row.value === this.data.story?.honors[1]?.reviewPublicId)) });
+    this.setData({ honorChoices: choices, honor0Index: Math.max(0, choices.findIndex(row => row.value === prev0)),
+      honor1Index: Math.max(0, choices.findIndex(row => row.value === prev1)) });
   },
   async moreReviews() {
     if (!this.data.nextCursor || this.data.busy) return;
@@ -157,19 +162,20 @@ export const controller = defineReferencePage({
   },
   field(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const name = String(event.currentTarget.dataset.field);
-    if (['comment', 'intro', 'documentaryInput', 'documentaryTitle', 'reason', 'honor0Label', 'honor1Label'].includes(name)) this.setData({ [name]: event.detail.value, dirty: true });
+    if (name === 'comment') this.setData({ comment: event.detail.value, dirty: true });
+    else if (['intro', 'documentaryInput', 'documentaryTitle', 'reason', 'honor0Label', 'honor1Label'].includes(name)) this.setData({ [name]: event.detail.value, dirty: true, storyDirty: true });
   },
   consent(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) {
     this.setData({ publishConsent: event.detail.value.includes('publish'), nicknameConsent: event.detail.value.includes('nickname'), honorConsent: event.detail.value.includes('honor'), dirty: true });
   },
   chooseStars(event: WechatMiniprogram.TouchEvent) { this.setData({ stars: Number(event.currentTarget.dataset.stars), dirty: true }); },
-  rights(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { this.setData({ photoRights: event.detail.value.includes('photos'), filmRights: event.detail.value.includes('film'), dirty: true }); },
-  visibility(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) { this.setData({ published: event.detail.value, dirty: true }); },
-  honor(event: WechatMiniprogram.CustomEvent<{ value: string }>) { const slot = Number(event.currentTarget.dataset.slot); if (slot === 0 || slot === 1) this.setData({ [`honor${slot}Index`]: Number(event.detail.value), dirty: true }); },
-  reviewReason(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.setData({ reviewReasons: { ...this.data.reviewReasons, [event.currentTarget.dataset.id]: event.detail.value }, dirty: true }); },
+  rights(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { this.setData({ photoRights: event.detail.value.includes('photos'), filmRights: event.detail.value.includes('film'), dirty: true, storyDirty: true }); },
+  visibility(event: WechatMiniprogram.CustomEvent<{ value: boolean }>) { this.setData({ published: event.detail.value, dirty: true, storyDirty: true }); },
+  honor(event: WechatMiniprogram.CustomEvent<{ value: string }>) { const slot = Number(event.currentTarget.dataset.slot); if (slot === 0 || slot === 1) this.setData({ [`honor${slot}Index`]: Number(event.detail.value), dirty: true, storyDirty: true }); },
+  reviewReason(event: WechatMiniprogram.CustomEvent<{ value: string }>) { this.setData({ reviewReasons: { ...this.data.reviewReasons, [event.currentTarget.dataset.id]: event.detail.value } }); },
   async saveReview() {
     if (this.data.busy || !this.data.member || !this.data.own?.eligible) return;
-    if (!this.data.publishConsent || !this.data.nicknameConsent) { this.setData({ error: '请分别确认公开评价与昵称的说明' }); return; }
+    if (!this.data.publishConsent || !this.data.nicknameConsent) { const msg = '请分别确认公开评价与昵称的说明'; this.setData({ error: msg }); toast(msg); return; }
     const version = this.data.loadVersion, role = mockRole(); this.setData({ busy: true, error: '' });
     try {
       await this.assertViewer();
@@ -178,15 +184,15 @@ export const controller = defineReferencePage({
         publishConsent: true, nicknameConsent: true, honorConsent: this.data.honorConsent, consentVersion: HISTORY_REVIEW_CONSENT_VERSION }, this.data.own.revision);
       if (!this.valid(version, role)) return;
       markReferenceChanged(this);
-      await this.load(); this.setData({ notice: '评价已交给主理人核对，发布后才会展示。' });
-    } catch (error) { if (this.valid(version, role)) this.setData({ error: errorMessage(error) }); }
+      await this.load(); this.setData({ notice: '评价已交给主理人核对，发布后才会展示。' }); toast('评价已提交核对');
+    } catch (error) { if (this.valid(version, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.valid(version, role)) this.setData({ busy: false }); }
   },
   async withdraw() {
     if (!this.data.own?.review || this.data.busy || !await confirm('撤回公开评价', '评价与相关荣誉将停止后续公开展示。')) return;
     const version = this.data.loadVersion, role = mockRole(); this.setData({ busy: true, error: '' });
-    try { await this.assertViewer(); if (!this.valid(version, role)) return; await call('history.review.withdraw', { activityId: this.data.activityId }, this.data.own!.revision); if (this.valid(version, role)) { markReferenceChanged(this); await this.load(); this.setData({ notice: '评价已撤回。' }); } }
-    catch (error) { if (this.valid(version, role)) this.setData({ error: errorMessage(error) }); }
+    try { await this.assertViewer(); if (!this.valid(version, role)) return; await call('history.review.withdraw', { activityId: this.data.activityId }, this.data.own!.revision); if (this.valid(version, role)) { markReferenceChanged(this); await this.load(); this.setData({ notice: '评价已撤回。' }); toast('评价已撤回'); } }
+    catch (error) { if (this.valid(version, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.valid(version, role)) this.setData({ busy: false }); }
   },
   async uploadPhoto() {
@@ -201,11 +207,14 @@ export const controller = defineReferencePage({
       if (!this.valid(version, role)) return;
       await this.assertViewer(true);
       if (!this.valid(version, role)) return;
-      this.setData({ photoAssetIds: [...this.data.photoAssetIds, asset.assetId], photoUrls: { ...this.data.photoUrls, [asset.assetId]: asset.previewUrl }, dirty: true });
-    } catch (error) { if (this.valid(version, role) && !/cancel/i.test(String((error as { errMsg?: string })?.errMsg))) this.setData({ error: error instanceof Error ? error.message : errorMessage(error) }); }
+      this.setData({ photoAssetIds: [...this.data.photoAssetIds, asset.assetId], photoUrls: { ...this.data.photoUrls, [asset.assetId]: asset.previewUrl }, dirty: true, storyDirty: true });
+    } catch (error) {
+      const cancelled = (error as { code?: string })?.code === 'CANCELLED' || /cancel/i.test(String((error as { errMsg?: string })?.errMsg || ''));
+      if (this.valid(version, role) && !cancelled) { const msg = error instanceof Error ? error.message : errorMessage(error); this.setData({ error: msg }); toast(msg); }
+    }
     finally { if (this.valid(version, role)) this.setData({ busy: false }); }
   },
-  removePhoto(event: WechatMiniprogram.TouchEvent) { this.setData({ photoAssetIds: this.data.photoAssetIds.filter(id => id !== event.currentTarget.dataset.id), dirty: true }); },
+  removePhoto(event: WechatMiniprogram.TouchEvent) { this.setData({ photoAssetIds: this.data.photoAssetIds.filter(id => id !== event.currentTarget.dataset.id), dirty: true, storyDirty: true }); },
   async saveStory() {
     if (!this.data.story || this.data.busy || !this.data.canManageContent) return;
     const version = this.data.loadVersion, role = mockRole(), choices = this.data.honorChoices;
@@ -213,8 +222,12 @@ export const controller = defineReferencePage({
       toast('填写荣誉称号后，请同时选择已公开授权的评价车手');
       return;
     }
+    if ((choices[this.data.honor0Index]?.value && !this.data.honor0Label.trim()) || (choices[this.data.honor1Index]?.value && !this.data.honor1Label.trim())) {
+      toast('选择荣誉车手后，请填写对应的本场荣誉称号');
+      return;
+    }
     const honors = [0, 1].flatMap(slot => {
-      const index = slot === 0 ? this.data.honor0Index : this.data.honor1Index, label = slot === 0 ? this.data.honor0Label : this.data.honor1Label, selected = choices[index];
+      const index = slot === 0 ? this.data.honor0Index : this.data.honor1Index, label = slot === 0 ? this.data.honor0Label.trim() : this.data.honor1Label.trim(), selected = choices[index];
       return selected?.value ? [{ reviewPublicId: selected.value, label }] : [];
     });
     this.setData({ busy: true, error: '' });
@@ -235,7 +248,20 @@ export const controller = defineReferencePage({
       await this.assertViewer(true);
       if (!this.valid(version, role)) return;
       await call('staff.history.review', { activityId: this.data.activityId, reviewId: row.id, decision: event.currentTarget.dataset.decision, reason: this.data.reviewReasons[row.id] ?? '' }, row.revision);
-      if (this.valid(version, role)) { markReferenceChanged(this); await this.loadManage(); this.setData({ notice: '评价处理结果已保存。' }); toast('评价处理已保存'); }
+      if (this.valid(version, role)) {
+        markReferenceChanged(this);
+        if (this.data.storyDirty) {
+          const refreshed = await call<{ items: StaffHistoryReview[]; nextCursor: string | null }>('staff.history.reviews', { activityId: this.data.activityId });
+          if (this.valid(version, role)) {
+            this.setData({ queue: refreshed.items.map(item => ({ ...item, starText: '★'.repeat(item.stars) + '☆'.repeat(5 - item.stars) })), queueCursor: refreshed.nextCursor });
+            this.honorOptions(true);
+          }
+        } else {
+          await this.loadManage();
+        }
+        this.setData({ notice: '评价处理结果已保存。' });
+        toast('评价处理已保存');
+      }
     } catch (error) { if (this.valid(version, role)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.valid(version, role)) this.setData({ busy: false }); }
   },
@@ -246,5 +272,8 @@ export const controller = defineReferencePage({
   videoStopped() { this.setData({ playing: false }); },
   manage() { wx.navigateTo({ url: `/subpackages/archive/pages/history-detail/index?activityId=${encodeURIComponent(this.data.activityId)}&mode=manage` }); },
   profile() { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); },
-  retry() { void this.load(); },
+  async retry() {
+    if (this.data.dirty && !await confirm('重新加载', '未保存的评价或回顾草稿将被丢弃，确认重新加载？')) return;
+    void this.load();
+  },
 });

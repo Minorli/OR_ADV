@@ -80,14 +80,19 @@ async function target(ctx: Context, tx: Transaction, id: unknown): Promise<Membe
   return member;
 }
 export async function getDossier(ctx: Context, staff = false): Promise<MemberDossier> {
-  object(ctx.request.payload, staff ? ['memberId'] : [], '查询');
+  object(ctx.request.payload, staff ? ['memberId', 'includeReviewed'] : [], '查询');
+  const includeReviewed = staff && ctx.request.payload.includeReviewed === true;
   return ctx.store.transaction(async tx => {
     const actor = staff ? await ctx.staff(tx, ['owner']) : await ctx.actor(tx);
     const member = staff ? await target(ctx, tx, ctx.request.payload.memberId) : actor.member;
     const row = await tx.get<MemberDossier>(COLLECTION, dossierId(ctx.clubId, member.id));
     if (staff) {
-      requireThat(row?.status === 'pending' && row.submission, 'STATE_CONFLICT', '这份资料当前不在待审队列，请刷新');
-      return { ...row, draft: validateDossierDraft(row.submission.snapshot) };
+      if (includeReviewed) {
+        requireThat(row?.submission && ['pending', 'approved', 'returned'].includes(row.status), 'STATE_CONFLICT', '该成员尚未提交骑手资料');
+      } else {
+        requireThat(row?.status === 'pending' && row.submission, 'STATE_CONFLICT', '这份资料当前不在待审队列，请刷新');
+      }
+      return { ...row!, draft: validateDossierDraft(row!.submission!.snapshot), memberNickname: member.nickname, ...(member.memberNumber === undefined ? {} : { memberNumber: member.memberNumber }) };
     }
     return row ? { ...row, draft: validateDossierDraft(row.draft) } : empty(ctx, member.id);
   });
@@ -154,21 +159,25 @@ export async function reviewDossier(ctx: Context): Promise<MemberDossier> {
   });
 }
 export async function listDossiers(ctx: Context): Promise<{ items: DossierQueueItem[]; nextCursor: string | null }> {
-  object(ctx.request.payload, ['cursor'], '审核队列');
+  object(ctx.request.payload, ['cursor', 'status'], '审核队列');
+  const rawStatus = ctx.request.payload.status;
+  if (rawStatus !== undefined) requireThat(['pending', 'approved', 'returned'].includes(String(rawStatus)), 'INVALID_INPUT', '审核状态筛选不正确');
+  const status = (rawStatus ?? 'pending') as 'pending' | 'approved' | 'returned';
+  const cursorSig = status === 'pending' ? 'dossier-pending-v1' : `dossier-${status}-v1`;
   await ctx.store.transaction(tx => ctx.staff(tx, ['owner']));
   const cursor = parseCursor(ctx.request.payload.cursor);
-  if (cursor) requireThat(cursor.signature === 'dossier-pending-v1', 'INVALID_INPUT', '分页游标不正确');
-  const rows = await ctx.store.query<MemberDossier>(COLLECTION, { clubId: ctx.clubId, kind: 'dossier', status: 'pending' }, { orderBy: 'id', limit: 21, after: cursor });
+  if (cursor) requireThat(cursor.signature === cursorSig, 'INVALID_INPUT', '分页游标不正确');
+  const rows = await ctx.store.query<MemberDossier>(COLLECTION, { clubId: ctx.clubId, kind: 'dossier', status }, { orderBy: 'id', limit: 21, after: cursor });
   const items = await ctx.store.transaction(async tx => {
     await ctx.staff(tx, ['owner']);
     const summaries: DossierQueueItem[] = [];
     for (const row of rows.slice(0, 20)) {
       const member = await target(ctx, tx, row.memberId);
       if (row.submission) summaries.push({ memberId: row.memberId, nickname: member.nickname, ...(member.memberNumber === undefined ? {} : { memberNumber: member.memberNumber }),
-        revision: row.revision, submissionRevision: row.submission.submissionRevision, submittedAt: row.submission.submittedAt });
+        revision: row.revision, submissionRevision: row.submission.submissionRevision, submittedAt: row.submission.submittedAt, ...(rawStatus ? { status } : {}) });
     }
     return summaries;
   });
   const last = rows[Math.min(rows.length, 20) - 1];
-  return { items, nextCursor: rows.length > 20 && last ? encodeCursor({ value: last.id, id: last.id, signature: 'dossier-pending-v1' }) : null };
+  return { items, nextCursor: rows.length > 20 && last ? encodeCursor({ value: last.id, id: last.id, signature: cursorSig }) : null };
 }

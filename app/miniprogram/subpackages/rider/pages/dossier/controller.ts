@@ -4,6 +4,7 @@ import { ApiError, call, confirm, currentMember, errorMessage, isMock, mockRole,
 import { chooseAndUploadMemberImage, discardMemberMediaDraft, memberMediaDrafts, MemberMediaError, resolveMemberMedia, retryMemberMediaDraft } from '../../../../services/member-media';
 import { DOSSIER_BLOOD_TYPES, DOSSIER_CONSENT_VERSION, DOSSIER_JERSEY_SIZES, emptyDossierDraft } from '../../../../../../shared/dossier-types';
 import type { DossierDraft, DossierGear, DossierQueueItem, MemberDossier } from '../../../../../../shared/dossier-types';
+import { dateText } from '../../../../services/presentation';
 
 const gearNames: Record<DossierGear, string> = { helmet: '头盔', armor: '护甲 / 骑行服', knee: '护膝 / 护胫', boots: '越野靴' };
 const bloodTypeLabels = DOSSIER_BLOOD_TYPES.map(v => v || '暂不填写');
@@ -28,7 +29,7 @@ const pendingKey = (id: string) => `oradv-dossier-upload-targets-v1-${id}`;
 export const controller = defineReferencePage({
   referenceClose() { closeReferenceLeaf(this); },
   data: { embedded: false,
-    isMock, mode: 'own', memberId: '', viewerId: '', loadedRole: '', version: 0, queue: [] as DossierQueueItem[], nextCursor: null as string | null, contactMethods: ['微信', '电话'],
+    isMock, mode: 'own', memberId: '', viewerId: '', loadedRole: '', version: 0, queueStatus: 'pending' as 'pending' | 'approved' | 'returned', includeReviewed: false, queue: [] as (DossierQueueItem & { submittedText?: string })[], nextCursor: null as string | null, contactMethods: ['微信', '电话'],
     bloodTypes: bloodTypeLabels, jerseySizes: jerseySizeLabels, bloodTypeIndex: 0, jerseySizeIndex: 0,
     dossier: null as MemberDossier | null, draft: emptyDossierDraft(), gearRows: [] as { key: DossierGear; name: string; assetId: string | null; url: string; error: string }[],
     bikeRows: [] as (DossierDraft['bikes'][number] & { photoUrl: string; tireUrl: string; photoError: string; tireError: string })[],
@@ -37,7 +38,7 @@ export const controller = defineReferencePage({
     dirty: false, previewing: false, loading: false, saving: false, uploading: false, uploadLabel: '', error: '', notice: '', reviewReason: '', photoCount: 0, photoTotal: 4,
   },
   onLoad(options: Record<string, string>) {
-    this.setData({ mode: options.mode === 'review' && options.memberId ? 'review' : options.mode === 'queue' ? 'queue' : 'own', memberId: options.memberId || '' });
+    this.setData({ mode: options.mode === 'review' && options.memberId ? 'review' : options.mode === 'queue' ? 'queue' : 'own', memberId: options.memberId || '', includeReviewed: options.reviewed === '1' });
   },
   onShow() { return this.resume(); },
   onUnload() { this.clearPrivate(); },
@@ -49,7 +50,8 @@ export const controller = defineReferencePage({
   async resume() {
     const role = mockRole();
     if (this.data.loadedRole && this.data.loadedRole !== role) { this.clearPrivate(); await this.load(); return; }
-    if (!this.data.saving && !this.data.uploading && !this.data.dirty && !this.data.previewing) {
+    const hasCompletedReviewView = this.data.mode === 'review' && !!this.data.dossier && this.data.dossier.status !== 'pending';
+    if (!this.data.saving && !this.data.uploading && !this.data.dirty && !this.data.previewing && !this.data.reviewReason.trim() && !hasCompletedReviewView) {
       // Hide the prior private view while the new load verifies identity once.
       this.clearPrivate(); await this.load(); return;
     }
@@ -105,11 +107,15 @@ export const controller = defineReferencePage({
       this.setData({ viewerId: member.id });
       if (this.data.mode !== 'own' && !member.roles.includes('owner')) { this.setData({ dossier: null, queue: [] }); throw new ApiError('FORBIDDEN', '仅主理人可以查看已提交的资料'); }
       if (this.data.mode === 'queue') {
-        const result = await call<{ items: DossierQueueItem[]; nextCursor: string | null }>('staff.dossier.list', more && this.data.nextCursor ? { cursor: this.data.nextCursor } : {});
-        if (this.matches(version, member.id, role)) this.setData({ queue: more ? [...this.data.queue, ...result.items] : result.items, nextCursor: result.nextCursor });
+        const payload: Record<string, unknown> = {};
+        if (more && this.data.nextCursor) payload.cursor = this.data.nextCursor;
+        if (this.data.queueStatus !== 'pending') payload.status = this.data.queueStatus;
+        const result = await call<{ items: DossierQueueItem[]; nextCursor: string | null }>('staff.dossier.list', payload);
+        const formatted = result.items.map(item => ({ ...item, submittedText: dateText(item.submittedAt) }));
+        if (this.matches(version, member.id, role)) this.setData({ queue: more ? [...this.data.queue, ...formatted] : formatted, nextCursor: result.nextCursor });
         return;
       }
-      const dossier = await call<MemberDossier>(this.data.mode === 'review' ? 'staff.dossier.get' : 'dossier.mine', this.data.mode === 'review' ? { memberId: this.data.memberId } : {});
+      const dossier = await call<MemberDossier>(this.data.mode === 'review' ? 'staff.dossier.get' : 'dossier.mine', this.data.mode === 'review' ? { memberId: this.data.memberId, ...(this.data.includeReviewed ? { includeReviewed: true } : {}) } : {});
       if (!this.matches(version, member.id, role)) return;
       this.renderDraft(clone(dossier.draft), { dossier, statusText: labels[dossier.status], dirty: false, consent: false, urls: {}, photoErrors: {}, notice: '', reviewReason: '' });
       await Promise.all([this.loadPhotos(), this.data.mode === 'own' ? this.loadPendingUploads() : Promise.resolve()]);
@@ -128,9 +134,21 @@ export const controller = defineReferencePage({
     for (const result of results) { urls[result.assetId] = result.url || ''; photoErrors[result.assetId] = result.error; }
     this.renderDraft(this.data.draft, { urls, photoErrors });
   },
-  retry() { void this.load(); },
+  async retry() {
+    if (this.data.dirty && !await confirm('重新加载', '未保存的骑手资料修改将被放弃，确认重新加载？')) return;
+    void this.load();
+  },
   more() { if (!this.data.loading && this.data.nextCursor) void this.load(true); },
-  reviewMember(event: WechatMiniprogram.CustomEvent) { wx.navigateTo({ url: `/subpackages/rider/pages/dossier/index?mode=review&memberId=${encodeURIComponent(event.currentTarget.dataset.id)}` }); },
+  filterQueue(event: WechatMiniprogram.TouchEvent) {
+    const status = String(event.currentTarget.dataset.status) as 'pending' | 'approved' | 'returned';
+    if (!['pending', 'approved', 'returned'].includes(status) || status === this.data.queueStatus || this.data.loading) return;
+    this.setData({ queueStatus: status, queue: [], nextCursor: null });
+    void this.load();
+  },
+  reviewMember(event: WechatMiniprogram.CustomEvent) {
+    const reviewed = this.data.queueStatus !== 'pending' ? '&reviewed=1' : '';
+    wx.navigateTo({ url: `/subpackages/rider/pages/dossier/index?mode=review&memberId=${encodeURIComponent(event.currentTarget.dataset.id)}${reviewed}` });
+  },
   updateDraft(draft: DossierDraft) { this.renderDraft(draft, { dirty: true, consent: false, error: '', notice: '' }); },
   async loadPendingUploads() {
     const version = this.data.version, viewerId = this.data.viewerId, role = mockRole();
@@ -239,7 +257,9 @@ export const controller = defineReferencePage({
       this.renderDraft(draft, { dirty: true, consent: false, urls: { ...this.data.urls, [result.assetId]: result.previewUrl }, error: '', notice: '照片已选择，请保存草稿。提交后由主理人审核。' });
     } catch (error) {
       if (this.matches(version, viewerId, role) && (error as { code?: string })?.code !== 'CANCELLED' && !/cancel/i.test(String((error as { errMsg?: string })?.errMsg || (error as Error)?.message || ''))) {
-        this.setData({ error: friendly(error) });
+        const msg = friendly(error);
+        this.setData({ error: msg });
+        toast(msg);
         if (error instanceof MemberMediaError && error.draftId) {
           try { await this.rememberUpload(error.draftId, { draftId: error.draftId, label: uploadLabel, ...(gear ? { gear } : { bikeId, part }) }); }
           catch { if (this.matches(version, viewerId, role)) this.setData({ error: '照片原件已保留，待传列表暂时无法更新，请稍后重试。' }); }
@@ -312,8 +332,13 @@ export const controller = defineReferencePage({
     this.setData({ saving: true, error: '', notice: '' });
     try {
       await this.assertViewer();
-      const current = this.data.dirty || !this.data.dossier?.revision ? await this.persist() : this.data.dossier;
+      const current: MemberDossier | null = this.data.dirty || !this.data.dossier?.revision ? await this.persist() : this.data.dossier;
       if (!this.matches(version, viewerId, role)) return;
+      if (current && (current.status === 'pending' || current.status === 'approved')) {
+        this.renderDraft(clone(current.draft), { dossier: current, statusText: labels[current.status], dirty: false, consent: false, notice: '资料内容未发生变化，无需重复提交。' });
+        toast('资料内容未发生变化');
+        return;
+      }
       const result = await call<MemberDossier>('dossier.submit', { consent: true, consentVersion: DOSSIER_CONSENT_VERSION }, current!.revision);
       if (!this.matches(version, viewerId, role)) return;
       markReferenceChanged(this);

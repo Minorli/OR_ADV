@@ -1,4 +1,4 @@
-import { call, currentMember, errorMessage, isMock, mockRole } from '../../services/api';
+import { call, currentMember, errorMessage, isMock, mockRole, toast } from '../../services/api';
 import { dateText, registrationCard } from '../../services/presentation';
 import { activityVisual } from '../../services/visual';
 import { memberKindText, tripNextAction } from '../../services/member';
@@ -30,7 +30,16 @@ Page({
   ], member: null as MemberSummary | null, kindLabel: '游客', nextTrip: null as NextTrip | null,
     partners: [] as { heading: string; introduction: string }[], partnerLoop: [] as { id: number; heading: string }[], partnersTitle: '', partnersIntroduction: '', partnersConfigured: false,
     partnersError: '', personalError: '', loading: false, requestVersion: 0, error: '', filter: 'all', nextCursor: null as string | null, filters: [{ value: 'all', label: '全部活动' }, { value: 'published', label: '正在招募' }, { value: 'in_progress', label: '正在同行' }, { value: 'settled', label: '往期记录' }] },
-  onShow() { syncReferenceTab(this, 0); this.startHero(); void this.load(); },
+  onShow() {
+    syncReferenceTab(this, 0);
+    if (wx.getStorageSync('oradv-open-practice')) {
+      wx.setStorageSync('oradv-open-practice', false);
+      this.setData({ filter: 'published', items: [], displayItems: [], nextCursor: null });
+      toast('请选择正在招募的练车或同行场次报名');
+    }
+    this.startHero();
+    void this.load();
+  },
   onHide() { this.stopHero(); },
   onUnload() { this.stopHero(); this.setData({ requestVersion: this.data.requestVersion + 1, member: null, kindLabel: '游客', nextTrip: null }); },
   startHero() {
@@ -62,8 +71,18 @@ Page({
   async loadActivities(append: boolean, requestVersion: number, role: string) {
     try {
       const result = await call<PageResult<Activity>>('activity.list', { state: this.data.filter === 'all' ? undefined : this.data.filter, cursor: append ? this.data.nextCursor : undefined, limit: 20 });
+      let activeExtras: Activity[] = [];
+      if (!append && this.data.filter === 'all' && result.nextCursor) {
+        const [recruiting, ongoing] = await Promise.all([
+          call<PageResult<Activity>>('activity.list', { state: 'published', limit: 20 }).catch(() => ({ items: [] as Activity[], nextCursor: null })),
+          call<PageResult<Activity>>('activity.list', { state: 'in_progress', limit: 20 }).catch(() => ({ items: [] as Activity[], nextCursor: null })),
+        ]);
+        activeExtras = [...recruiting.items, ...ongoing.items];
+      }
       if (!this.isCurrent(requestVersion, role)) return;
-      const items = [...(append ? this.data.items : []), ...result.items.map(referenceActivity)];
+      const mergedRaw = [...(append ? this.data.items : []), ...activeExtras.map(referenceActivity), ...result.items.map(referenceActivity)];
+      const seenIds = new Set<string>();
+      const items = mergedRaw.filter(item => { if (seenIds.has(item.id)) return false; seenIds.add(item.id); return true; });
       const priority = (state: string) => state === 'published' ? 0 : state === 'in_progress' ? 1 : state === 'closed' ? 2 : 3;
       const displayItems = this.data.filter === 'all' ? [...items].sort((a, b) => priority(a.state) - priority(b.state) || Date.parse(a.startAt) - Date.parse(b.startAt)) : items;
       this.setData({ items, displayItems, nextCursor: result.nextCursor });
@@ -129,7 +148,7 @@ Page({
   retryPartners() { void this.loadPartners(this.data.requestVersion, mockRole()); },
   marqueePause() { if (!this.data.marqueePaused) this.setData({ marqueePaused: true }); },
   marqueeResume() { if (this.data.marqueePaused) this.setData({ marqueePaused: false }); },
-  sponsorTap() { if (this.data.partnersConfigured) this.partners(); },
+  sponsorTap() { if (this.data.partnersConfigured) this.partners(); else toast('合作伙伴详情整理中，欢迎通过“我的 → 商务合作”联系俱乐部'); },
   partners() { openReferencePanel(this, 'partners'); },
   learning() { openReferencePanel(this, 'learning'); },
   open(event: WechatMiniprogram.TouchEvent) { openReferencePanel(this, 'activity', { id: event.currentTarget.dataset.id }); },

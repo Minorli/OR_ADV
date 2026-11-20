@@ -17,7 +17,7 @@ export interface HandlerDependencies {
   log?: (entry: { traceId: string; action: string; code: string; serverBuild?: string; rejectedFields?: string[]; rejectedFieldCount?: number; stage?: string; backendCode?: string; backendHints?: string[]; runtimeAuth?: { credentials: string; sessionToken: boolean } }) => void;
 }
 
-const SERVER_BUILD = 'native-envelope-20261120.1';
+const SERVER_BUILD = 'native-envelope-20261120.2';
 class EnvelopeFieldError extends DomainError {
   readonly fields: string[];
   readonly fieldCount: number;
@@ -120,9 +120,14 @@ export function createCloudHandler(dependencies: HandlerDependencies) {
       stage = 'store_init';
       const store = dependencies.store();
       stage = 'rate_limit';
-      await rateLimit(store, identity, (dependencies.now ?? Date.now)());
-      if (request.action === 'profile.avatar.save') await rateLimit(dependencies.store(), identity, (dependencies.now ?? Date.now)(), ':avatar', 5);
-      if (request.action === 'media.image.save') await rateLimit(dependencies.store(), identity, (dependencies.now ?? Date.now)(), ':member-media-image', 20);
+      const nowMs = (dependencies.now ?? Date.now)();
+      if (request.action === 'media.video.chunk') {
+        await rateLimit(store, identity, nowMs, ':member-media-video-chunk', 240);
+      } else {
+        await rateLimit(store, identity, nowMs);
+      }
+      if (request.action === 'profile.avatar.save') await rateLimit(dependencies.store(), identity, nowMs, ':avatar', 5);
+      if (request.action === 'media.image.save') await rateLimit(dependencies.store(), identity, nowMs, ':member-media-image', 20);
       stage = 'dispatch';
       const result = await dependencies.invoke(request, identity, traceId);
       if (!result.ok) dependencies.log?.({ traceId: result.traceId, action, code: result.error.code });

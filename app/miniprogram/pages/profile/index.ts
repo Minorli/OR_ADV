@@ -49,7 +49,10 @@ Page({
   },
   onShow() {
     syncReferenceTab(this, 3);
-    if (wx.getStorageSync('oradv-open-privacy')) { this.setData({ showPrivacy: true }); wx.setStorageSync('oradv-open-privacy', false); }
+    if (wx.getStorageSync('oradv-open-privacy')) {
+      this.setData({ showPrivacy: true }, () => { wx.pageScrollTo?.({ selector: '#profile-privacy', duration: 180 }); });
+      wx.setStorageSync('oradv-open-privacy', false);
+    }
     const wantLogin = Boolean(wx.getStorageSync('oradv-open-login'));
     if (wantLogin) wx.setStorageSync('oradv-open-login', false);
     return this.resume().then(() => { if (wantLogin) this.openEdit(); });
@@ -191,6 +194,7 @@ Page({
   },
   closeEdit() {
     this.setData({ showEdit: false, nicknameError: '', avatarError: '' });
+    if (this.data.member && !this.data.statistics && !this.data.loading) void this.load();
   },
   edit() {
     const showEdit = !this.data.showEdit;
@@ -251,7 +255,7 @@ Page({
           : await call<MemberSummary>('profile.update', { nickname }, original.revision)
         : await call<MemberSummary>('identity.ensure', { consentVersions: { privacy: 1, terms: 1 } });
       if (!this.identityMatches(version, original?.id || null, resultRole)) return;
-      this.setData({ member, nicknameInitial: Array.from(member.nickname)[0] || 'OR', nickname: original ? member.nickname : '', nicknameStatus: 'unchanged', nicknameError: '', kindLabel: memberKindText(member), memberNumber: memberNumberText(member.memberNumber), ...accessFor(member), showEdit: !original,
+      this.setData({ member, nicknameInitial: Array.from(member.nickname)[0] || 'OR', nickname: original ? member.nickname : '', nicknameStatus: 'unchanged', nicknameError: '', kindLabel: memberKindText(member), memberNumber: memberNumberText(member.memberNumber), kindExpiresText: member.memberKindExpiresAt ? dateText(member.memberKindExpiresAt) : '', ...accessFor(member), showEdit: !original,
         avatarBase64: '', avatarDraftUrl: '', draftPreviewFailed: false, avatarUrl: '', loadedRole: resultRole });
       toast(original ? '个人资料已保存' : isMock ? '本地身份已建立' : '已用微信登录');
       const snapshot: ProfileReadSnapshot = { member, profileVersion: version, loadVersion: this.data.loadVersion, role: resultRole, lifecycle: this.data.lifecycleVersion, environment: profileEnvironment() };
@@ -280,10 +284,11 @@ Page({
   contact() { void contactPerson(this.data.contact.contactMethod, this.data.contact.contactValue); },
   dossier() { if (this.data.member) openReferencePanel(this, 'dossier'); else this.openEdit(); },
   dossierQueue() { if (this.data.isOwner) wx.navigateTo({ url: '/subpackages/rider/pages/dossier/index?mode=queue' }); },
+  skillQueue() { if (this.data.isOwner) wx.navigateTo({ url: '/subpackages/academy/pages/skills/index?mode=review' }); },
   safety() { openReferencePanel(this, 'learning'); },
   basicSkills() { openReferencePanel(this, 'skills', { level: 'basic' }); },
   advancedSkills() { openReferencePanel(this, 'skills', { level: 'advanced' }); },
-  practice() { this.activities(); },
+  practice() { wx.setStorageSync('oradv-open-practice', true); this.activities(); },
   redemption() { wx.navigateTo({ url: '/subpackages/rider/pages/redemption/index' }); },
   handbook() { openReferencePanel(this, 'handbook'); },
   core() { openReferencePanel(this, 'core'); },
@@ -376,6 +381,7 @@ Page({
     try {
       await call('identity.delete', { reason: '车友主动提交注销申请' }, member.revision);
       if (!this.identityMatches(version, member.id, role)) return;
+      if (!isMock) { try { signOut(); } catch { /* Session scope paused in memory. */ } }
       this.clearIdentity();
       this.setData({ kindLabel: '游客', memberNumber: '', staff: false, isOwner: false, canManageContent: false, adminTitle: '', consent: false, notice: '注销申请已提交。已停止受限访问与公开展示，必要记录等待组织方审核处理。' });
     } catch (error) { if (this.identityMatches(version, member.id, role)) this.setData({ error: errorMessage(error) }); }
