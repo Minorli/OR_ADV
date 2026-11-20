@@ -1,12 +1,22 @@
 {
   "component": true,
   "usingComponents": {
-    "reference-activity": "../reference-activity/index",
-    "reference-dossier": "../reference-dossier/index",
-    "reference-learning": "../reference-learning/index",
-    "reference-skills": "../reference-skills/index",
-    "reference-club-content": "../reference-club-content/index",
-    "reference-history-detail": "../reference-history-detail/index",
-    "reference-redemption": "../reference-redemption/index"
+    "reference-leaf-placeholder": "../reference-leaf-placeholder/index",
+    "reference-activity": "/subpackages/trip/components/reference-activity/index",
+    "reference-dossier": "/subpackages/rider/components/reference-dossier/index",
+    "reference-learning": "/subpackages/academy/components/reference-learning/index",
+    "reference-skills": "/subpackages/academy/components/reference-skills/index",
+    "reference-club-content": "/subpackages/rider/components/reference-club-content/index",
+    "reference-history-detail": "/subpackages/archive/components/reference-history-detail/index",
+    "reference-redemption": "/subpackages/rider/components/reference-redemption/index"
+  },
+  "componentPlaceholder": {
+    "reference-activity": "reference-leaf-placeholder",
+    "reference-dossier": "reference-leaf-placeholder",
+    "reference-learning": "reference-leaf-placeholder",
+    "reference-skills": "reference-leaf-placeholder",
+    "reference-club-content": "reference-leaf-placeholder",
+    "reference-history-detail": "reference-leaf-placeholder",
+    "reference-redemption": "reference-leaf-placeholder"
   }
 }

@@ -1,0 +1,7 @@
+<view class="reference-placeholder">
+  <view class="reference-placeholder-head">
+    <text class="reference-placeholder-title">正在加载模块…</text>
+    <view class="reference-placeholder-close" bindtap="closePlaceholder">✕</view>
+  </view>
+  <view class="reference-placeholder-body">正在按需加载分包资源，请稍候…</view>
+</view>

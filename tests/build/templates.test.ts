@@ -6,8 +6,14 @@ import ts from 'typescript';
 
 const appRoot = resolve(__dirname, '../../app/miniprogram');
 const config = JSON.parse(readFileSync(resolve(appRoot, 'app.json'), 'utf8')) as {
-  pages: string[]; usingComponents?: Record<string, string>;
+  pages: string[];
+  subpackages?: { root: string; name?: string; pages: string[] }[];
+  usingComponents?: Record<string, string>;
 };
+const allPages = [
+  ...config.pages,
+  ...(config.subpackages ?? []).flatMap(pkg => pkg.pages.map(page => `${pkg.root.replace(/^\/+|\/+$/g, '')}/${page}`)),
+];
 const binaryOperators = new Set([
   ts.SyntaxKind.PlusToken, ts.SyntaxKind.MinusToken, ts.SyntaxKind.AsteriskToken,
   ts.SyntaxKind.SlashToken, ts.SyntaxKind.PercentToken, ts.SyntaxKind.AmpersandAmpersandToken,
@@ -106,11 +112,11 @@ function templateMarkup(filename: string, seen = new Set<string>()): string {
     (_all, target: string) => templateMarkup(resolve(dirname(filename), target), branch));
 }
 
-test('all routed native templates have valid expressions, components, and event handlers', () => {
+test('all routed native templates across main and subpackages have valid expressions, components, and event handlers', () => {
   const native = new Set(['view', 'text', 'button', 'block', 'picker', 'input', 'textarea',
     'switch', 'checkbox-group', 'label', 'checkbox', 'scroll-view', 'image', 'navigator', 'form', 'rich-text', 'swiper', 'swiper-item', 'video']);
-  assert.ok(config.pages.length > 0);
-  for (const page of config.pages) {
+  assert.equal(allPages.length, 17);
+  for (const page of allPages) {
     const markup = templateMarkup(resolve(appRoot, page + '.wxml'));
     const source = readFileSync(resolve(appRoot, page + '.ts'), 'utf8');
     const pageConfig = JSON.parse(readFileSync(resolve(appRoot, page + '.json'), 'utf8')) as { usingComponents?: Record<string, string> };
@@ -128,16 +134,25 @@ test('all routed native templates have valid expressions, components, and event 
   }
 });
 
-test('native component adapters resolve their shared controller and included leaf bindings', () => {
-  const root = resolve(appRoot, 'components'); if (!existsSync(root)) return;
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const base = resolve(root, entry.name, 'index'), config = JSON.parse(readFileSync(base + '.json', 'utf8'));
-    assert.equal(config.component, true);
-    const markup = templateMarkup(base + '.wxml'), handlers = pageHandlers(readFileSync(base + '.ts', 'utf8'), base + '.ts');
-    for (const match of markup.matchAll(/\{\{([\s\S]*?)\}\}/g)) validateExpression(match[1], entry.name);
-    for (const match of markup.matchAll(/(?:bind|catch)[\w:]*="([\w]+)"/g)) assert(handlers.has(match[1]), `${entry.name}: missing shared handler ${match[1]}`);
+test('native component adapters in main and subpackages resolve their shared controller and included leaf bindings', () => {
+  const componentRoots = [
+    resolve(appRoot, 'components'),
+    ...(config.subpackages ?? []).map(pkg => resolve(appRoot, pkg.root.replace(/^\/+|\/+$/g, ''), 'components')),
+  ];
+  let inspected = 0;
+  for (const root of componentRoots) {
+    if (!existsSync(root)) continue;
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const base = resolve(root, entry.name, 'index'), compConfig = JSON.parse(readFileSync(base + '.json', 'utf8'));
+      assert.equal(compConfig.component, true);
+      const markup = templateMarkup(base + '.wxml'), handlers = pageHandlers(readFileSync(base + '.ts', 'utf8'), base + '.ts');
+      for (const match of markup.matchAll(/\{\{([\s\S]*?)\}\}/g)) validateExpression(match[1], entry.name);
+      for (const match of markup.matchAll(/(?:bind|catch)[\w:]*="([\w]+)"/g)) assert(handlers.has(match[1]), `${entry.name}: missing shared handler ${match[1]}`);
+      inspected++;
+    }
   }
+  assert.equal(inspected, 9, 'expected overlay, placeholder, and all seven async subpackage leaf components');
 });
 
 test('native expression preflight rejects HTML entities and JavaScript-only constructs', () => {

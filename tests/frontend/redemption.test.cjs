@@ -1,4 +1,4 @@
-const { freshPageModule } = require('./native-harness.cjs');
+const { freshPageModule, resolvePageFile } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -7,7 +7,7 @@ const event = (dataset = {}, value) => ({ currentTarget: { dataset }, detail: { 
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 function page(name = 'redemption/index', options = {}) {
   let definition; global.Page = value => { definition = value; };
-  const file = path.join(root, 'pages', name + '.js'); freshPageModule(file);
+  const file = resolvePageFile(root, name); freshPageModule(file);
   const p = { ...definition, data: structuredClone(definition.data), setData(values, callback) { for (const [key, value] of Object.entries(values)) { const parts = key.split('.'); let target = this.data; for (const part of parts.slice(0, -1)) target = target[part]; target[parts.at(-1)] = value; } callback?.(); } };
   p.onLoad?.(options); return p;
 }
@@ -55,7 +55,7 @@ test('wallet and redemption cold loads use trusted summaries without extra ident
     env.api.switchMockRole('member'); const p = page(); env.calls.length = 0; await p.load(); assert.equal(p.data.error, ''); assert.deepEqual(p.data.items, []); assert.equal(p.data.wallet.balance, 0); assert.equal(p.data.policy.enabled, false);
     assert.deepEqual(env.calls.map(row => row.action), ['points.wallet', 'redemption.catalog']);
     const points = page('points/index'); env.calls.length = 0; await points.load(); assert.equal(points.data.error, ''); assert.equal(points.data.wallet.available, 0);
-    assert.deepEqual(env.calls.map(row => row.action).sort(), ['points.mine', 'points.wallet']); points.redemption(); assert.equal(env.routes.at(-1), '/pages/redemption/index');
+    assert.deepEqual(env.calls.map(row => row.action).sort(), ['points.mine', 'points.wallet']); points.redemption(); assert.equal(env.routes.at(-1), '/subpackages/rider/pages/redemption/index');
     env.api.switchMockRole('guest'); await p.load(); assert.equal(p.data.member, null); assert.equal(p.data.loading, false); assert.equal(p.data.error, '');
   } finally { env.restore(); }
 });

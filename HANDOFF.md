@@ -1,6 +1,19 @@
 # 当前交接状态
 
-更新：2026-11-19。源代码与官方开发版 `0.5.0-test.5`（zip 1,684,903 字节）指向 2026-11-18 新开通的个人版测试环境 （EnvId 仅存本地配置）（上海，baas_personal，到期 2026-12-18 23:59:59）。该环境的文档数据库是 PostgreSQL DocumentExt，集合通过 `tcb api tcb CreateTable` 加 MongoConnector 管理；`scripts/cloud-setup.cjs` 的 manager-node 列表接口在此环境报 InstanceHasBeenDeleted，不能用来核对。已补齐 v4 兑换钱包 5 个集合、4 个索引及 v5 活动索引，读回 32 个集合、36 个项目索引，集合权限 ADMINONLY（PG DocumentExt 不支持 CUSTOM 规则）；PostgreSQL 云存储已创建 `member-avatars`、`member-evidence`、`club-public-assets` 三个私有桶（`public=false`，无公开 RLS 策略）。云函数 `oradv` 已重部署 `native-envelope-20261119.3`，下载包内 `lib/index.js` SHA256 `7281754385757efa784a360be78269440d48cf115f9e5185de1dd2ae35c27fba` 与本地一致，Active／Event／Nodejs20.19／30秒／256MB，两项环境变量匹配，无触发器。授权 CLI 临时凭据加合成身份对新环境做了 9 个只读 RPC（含个人页聚合、轮播图与兑换目录）及三类私有存储桶上传→短期签名链接匿名拉取逐字节核对→清理回归，全部成功；这不是微信真机登录验收。2026-11-19 14:52（北京时间）已在新环境完成可信授权并读回：经与旧环境同 AppID 身份哈希核对，0 号主理人（原 3 号退役保留）已通过一次性初始化获得全局永久 `owner` 且关闭初始化标记；1 号车队经理已获得全局永久 `owner`（`manager` 称谓）并验证幂等重复无写入；开发账号已迁为 1024 号（原 2 号退役保留，未授予员工权限）；普通新成员编号按指令改为从 10 号起递增。活动与积分尚为空。2026-11-19 14:27（北京时间）用户扫码登录公众平台后读回：同一 `ci机器人1` 槽位已带体验版标记，后续 `0.5.0-test.4` 与 `0.5.0-test.5` 上传自动接替；线上与审核均无版本。官方体验码保存为本机 `OR_ADV体验版二维码.png`（平台提示 11 月 26 日前有效），临时后台会话已退出并清除。公开仓库：[Minorli/OR_ADV](https://github.com/Minorli/OR_ADV)。
+更新：2026-11-20。源代码与官方开发版 `0.5.0-test.6`（zip 1,384,903 字节，含 1 主包 + 5 业务子包）指向 2026-11-18 新开通的个人版测试环境 （EnvId 仅存本地配置）（上海，baas_personal，到期 2026-12-18 23:59:59）。该环境的文档数据库是 PostgreSQL DocumentExt，集合通过 `tcb api tcb CreateTable` 加 MongoConnector 管理；`scripts/cloud-setup.cjs` 的 manager-node 列表接口在此环境报 InstanceHasBeenDeleted，不能用来核对。已补齐 v4 兑换钱包 5 个集合、4 个索引及 v5 活动索引，读回 32 个集合、36 个项目索引，集合权限 ADMINONLY（PG DocumentExt 不支持 CUSTOM 规则）；PostgreSQL 云存储已创建 `member-avatars`、`member-evidence`、`club-public-assets` 三个私有桶（`public=false`，无公开 RLS 策略）。云函数 `oradv` 已重部署 `native-envelope-20261119.3`，下载包内 `lib/index.js` SHA256 `7281754385757efa784a360be78269440d48cf115f9e5185de1dd2ae35c27fba` 与本地一致，Active／Event／Nodejs20.19／30秒／256MB，两项环境变量匹配，无触发器。授权 CLI 临时凭据加合成身份对新环境做了 9 个只读 RPC（含个人页聚合、轮播图与兑换目录）及三类私有存储桶上传→短期签名链接匿名拉取逐字节核对→清理回归，全部成功；这不是微信真机登录验收。2026-11-19 14:52（北京时间）已在新环境完成可信授权并读回：经与旧环境同 AppID 身份哈希核对，0 号主理人（原 3 号退役保留）已通过一次性初始化获得全局永久 `owner` 且关闭初始化标记；1 号车队经理已获得全局永久 `owner`（`manager` 称谓）并验证幂等重复无写入；开发账号已迁为 1024 号（原 2 号退役保留，未授予员工权限）；普通新成员编号按指令改为从 10 号起递增。活动与积分尚为空。2026-11-19 14:27（北京时间）用户扫码登录公众平台后读回：同一 `ci机器人1` 槽位已带体验版标记，后续 `0.5.0-test.4`、`0.5.0-test.5`、`0.5.0-test.6` 上传自动接替；线上与审核均无版本。官方体验码保存为本机 `OR_ADV体验版二维码.png`（平台提示 11 月 26 日前有效），临时后台会话已退出并清除。公开仓库：[Minorli/OR_ADV](https://github.com/Minorli/OR_ADV)。
+
+## 0.5.0-test.6 分包架构与高增长数据隔离重构（2026-11-20）
+
+- **按未来大体量数据与重资产方向完成 1 主包 + 5 子包拆分**：
+  - **主包（`/`，原始体积降至 1,165.6 KB，占单包上限 56.9%）**：仅保留首页、排行、历史、我的 4 个底部 Tab 页与轻量异步浮层宿主，保障山野弱网冷启动秒开。
+  - **`pkg-trip`（`subpackages/trip`，45.9 KB）**：收纳活动详情、报名申请、行前同行、我的同行、积分流水；隔离未来多日拉力 GPX/KML 路书轨迹解析、海拔剖面图渲染、离线集合地图与长周期账本。
+  - **`pkg-archive`（`subpackages/archive`，32.1 KB）**：收纳往期故事详情；隔离百张级高清活动原图瀑布流、纪录片播放器、Canvas 完赛荣誉海报生成与长图文评价流。
+  - **`pkg-academy`（`subpackages/academy`，54.1 KB）**：收纳安全知识题库、控车技能视频考核；隔离本机 MP4 短片选择／转码压缩／分片上传、微信 10MB `savedFile` 沙箱配额治理与图文题库。
+  - **`pkg-rider`（`subpackages/rider`，143.0 KB）**：收纳骑手装备档案、积分兑换商城、俱乐部专栏；隔离 3 车 × 4 护具高分原图裁剪压缩、商城多规格目录与核销码、富文本专栏及私密咨询会话。
+  - **`pkg-ops`（`subpackages/ops`，107.1 KB）**：收纳员工活动工作台、成员权限与轮播管理；隔离 30 段行程编辑器、现场点名、批量结算与 200 人历史积分对账报表——且不纳入普通浏览预下载，普通车友零流量损耗。
+- **启用分包异步化（`componentPlaceholder`）与按需空闲预下载（`preloadRule`）**：7 个原位抽屉／弹窗组件迁入各自子包，主包 `reference-overlay` 通过同包轻量骨架 `reference-leaf-placeholder` 异步挂载，未完成下载时点击遮罩或关闭按钮亦可立即收起，保持 V2 原位弹窗体验完全一致。
+- **剥离云构建模拟数据死重与清理废弃旧图标**：修复 `services/api.ts` 在 `--mode cloud` 下仍静态打包演示数据与本机服务引擎的问题（`services/api.js` 由 `242 KB` 直降至 `3.2 KB`），移除 14 个未引用的旧版 v1 图标；官方 CI 整包上传 zip 由 `1,684,903` 字节降至 `1,384,903` 字节。
+- **新增分包架构与边界自动化防线**：新增 `tests/build/subpackages.test.ts` 并升级 `scripts/wechat-ci.cjs` 预检，强制校验无孤立编译产物、主包零同步跨包引用、子包间零交叉引用、跨包组件必配 `componentPlaceholder` 及各包体积红线。完整检查 **442 项**全部通过（TypeScript 291、原生控制器 136、Python 工具 15），后端协议 100% 兼容，不影响正在进行的真机内测。
 
 ## 0.5.0-test.5 全局审查与体验修复（2026-11-19）
 

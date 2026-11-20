@@ -63,6 +63,38 @@ function preflight(options) {
       if (!fs.existsSync(path.join(projectPath,page+ext))) fail('A declared page is missing compiled JS/WXML');
     }
   }
+  const subpackages=app.subpackages || app.subPackages || [];
+  if (!Array.isArray(subpackages)) fail('app.json subpackages must be an array');
+  const subRoots=[], subNames=new Set();
+  for (const pkg of subpackages) {
+    if (!pkg || typeof pkg.root!=='string' || !pkg.root.trim() || pkg.root.includes('..') || path.isAbsolute(pkg.root)) fail('Invalid page subpackage root');
+    const cleanRoot=pkg.root.replace(/^\/+|\/+$/g,'');
+    if (!cleanRoot || subRoots.some(r=>cleanRoot===r || cleanRoot.startsWith(r+'/') || r.startsWith(cleanRoot+'/'))) fail('app.json subpackage roots overlap');
+    if (app.pages.some(p=>p===cleanRoot || p.startsWith(cleanRoot+'/'))) fail('app.json main page cannot reside inside a subpackage');
+    subRoots.push(cleanRoot);
+    if (pkg.name!==undefined) {
+      if (typeof pkg.name!=='string' || !pkg.name.trim() || subNames.has(pkg.name)) fail('app.json subpackage name must be unique');
+      subNames.add(pkg.name);
+    }
+    if (!Array.isArray(pkg.pages) || !pkg.pages.length) fail('app.json subpackage must declare pages');
+    for (const page of pkg.pages) {
+      if (typeof page!=='string' || page.includes('..') || path.isAbsolute(page)) fail('Invalid page path in subpackage');
+      for (const ext of ['.js','.wxml']) {
+        if (!fs.existsSync(path.join(projectPath,cleanRoot,page+ext))) fail('A declared page in subpackage is missing compiled JS/WXML');
+      }
+    }
+  }
+  if (app.preloadRule!==undefined) {
+    if (!app.preloadRule || typeof app.preloadRule!=='object' || Array.isArray(app.preloadRule)) fail('app.json preloadRule must be an object');
+    const allPages=new Set([...app.pages,...subpackages.flatMap(pkg=>pkg.pages.map(p=>pkg.root.replace(/^\/+|\/+$/g,'')+'/'+p))]);
+    for (const [trigger,rule] of Object.entries(app.preloadRule)) {
+      if (!allPages.has(trigger)) fail('app.json preloadRule trigger page is undeclared');
+      if (!rule || !Array.isArray(rule.packages) || !rule.packages.length) fail('app.json preloadRule packages must be a non-empty array');
+      for (const target of rule.packages) {
+        if (target!=='__APP__' && !subNames.has(target) && !subRoots.includes(String(target).replace(/^\/+|\/+$/g,''))) fail('app.json preloadRule references unknown subpackage');
+      }
+    }
+  }
   const meta=readJson(path.join(projectPath,'build-meta.json'),'build-meta.json');
   const expectedEnvId=options.mock ? '' : selected.envId;
   if (meta.appId!==config.appId || meta.envId!==expectedEnvId || meta.target!==options.env || meta.version!==config.version) fail('Build metadata differs from selected AppID/EnvId/target/version; rebuild');

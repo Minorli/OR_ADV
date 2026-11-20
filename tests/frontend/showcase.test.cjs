@@ -1,3 +1,4 @@
+const { resolvePageFile } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -22,7 +23,7 @@ test('native modules open with populated local demonstrations and reset without 
     let definition = definitions.get(name);
     if (!definition) {
       global.Page = value => { definition = value; };
-      require(path.join(root, 'pages', name + '.js'));
+      require(resolvePageFile(root, name));
       assert.ok(definition, `${name} registers a native Page`);
       definitions.set(name, definition);
     }

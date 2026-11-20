@@ -1,3 +1,4 @@
+const { resolvePageFile } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -21,7 +22,7 @@ test('member pages distinguish founder participation, manual confirmation, priva
     let definition = captured.get(name);
     if (!definition) {
       global.Page = value => { definition = value; };
-      require(path.join(root, 'pages', name + '.js'));
+      require(resolvePageFile(root, name));
       assert.ok(definition, `${name} registers native Page`);
       captured.set(name, definition);
     }

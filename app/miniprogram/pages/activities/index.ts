@@ -135,7 +135,7 @@ Page({
     if (event?.detail?.login) { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); return; }
     if (event?.detail?.changed) void this.load();
   },
-  trip() { if (this.data.nextTrip) wx.navigateTo({ url: `/pages/trip/detail?id=${encodeURIComponent(this.data.nextTrip.activityId)}` }); },
+  trip() { if (this.data.nextTrip) wx.navigateTo({ url: `/subpackages/trip/pages/trip/detail?id=${encodeURIComponent(this.data.nextTrip.activityId)}` }); },
   profile() { wx.switchTab({ url: '/pages/profile/index' }); },
-  points() { wx.navigateTo({ url: '/pages/points/index' }); },
+  points() { wx.navigateTo({ url: '/subpackages/trip/pages/points/index' }); },
 });

@@ -38,7 +38,7 @@ test('public archive browses settled events without login or private member reco
   page.selectMonth({ currentTarget: { dataset: { month: month.value } } }); await page.load();
   assert(page.data.visibleItems.every(row => row.archiveMonth === month.value));
   page.open({ currentTarget: { dataset: { id: 'history-ride' } } });
-  assert.equal(navigated.at(-1), '/pages/history-detail/index?activityId=history-ride');
+  assert.equal(navigated.at(-1), '/subpackages/archive/pages/history-detail/index?activityId=history-ride');
   const actor = api.mockRole();
   assert.equal(actor, 'guest');
 });

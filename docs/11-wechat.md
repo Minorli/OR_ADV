@@ -63,3 +63,18 @@ TypeScript 需要由实际构建流程输出微信可运行 JS；原生 WXML/WXS
 ## 8. 自动化边界
 
 miniprogram-ci 解决预览/上传等官方开放能力，不等于平台任何页面都能自动操作。miniprogram-mp-ci 当前文档面向批量成员管理，管理员确认后生效，不是通用发布/备案 API。首版提审发布在公众平台完成。若后续引入其他官方发布接口，另核对权限、账号条件和密钥范围。
+
+## 9. 分包架构与高增长数据隔离规范
+
+为兼顾弱网首屏秒开与未来大体量功能演进，`app/miniprogram/app.json` 采用 **1 个极简主包 ＋ 5 个按数据特征隔离的业务子包 ＋ 分包异步化（`componentPlaceholder`）＋ 空闲预下载（`preloadRule`）**：
+
+| 包标识 | 路径 | 包含模块 | 隔离的高增长数据／重资产职责 |
+|---|---|---|---|
+| 主包 | `/` | 首页、排行、历史、我的 4 个底部 Tab 及异步浮层壳 | 仅放首屏核心骨架与兜底小图；云构建剥离本机演示题库与模拟服务死重 |
+| `pkg-trip` | `subpackages/trip` | 活动详情、报名申请、行前同行、我的活动、积分流水 | 多日拉力 GPX/KML 路书轨迹解析、海拔剖面图、离线集合地图与长周期账本 |
+| `pkg-archive` | `subpackages/archive` | 往期故事详情与影像回顾 | 百张级高清活动原图瀑布流、纪录片播放器、Canvas 完赛荣誉海报生成与长评流 |
+| `pkg-academy` | `subpackages/academy` | 安全知识题库、控车技能视频考核 | 本机 MP4 短片选择／压缩／分片上传、微信 10MB `savedFile` 本地配额治理与示范题库 |
+| `pkg-rider` | `subpackages/rider` | 骑手多车装备档案、积分兑换商城、俱乐部专栏 | 3 车 × 4 护具高清图片裁剪压缩、商城多图 SKU 与核销码、富文本专栏及私密咨询 |
+| `pkg-ops` | `subpackages/ops` | 员工活动工作台、成员权限与轮播后台 | 30 段行程编辑器、现场核验点名、批量结算与 200 人历史积分对账报表（普通车友不预下载） |
+
+边界由 `tests/build/subpackages.test.ts` 与 `scripts/wechat-ci.cjs` 自动强制执行：禁止主包同步 `require`／`@import`／`<include>` 任何子包文件，禁止子包互相引用，跨包原位抽屉组件必须配置同包内的 `componentPlaceholder`。

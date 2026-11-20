@@ -1,4 +1,4 @@
-const { freshPageModule } = require('./native-harness.cjs');
+const { freshPageModule, resolvePageFile } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -17,7 +17,7 @@ function environment() {
 }
 function page(name) {
   let definition; global.Page = value => { definition = value; };
-  const file = path.join(app, 'pages', name + '.js'); freshPageModule(file);
+  const file = resolvePageFile(app, name); freshPageModule(file);
   const instance = { ...definition, data: structuredClone(definition.data) };
   instance.setData = values => Object.assign(instance.data, values);
   return instance;
@@ -43,7 +43,7 @@ test('home shows only published partner content and ranking uses its real own pu
   assert.equal(home.data.heroSlides.length, 4);
   home.partners(); assert.equal(home.data.refPanel, 'partners');
   home.learning(); assert.equal(home.data.refPanel, 'learning'); home.trip();
-  assert(routes.some(route => route.startsWith('/pages/trip/detail?id=')));
+  assert(routes.some(route => route.startsWith('/subpackages/trip/pages/trip/detail?id=')));
   const ranking = page('ranking/index'); await ranking.load();
   assert.equal(ranking.data.error, ''); assert.equal(ranking.data.ownRanking.rankingOptIn, false);
   assert.equal(ranking.data.ownRanking.rank, null); assert.equal(ranking.data.ownRanking.publicCount, 0);

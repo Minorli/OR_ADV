@@ -1,3 +1,5 @@
+const { resolvePageFile } = require('./native-harness.cjs');
+const path = require('node:path');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createRequire } = require('node:module');
@@ -22,7 +24,7 @@ test('native pages preserve consent and role/data state across navigation', asyn
   const capture = (relative) => {
     let definition;
     Object.assign(globalThis, { Page: (value) => { definition = value; } });
-    load('../../app/miniprogram/' + relative + '.js');
+    load(resolvePageFile(path.resolve(__dirname, '../../app/miniprogram'), relative));
     assert.ok(definition, 'page registered');
     const instance = { ...definition, data: JSON.parse(JSON.stringify(definition.data)) };
     instance.setData = (values) => Object.assign(instance.data, values);

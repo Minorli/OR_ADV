@@ -12,12 +12,23 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
-test('native page navigation respects tab and non-tab route boundaries', () => {
+test('native page navigation respects tab, main-package, and subpackage route boundaries', () => {
   const manifest = JSON.parse(readFileSync(join(root, 'app.json'), 'utf8')) as {
-    pages: string[]; tabBar: { list: { pagePath: string }[] };
+    pages: string[];
+    subpackages?: { root: string; name?: string; pages: string[] }[];
+    tabBar: { list: { pagePath: string }[] };
   };
-  const pages = new Set(manifest.pages.map((page) => '/' + page));
+  const mainPages = new Set(manifest.pages.map((page) => '/' + page));
+  const subPages = new Set((manifest.subpackages ?? []).flatMap((pkg) => {
+    const cleanRoot = pkg.root.replace(/^\/+|\/+$/g, '');
+    return pkg.pages.map((page) => `/${cleanRoot}/${page}`);
+  }));
+  const allPages = new Set([...mainPages, ...subPages]);
   const tabs = new Set(manifest.tabBar.list.map((item) => '/' + item.pagePath));
+  for (const tab of tabs) assert.ok(mainPages.has(tab), `tabBar route ${tab} must stay in main package`);
+  for (const sub of subPages) assert.ok(!mainPages.has(sub), `subpackage route ${sub} cannot duplicate main package`);
+  assert.deepEqual([...mainPages].sort(), [...tabs].sort(), 'main package should contain only the four core tab pages');
+
   let checked = 0;
   for (const file of sourceFiles(root)) {
     const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
@@ -44,9 +55,9 @@ test('native page navigation respects tab and non-tab route boundaries', () => {
               assert.deepEqual(routes, manifest.tabBar.list.map(item => '/' + item.pagePath));
               assert.equal(method, 'switchTab'); checked += routes.length; return;
             }
-            assert.ok(text.startsWith('/pages/'), `${relative(root, file)}: navigation needs a registered page path`);
+            assert.ok(text.startsWith('/pages/') || text.startsWith('/subpackages/'), `${relative(root, file)}: navigation needs a registered page path`);
             const route = text.split('?')[0];
-            assert.ok(pages.has(route), `${relative(root, file)}: unknown route ${route}`);
+            assert.ok(allPages.has(route), `${relative(root, file)}: unknown route ${route}`);
             assert.equal(tabs.has(route), method === 'switchTab', `${relative(root, file)}: wx.${method} cannot target ${route}`);
             checked++;
           }

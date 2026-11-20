@@ -77,7 +77,7 @@ Page({
     if (row?.documentary && !this.data.videoErrors[row.id]) this.setData({ playingVideoId: row.id });
   },
   videoFailed(event: WechatMiniprogram.CustomEvent) { const id = String(event.currentTarget.dataset.id || ''); this.setData({ playingVideoId: '', videoErrors: { ...this.data.videoErrors, [id]: true } }); },
-  open(event: WechatMiniprogram.TouchEvent) { wx.navigateTo({ url: `/pages/history-detail/index?activityId=${encodeURIComponent(event.currentTarget.dataset.id)}` }); },
+  open(event: WechatMiniprogram.TouchEvent) { wx.navigateTo({ url: `/subpackages/archive/pages/history-detail/index?activityId=${encodeURIComponent(event.currentTarget.dataset.id)}` }); },
   explore() { wx.switchTab({ url: '/pages/activities/index' }); },
   closeReference(event?: WechatMiniprogram.CustomEvent<{ changed?: boolean; login?: boolean }>) {
     closeReferencePanel(this);

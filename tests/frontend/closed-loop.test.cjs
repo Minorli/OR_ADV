@@ -1,3 +1,4 @@
+const { resolvePageFile } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -17,7 +18,7 @@ test('built native pages complete the staff/member loop and reversible ranking c
   function capture(name) {
     let definition;
     global.Page = (value) => { definition = value; };
-    require(path.join(root, 'pages', name + '.js'));
+    require(resolvePageFile(root, name));
     assert.ok(definition, `${name} registers a native Page`);
     const instance = { ...definition, data: structuredClone(definition.data) };
     instance.setData = (values) => {

@@ -191,6 +191,30 @@ class CiPreflightTests(unittest.TestCase):
             self.assertEqual(2 if failure else 0,result.returncode,result.stderr)
             self.assertNotIn("canary-secret",result.stdout+result.stderr)
             self.assertIn("Official CI execution failed" if failure else "Preview created",result.stderr if failure else result.stdout)
+    def test_subpackage_missing_output_and_invalid_preload_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/"bundle";p.mkdir()
+            script,config,c,app=self.prepare(p)
+            sub=app/"subpackages/ops/pages/staff"; sub.mkdir(parents=True)
+            (sub/"index.js").write_text("Page({})")
+            (sub/"index.wxml").write_text("<view>ops</view>")
+            manifest={"pages":["pages/home/index"],"subpackages":[{"root":"subpackages/ops","name":"pkg-ops","pages":["pages/staff/index"]}],
+                      "preloadRule":{"pages/home/index":{"network":"all","packages":["pkg-ops"]}}}
+            (app/"app.json").write_text(json.dumps(manifest))
+            self.seal(app)
+            ok=self.run_script(script,config)
+            self.assertEqual(0,ok.returncode,ok.stderr)
+            (sub/"index.js").unlink()
+            missing=self.run_script(script,config)
+            self.assertNotEqual(0,missing.returncode)
+            self.assertIn("A declared page in subpackage",missing.stderr)
+            (sub/"index.js").write_text("Page({})")
+            manifest["preloadRule"]["pages/home/index"]["packages"]=["pkg-unknown"]
+            (app/"app.json").write_text(json.dumps(manifest))
+            self.seal(app)
+            bad_preload=self.run_script(script,config)
+            self.assertNotEqual(0,bad_preload.returncode)
+            self.assertIn("app.json preloadRule references unknown subpackage",bad_preload.stderr)
 
 if __name__=="__main__":
     unittest.main()

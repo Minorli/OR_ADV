@@ -1,3 +1,4 @@
+const { resolvePageFile } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -29,7 +30,7 @@ function environment() {
     return module.exports;
   }
   function page(name) {
-    definition = null; load(path.join(app, 'pages', name + '.ts')); assert(definition, name);
+    definition = null; load(resolvePageFile(app, name, '.ts')); assert(definition, name);
     const p = { ...definition, data: structuredClone(definition.data) };
     p.setData = values => { for (const [key, value] of Object.entries(values)) { const parts = key.split('.'); let target = p.data; for (const part of parts.slice(0, -1)) target = target[part]; target[parts.at(-1)] = value; } };
     return p;
@@ -53,16 +54,16 @@ test('all seven leaves preserve native routes, embedded close dispatch and stand
 });
 test('leaf markup keeps canonical internal structure and native bindings without enabling sensitive dossier inputs', () => {
   for (const name of names) {
-    const markup = fs.readFileSync(path.join(app, 'pages', name + '.wxml'), 'utf8');
+    const markup = fs.readFileSync(resolvePageFile(app, name, '.wxml'), 'utf8');
     const sanitized = markup.replace(/\{\{[\s\S]*?\}\}/g, 'BINDING'), stack = [];
     for (const match of sanitized.matchAll(/<(\/?)([\w-]+)(?:\s+[^<>]*?)?\s*(\/?)>/g)) { const [, closing, tag, selfClose] = match; if (closing) assert.equal(stack.pop(), tag, name + ': balanced native markup'); else if (!selfClose) stack.push(tag); }
     assert.equal(stack.length, 0, name + ': closed native markup');
     assert.match(markup, /class="page reference-v2/); assert.match(markup, /embedded \? 'is-embedded'/); assert.match(markup, /v2-(?:sheet|modal)-content/); assert.match(markup, /bindtap="referenceClose"/); assert.doesNotMatch(markup, /<(?:h[1-6]|p|b|i|span|a|em|svg)\b/);
   }
-  const markup = fs.readFileSync(path.join(app, 'pages/dossier/index.wxml'), 'utf8');
+  const markup = fs.readFileSync(resolvePageFile(app, 'dossier/index', '.wxml'), 'utf8');
   for (const text of ['一、个人基础信息', '二、全套护具照片', '三、车辆信息', '四、轮胎状态', '血型', '身份证号', '驾驶证照片', '摩托车行驶证', '既往病史 / 过敏史', '队服尺码']) assert(markup.includes(text), text);
   assert.doesNotMatch(markup, /data-field="(?:blood|idno|lic|ins|med|age|size)"/);
-  const history = fs.readFileSync(path.join(app, 'pages/history-detail/index.wxml'), 'utf8');
+  const history = fs.readFileSync(resolvePageFile(app, 'history-detail/index', '.wxml'), 'utf8');
   assert(history.indexOf('class="honor"') < history.indexOf('class="photo-row"')); assert(history.indexOf('class="photo-row"') < history.indexOf('class="video-card')); assert(history.indexOf('class="video-card') < history.indexOf('class="review"'));
 });
 test('dossier album and camera selections reach the real upload boundary and bind only the chosen bike slot', async () => {

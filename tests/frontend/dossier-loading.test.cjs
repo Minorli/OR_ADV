@@ -1,10 +1,10 @@
-const { freshPageModule } = require('./native-harness.cjs');
+const { freshPageModule, resolvePageFile } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const app = path.resolve(__dirname, '../../app/miniprogram');
 const apiPath = path.join(app, 'services/api.js'), mediaPath = path.join(app, 'services/member-media.js');
-const dossierPath = path.join(app, 'pages/dossier/index.js');
+const dossierPath = resolvePageFile(app, 'dossier/index');
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 function dossier(mode = 'own', memberId = '') {
   let definition; global.Page = value => { definition = value; };

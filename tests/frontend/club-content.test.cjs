@@ -1,4 +1,4 @@
-const { freshPageModule } = require('./native-harness.cjs');
+const { freshPageModule, resolvePageFile } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -7,7 +7,7 @@ const apiPath = path.join(root, 'services/api.js');
 const event = (dataset, value) => ({ currentTarget: { dataset }, detail: { value } });
 function page(name = 'club-content/index', options = {}) {
   let definition; global.Page = value => { definition = value; };
-  const file = path.join(root, 'pages', name + '.js'); freshPageModule(file);
+  const file = resolvePageFile(root, name); freshPageModule(file);
   const instance = { ...definition, data: structuredClone(definition.data) };
   instance.setData = (values, callback) => { Object.assign(instance.data, values); callback?.(); };
   instance.onLoad?.(options); return instance;
@@ -91,8 +91,8 @@ test('profile preserves numbered identity and exposes every new module through n
   assert(p.data.dossierStatus); assert.equal(p.data.error, '');
   for (const [method, panel, level] of [['dossier', 'dossier'], ['safety', 'learning'], ['basicSkills', 'skills', 'basic'], ['advancedSkills', 'skills', 'advanced'], ['handbook', 'handbook'], ['core', 'core'], ['rules', 'rules'], ['contacts', 'contact'], ['business', 'business']]) { p[method](); assert.equal(p.data.refPanel, panel, method); if (level) assert.equal(p.data.refParams.level, level); }
   for (const method of ['practice', 'redemption', 'dossierQueue', 'clubManagement']) p[method]();
-  assert(env.navigations.some(x => x.includes('/pages/dossier/index')));
-  assert(env.navigations.some(x => x === '/pages/redemption/index'));
+  assert(env.navigations.some(x => x.includes('/subpackages/rider/pages/dossier/index')));
+  assert(env.navigations.some(x => x === '/subpackages/rider/pages/redemption/index'));
   assert(env.navigations.some(x => x.includes('mode=manage')));
   assert.equal(p.data.member.growthPoints, (await env.api.currentMember()).growthPoints);
 });

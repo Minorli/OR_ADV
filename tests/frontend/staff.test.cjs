@@ -1,10 +1,11 @@
+const { resolvePageFile } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../../app/miniprogram');
 
 test('staff roster gives every unreturned rider equal safety priority and filters today accurately', () => {
-  const { rosterPresentation } = require(path.join(root, 'pages/staff/roster.js'));
+  const { rosterPresentation } = require(resolvePageFile(root, 'staff/roster'));
   const today = '2026-10-15';
   const base = { state: 'checked_in', lastDepartureDay: today, queueSeq: 1 };
   const rows = [
@@ -44,7 +45,7 @@ test('owner native member controls use revisions and cannot force public consent
   api.switchMockRole('owner');
   let definition;
   global.Page = value => { definition = value; };
-  require(path.join(root, 'pages/staff-members/index.js'));
+  require(resolvePageFile(root, 'staff-members/index'));
   const page = { ...definition, data: structuredClone(definition.data) };
   page.setData = values => {
     for (const [key, value] of Object.entries(values)) {

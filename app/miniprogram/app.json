@@ -1,23 +1,78 @@
 {
   "pages": [
     "pages/activities/index",
-    "pages/mine/index",
-    "pages/points/index",
     "pages/ranking/index",
-    "pages/activity/detail",
-    "pages/registration/apply",
-    "pages/profile/index",
-    "pages/staff/index",
-    "pages/trip/detail",
-    "pages/staff-members/index",
     "pages/history/index",
-    "pages/dossier/index",
-    "pages/learning/index",
-    "pages/skills/index",
-    "pages/club-content/index",
-    "pages/history-detail/index",
-    "pages/redemption/index"
+    "pages/profile/index"
   ],
+  "subpackages": [
+    {
+      "root": "subpackages/trip",
+      "name": "pkg-trip",
+      "pages": [
+        "pages/activity/detail",
+        "pages/registration/apply",
+        "pages/trip/detail",
+        "pages/mine/index",
+        "pages/points/index"
+      ]
+    },
+    {
+      "root": "subpackages/archive",
+      "name": "pkg-archive",
+      "pages": [
+        "pages/history-detail/index"
+      ]
+    },
+    {
+      "root": "subpackages/academy",
+      "name": "pkg-academy",
+      "pages": [
+        "pages/learning/index",
+        "pages/skills/index"
+      ]
+    },
+    {
+      "root": "subpackages/rider",
+      "name": "pkg-rider",
+      "pages": [
+        "pages/dossier/index",
+        "pages/redemption/index",
+        "pages/club-content/index"
+      ]
+    },
+    {
+      "root": "subpackages/ops",
+      "name": "pkg-ops",
+      "pages": [
+        "pages/staff/index",
+        "pages/staff-members/index"
+      ]
+    }
+  ],
+  "preloadRule": {
+    "pages/activities/index": {
+      "network": "all",
+      "packages": [
+        "pkg-trip",
+        "pkg-rider"
+      ]
+    },
+    "pages/history/index": {
+      "network": "all",
+      "packages": [
+        "pkg-archive"
+      ]
+    },
+    "pages/profile/index": {
+      "network": "all",
+      "packages": [
+        "pkg-rider",
+        "pkg-academy",
+        "pkg-trip"
+      ]
+    }
+  },
   "window": {
     "navigationBarTitleText": "OriginalRally原始拉力",
     "navigationBarBackgroundColor": "#0a0a0a",

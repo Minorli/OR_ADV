@@ -98,4 +98,9 @@ test('overlay maps original section/level options, remounts changed routes and i
   host.properties = { kind: 'rules', params: { section: 'private' } }; host.syncPanel(); assert.equal(host.data.mounts[0].params.section, 'points');
   host.selectComponent = () => ({ referenceRequestClose: async () => ({ allowed: true, changed: false }) }); await host.requestClose();
   assert.equal(host.events[0].name, 'close'); assert.equal(host.events[0].detail.changed, false, 'closing unchanged content cannot ask the profile to reload');
+  host.events.length = 0;
+  host.selectComponent = () => null;
+  await host.requestClose();
+  assert.equal(host.events.length, 1, 'backdrop or placeholder dismisses cleanly while async subpackage component is still loading');
+  assert.equal(host.events[0].detail.changed, false);
 });

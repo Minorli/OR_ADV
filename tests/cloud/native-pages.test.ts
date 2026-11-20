@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { createRequire } from 'node:module';
@@ -70,9 +70,19 @@ test('cloud-mode native tabs, consented login and private dossier accept enriche
       return { result: JSON.parse(JSON.stringify(result)) };
     } },
   };
+  const manifest = JSON.parse(readFileSync(join(app, 'app.json'), 'utf8')) as { subpackages?: { root: string }[] };
+  function resolveBuiltPage(name: string): string {
+    const direct = join(output, 'pages', name + '.js');
+    if (existsSync(direct)) return direct;
+    for (const pkg of manifest.subpackages ?? []) {
+      const candidate = join(output, pkg.root, 'pages', name + '.js');
+      if (existsSync(candidate)) return candidate;
+    }
+    throw new Error(`Missing built page ${name}`);
+  }
   function page(name: string): any {
     let definition: any; globals.Page = (value: unknown) => { definition = value; };
-    load(join(output, 'pages', name + '.js'));
+    load(resolveBuiltPage(name));
     assert(definition, `${name} registers the actual native Page`);
     const instance = { ...definition, data: structuredClone(definition.data) };
     instance.setData = (values: Record<string, unknown>, callback?: () => void) => {

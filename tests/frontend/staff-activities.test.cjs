@@ -1,3 +1,4 @@
+const { resolvePageFile } = require('./native-harness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -17,7 +18,7 @@ function environment() {
     async call(action, payload, revision) { calls.push({ action, payload, revision }); return intercept ? intercept(action, payload, revision, real) : real.call(action, payload, revision); },
   };
   let definition; global.Page = value => { definition = value; };
-  const file = path.join(root, 'pages/staff/index.js'); delete require.cache[require.resolve(file)]; require(file);
+  const file = resolvePageFile(root, 'staff/index'); delete require.cache[require.resolve(file)]; require(file);
   const p = { ...definition, data: structuredClone(definition.data), setData(values, callback) {
     for (const [key, value] of Object.entries(values)) { const parts = key.split('.'); let target = this.data; for (const part of parts.slice(0, -1)) target = target[part]; target[parts.at(-1)] = value; } callback?.();
   } };
@@ -44,7 +45,7 @@ test('owner can create, find the publish action, preview, publish, and correct w
   try {
     await p.load(); await p.newActivity(); fill(p); await p.save();
     assert.equal(p.data.error, ''); assert.equal(p.data.selected.state, 'draft'); assert.equal(p.data.pane, 'roster', 'saving lands on the card containing publication controls');
-    const id = p.data.selected.id; p.previewActivity(); assert.equal(env.routes.at(-1), `/pages/activity/detail?id=${encodeURIComponent(id)}`);
+    const id = p.data.selected.id; p.previewActivity(); assert.equal(env.routes.at(-1), `/subpackages/trip/pages/activity/detail?id=${encodeURIComponent(id)}`);
     await p.lifecycle({ currentTarget: { dataset: { action: 'publish' } } }); assert.equal(p.data.selected.state, 'published');
     const frozen = await env.api.call('activity.get', { activityId: id });
     await p.edit(); assert.equal(p.data.editorKind, 'content');

@@ -1,7 +1,7 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.5.0-test.5",
-  "asOf": "2026-11-19",
+  "version": "0.5.0-test.6",
+  "asOf": "2026-11-20",
   "product": "OriginalRally原始拉力",
   "repository": {
     "url": "https://github.com/Minorli/OR_ADV",
@@ -67,15 +67,15 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.5.0-test.5",
+    "sourceVersion": "0.5.0-test.6",
     "typecheck": "passed",
     "domainTests": "included_in_typescriptTests",
     "cloudTests": "included_in_typescriptTests",
     "buildAndTemplateTests": "included_in_typescriptTests",
-    "typescriptTests": 288,
+    "typescriptTests": 291,
     "nativePageTests": 136,
-    "pythonToolTests": 14,
-    "totalTests": 438,
+    "pythonToolTests": 15,
+    "totalTests": 442,
     "handoffValidation": "passed",
     "rootAuditVulnerabilities": 0,
     "cloudAuditVulnerabilities": 1
@@ -293,11 +293,11 @@
   },
   "developmentUpload": {
     "status": "officially_compiled_and_uploaded",
-    "version": "0.5.0-test.5",
+    "version": "0.5.0-test.6",
     "mode": "cloud",
-    "uploadedOn": "2026-11-19",
+    "uploadedOn": "2026-11-20",
     "envId": "local_config_only",
-    "zipBufferBytes": 1684903,
+    "zipBufferBytes": 1384903,
     "formalReviewSubmitted": false,
     "published": false,
     "experienceSelectionByVersionManager": "same_ci_robot_slot_auto_updated_from_verified_test.3"
@@ -534,9 +534,9 @@
     "requireActualVersionReadback": true,
     "mustReportEffectiveVersion": true,
     "developmentUploadIsNotExperienceRelease": true,
-    "sourceVersion": "0.5.0-test.5",
-    "developmentVersion": "0.5.0-test.5",
-    "effectiveExperienceVersion": "0.5.0-test.5",
+    "sourceVersion": "0.5.0-test.6",
+    "developmentVersion": "0.5.0-test.6",
+    "effectiveExperienceVersion": "0.5.0-test.6",
     "effectiveOnlineVersion": null
   },
   "visualParityV2": {

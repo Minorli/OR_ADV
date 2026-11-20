@@ -41,7 +41,10 @@ Component({
       const state = states.get(this), mount = this.data.mounts[0];
       if (!state?.attached || state.closing || !mount) return;
       const child = this.selectComponent('#reference-leaf') as { referenceRequestClose?: () => Promise<{ allowed: boolean; changed: boolean }> } | null;
-      if (!child?.referenceRequestClose) return;
+      if (!child?.referenceRequestClose) {
+        this.triggerEvent('close', { changed: false, ...(event?.detail?.login ? { login: true } : {}) });
+        return;
+      }
       state.closing = true;
       try {
         const result = await child.referenceRequestClose();

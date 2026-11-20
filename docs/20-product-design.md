@@ -32,9 +32,9 @@
 |---|---|---|
 | [报名实现](../shared/registrations.ts) 使用通用审核／确认路径 | 没有创始身份分流 | 下一版核心规则，不能只改按钮文案 |
 | [会员摘要](../shared/types.ts) 包含积分与员工角色 | 没有创始成员认定、认领与撤销机制 | 增加独立业务身份，避免与后台权限混用 |
-| [报名进展页](../app/miniprogram/pages/mine/index.wxml) 提示等待工作人员联系 | 新车友缺少经过验证的联系方式、负责人和处理预期 | 先补齐有效联系方式和确认办法，再增加提醒渠道 |
-| [我的活动](../app/miniprogram/pages/mine/index.wxml) 主要显示当前状态 | 已确认后缺少本场准备与集合资料 | 做“本场同行”页，成为参加活动时的常用入口 |
-| [员工工作台](../app/miniprogram/pages/staff/index.wxml) 主要是长卡片名单 | 查人、看待办、逐日核对不够高效 | 按活动阶段组织工作，名单可搜索和筛选 |
+| [报名进展页](../app/miniprogram/subpackages/trip/pages/mine/index.wxml) 提示等待工作人员联系 | 新车友缺少经过验证的联系方式、负责人和处理预期 | 先补齐有效联系方式和确认办法，再增加提醒渠道 |
+| [我的活动](../app/miniprogram/subpackages/trip/pages/mine/index.wxml) 主要显示当前状态 | 已确认后缺少本场准备与集合资料 | 做“本场同行”页，成为参加活动时的常用入口 |
+| [员工工作台](../app/miniprogram/subpackages/ops/pages/staff/index.wxml) 主要是长卡片名单 | 查人、看待办、逐日核对不够高效 | 按活动阶段组织工作，名单可搜索和筛选 |
 | [积分服务](../shared/points.ts) 已有结算、冲正与年度归属 | 缺少面向负责人的全员统计、对账和历史迁入工具 | 复用已有流水基础，不新建手工余额表 |
 | [内测上限](../shared/limits.ts) 每场30人、年度快照30人 | 不能把200名成员的年度汇总误称已经支持 | 分开验证成员总量、单场人数、年度统计；大名单要分批处理 |
 | [活动列表](../app/miniprogram/pages/activities/index.ts) 主要按状态筛选 | 不容易判断适合谁、下一步做什么 | 活动信息结构化，个人行动信息优先 |

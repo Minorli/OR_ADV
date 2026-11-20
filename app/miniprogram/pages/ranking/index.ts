@@ -61,7 +61,7 @@ Page({
   retry() { void this.load(); },
   more() { void this.load(true); },
   profile() { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); },
-  points() { wx.navigateTo({ url: '/pages/points/index' }); },
+  points() { wx.navigateTo({ url: '/subpackages/trip/pages/points/index' }); },
   duties() { openReferencePanel(this, 'core'); },
   rules() { openReferencePanel(this, 'rules'); },
   closeReference(event?: WechatMiniprogram.CustomEvent<{ changed?: boolean; login?: boolean }>) {

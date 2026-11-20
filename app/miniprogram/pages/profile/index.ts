@@ -264,22 +264,22 @@ Page({
     try { await wx.setClipboardData({ data: memberNumberText(this.data.member.memberNumber) }); toast('成员编号已复制'); }
     catch (error) { toast(errorMessage(error)); }
   },
-  points() { wx.navigateTo({ url: '/pages/points/index' }); },
-  trips() { wx.navigateTo({ url: '/pages/mine/index' }); },
+  points() { wx.navigateTo({ url: '/subpackages/trip/pages/points/index' }); },
+  trips() { wx.navigateTo({ url: '/subpackages/trip/pages/mine/index' }); },
   activities() { wx.switchTab({ url: '/pages/activities/index' }); },
   quickMembers() { if (this.data.isOwner) this.members(); else this.ranking(); },
   privacySettings() { this.setData({ showPrivacy: true }, () => { wx.pageScrollTo?.({ selector: '#profile-privacy', duration: 180 }); }); },
-  staff() { wx.navigateTo({ url: '/pages/staff/index' }); },
-  members() { wx.navigateTo({ url: '/pages/staff-members/index' }); },
+  staff() { wx.navigateTo({ url: '/subpackages/ops/pages/staff/index' }); },
+  members() { wx.navigateTo({ url: '/subpackages/ops/pages/staff-members/index' }); },
   ranking() { wx.switchTab({ url: '/pages/ranking/index' }); },
   contact() { void contactPerson(this.data.contact.contactMethod, this.data.contact.contactValue); },
   dossier() { if (this.data.member) openReferencePanel(this, 'dossier'); else this.openEdit(); },
-  dossierQueue() { if (this.data.isOwner) wx.navigateTo({ url: '/pages/dossier/index?mode=queue' }); },
+  dossierQueue() { if (this.data.isOwner) wx.navigateTo({ url: '/subpackages/rider/pages/dossier/index?mode=queue' }); },
   safety() { openReferencePanel(this, 'learning'); },
   basicSkills() { openReferencePanel(this, 'skills', { level: 'basic' }); },
   advancedSkills() { openReferencePanel(this, 'skills', { level: 'advanced' }); },
   practice() { this.activities(); },
-  redemption() { wx.navigateTo({ url: '/pages/redemption/index' }); },
+  redemption() { wx.navigateTo({ url: '/subpackages/rider/pages/redemption/index' }); },
   handbook() { openReferencePanel(this, 'handbook'); },
   core() { openReferencePanel(this, 'core'); },
   rules() { openReferencePanel(this, 'rules'); },
@@ -305,7 +305,7 @@ Page({
     if (!this.data.member) this.setData({ logoutError: persistenceFailed ? '当前会话已退出，但设备未能保存退出设置。请重试保存；重新打开时可能仍显示登录状态。' : '' });
   },
   business() { openReferencePanel(this, 'business'); },
-  clubManagement() { if (this.data.canManageContent) wx.navigateTo({ url: '/pages/club-content/index?mode=manage' }); },
+  clubManagement() { if (this.data.canManageContent) wx.navigateTo({ url: '/subpackages/rider/pages/club-content/index?mode=manage' }); },
   async requestKind() {
     if (this.data.saving || !await this.verifyIdentity()) return;
     if (!this.data.member || this.data.saving || this.data.member.memberKind === 'founder' || this.data.member.kindRequestStatus === 'pending') return;
