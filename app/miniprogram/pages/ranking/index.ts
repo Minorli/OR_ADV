@@ -3,21 +3,25 @@ import { emptyContact, contactPerson } from '../../services/member';
 import type { ClubContact } from '../../services/member';
 import type { MemberSummary, PageResult, RankingEntry } from '../../../../shared/types';
 import type { OwnRanking } from '../../../../shared/club-overview';
-import type { ClubContentView } from '../../../../shared/club-content-types';
+import { resolveBadgeDetails } from '../../../../shared/member-badges';
+import type { MemberBadgeDisplay } from '../../../../shared/member-badges';
 import { readReferenceChrome, syncReferenceTab, openReferencePanel, closeReferencePanel } from '../../services/reference-ui';
 const currentYear = () => new Date(Date.now() + 8 * 60 * 60 * 1000).getUTCFullYear();
-type PublicRank = RankingEntry & { initial: string };
+type PublicRank = RankingEntry & { initial: string; vTone: MemberBadgeDisplay['primaryTone']; vBadges: MemberBadgeDisplay['items'] };
 const initial = (nickname: string) => Array.from(nickname.trim())[0] || 'OR';
+function presentRank(item: RankingEntry): PublicRank {
+  const badge = resolveBadgeDetails(item.badges, item.certifiedRider);
+  return { ...item, initial: initial(item.nickname), vTone: badge.primaryTone, vBadges: badge.items };
+}
 Page({
-  data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, corePeople: [] as (ClubContentView['people'][number] & { initial: string })[], coreError: '', member: null as MemberSummary | null, ownRanking: null as OwnRanking | null, ownRankingError: '', contact: emptyContact, year: currentYear(), metric: 'growth', signedIn: false, canCertify: false, filters: [{ value: 'growth', label: '成长积分' }, { value: 'annual', label: '年度积分' }, { value: 'completed_count', label: '完成次数' }], items: [] as PublicRank[], nextCursor: null as string | null, requestVersion: 0, loading: false, saving: false, error: '' },
+  data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, member: null as MemberSummary | null, ownRanking: null as OwnRanking | null, ownRankingError: '', contact: emptyContact, year: currentYear(), metric: 'growth', signedIn: false, canCertify: false, items: [] as PublicRank[], nextCursor: null as string | null, requestVersion: 0, loading: false, saving: false, error: '' },
   onShow() { syncReferenceTab(this, 1); void this.load(); },
   onUnload() { this.setData({ requestVersion: this.data.requestVersion + 1 }); },
   async onPullDownRefresh() { await this.load(); wx.stopPullDownRefresh(); },
   async load(append = false) {
     if (append && (this.data.loading || !this.data.nextCursor)) return;
-    const requestVersion = this.data.requestVersion + 1, role = mockRole(), year = currentYear(), metric = this.data.metric;
+    const requestVersion = this.data.requestVersion + 1, role = mockRole(), year = currentYear();
     this.setData({ loading: true, error: '', ownRankingError: '', requestVersion, year });
-    if (!append) void this.loadCore(requestVersion, role);
     try {
       const member = await currentMember();
       if (this.data.requestVersion !== requestVersion || isMock && mockRole() !== role) return;
@@ -26,22 +30,15 @@ Page({
         return;
       }
       const [ranking, contact] = await Promise.all([
-        call<PageResult<RankingEntry>>('ranking.list', { metric, year, cursor: append ? this.data.nextCursor : undefined }),
+        call<PageResult<RankingEntry>>('ranking.list', { metric: 'growth', year, cursor: append ? this.data.nextCursor : undefined }),
         call<ClubContact>('club.public'),
       ]);
       if (this.data.requestVersion !== requestVersion || isMock && mockRole() !== role) return;
-      const fresh = ranking.items.map(item => ({ ...item, initial: initial(item.nickname) }));
+      const fresh = ranking.items.map(presentRank);
       this.setData({ member, contact, signedIn: true, canCertify: member.roles.includes('owner'), items: [...(append ? this.data.items : []), ...fresh], nextCursor: ranking.nextCursor });
-      await this.loadOwnRanking(member.id, requestVersion, role, metric, year);
+      await this.loadOwnRanking(member.id, requestVersion, role, 'growth', year);
     } catch (error) { if (this.data.requestVersion === requestVersion && (!isMock || mockRole() === role)) this.setData({ error: errorMessage(error) }); }
     finally { if (this.data.requestVersion === requestVersion && (!isMock || mockRole() === role)) this.setData({ loading: false }); }
-  },
-  async loadCore(version: number, role: string) {
-    try {
-      const content = await call<ClubContentView>('club.content.get', { section: 'core' });
-      if (version !== this.data.requestVersion || isMock && mockRole() !== role) return;
-      this.setData({ corePeople: content.configured && content.status === 'published' ? content.people.map(person => ({ ...person, initial: initial(person.name) })) : [], coreError: '' });
-    } catch (error) { if (version === this.data.requestVersion && (!isMock || mockRole() === role)) this.setData({ corePeople: [], coreError: errorMessage(error) }); }
   },
   async loadOwnRanking(memberId: string, version: number, role: string, metric: string, year: number) {
     try {
@@ -55,9 +52,8 @@ Page({
   retryOwnRanking() {
     if (!this.data.member) return;
     this.setData({ ownRanking: null, ownRankingError: '' });
-    void this.loadOwnRanking(this.data.member.id, this.data.requestVersion, mockRole(), this.data.metric, this.data.year);
+    void this.loadOwnRanking(this.data.member.id, this.data.requestVersion, mockRole(), 'growth', this.data.year);
   },
-  filter(event: WechatMiniprogram.TouchEvent) { this.setData({ metric: event.currentTarget.dataset.value, items: [], nextCursor: null }); void this.load(); },
   retry() { void this.load(); },
   more() { void this.load(true); },
   profile() { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); },

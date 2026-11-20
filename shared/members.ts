@@ -3,6 +3,7 @@ import { integer, requireThat, text } from './errors';
 import { key, shanghaiYear, statsIdFor } from './models';
 import type { Membership, RecommendationProjection, StaffRole, User, MemberStats } from './models';
 import { effectiveMemberKind, memberIdentityFields, recommendationSortKey } from './member-identity';
+import { normalizeMemberBadges, validateMemberBadgesInput } from './member-badges';
 import { sha256 } from './hash';
 import type { Transaction } from './store';
 import type { RecommendationEntry, StaffMemberSummary, StaffRoleSummary } from './types';
@@ -38,7 +39,8 @@ async function staffMember(ctx: Context, tx: Transaction, member: Membership): P
   const user = await tx.get<User>('users', member.userId);
   return { id: member.id, memberId: member.id, nickname: member.nickname, memberNumber: readMemberNumber(member.memberNumber), ...memberIdentityFields(member, ctx.now),
     recommendationPriority: member.recommendationPriority ?? 0, revision: member.revision,
-    status: user?.status ?? 'unavailable', staffRoles: await roleSummaries(ctx, tx, member), isPrimaryOwner: await isPrimaryOwner(ctx, tx, member) };
+    status: user?.status ?? 'unavailable', staffRoles: await roleSummaries(ctx, tx, member), isPrimaryOwner: await isPrimaryOwner(ctx, tx, member),
+    badges: normalizeMemberBadges(member.badges, member.certifiedRider) };
 }
 export async function syncRecommendation(ctx: Context, tx: Transaction, member: Membership) {
   const id = key('recommendation', ctx.clubId, member.id);
@@ -151,15 +153,42 @@ export async function certifyRider(ctx: Context) {
     const user = await tx.get<User>('users', member.userId);
     requireThat(user?.status === 'active', 'FORBIDDEN', '该成员账号不可使用');
     const certified = ctx.request.payload.certified === true;
-    const next: Membership = { ...member, certifiedRider: certified, revision: member.revision + 1, updatedAt: ctx.now };
+    const priorBadges = normalizeMemberBadges(member.badges, member.certifiedRider);
+    const badges = certified
+      ? normalizeMemberBadges([...priorBadges, 'certified_rider'])
+      : priorBadges.filter(id => id !== 'certified_rider');
+    const next: Membership = { ...member, certifiedRider: certified, badges, revision: member.revision + 1, updatedAt: ctx.now };
     await tx.set('memberships', next.id, next);
     await refreshRankings(ctx, tx, next, shanghaiYear(ctx.now));
-    await ctx.audit(tx, actor, 'membership', next.id, { certifiedRider: certified, revision: next.revision }, reason);
-    return { memberPublicId: next.publicId, certifiedRider: next.certifiedRider === true, revision: next.revision, memberId: next.id };
+    await ctx.audit(tx, actor, 'membership', next.id, { certifiedRider: certified, badges, revision: next.revision }, reason);
+    return { memberPublicId: next.publicId, certifiedRider: next.certifiedRider === true, badges, revision: next.revision, memberId: next.id };
   });
   try { await syncProfileProjections(ctx, result.memberId); } catch { ctx.options.log?.({ action: ctx.request.action, code: 'BOARD_SYNC_DEFERRED' }); }
   const { memberId: _memberId, ...view } = result;
   return view;
+}
+export async function assignMemberBadges(ctx: Context) {
+  const p = ctx.request.payload;
+  requireThat(Object.keys(p).every(name => ['memberId', 'badges', 'reason'].includes(name)), 'INVALID_INPUT', '认证挂件请求包含不支持的字段');
+  const memberId = text(p.memberId, 'memberId', 100);
+  const badges = validateMemberBadgesInput(p.badges);
+  const reason = text(p.reason, '操作依据', 500);
+  const saved = await ctx.store.transaction(async (tx) => {
+    const actor = await ctx.staff(tx, ['owner']);
+    const member = await tx.get<Membership>('memberships', memberId);
+    requireThat(member?.clubId === ctx.clubId, 'FORBIDDEN', '成员不可访问');
+    const user = await tx.get<User>('users', member.userId);
+    requireThat(user?.status === 'active', 'FORBIDDEN', '该成员账号不可使用');
+    ctx.revision(member);
+    const certifiedRider = badges.includes('certified_rider');
+    const next: Membership = { ...member, badges, certifiedRider, revision: member.revision + 1, updatedAt: ctx.now };
+    await tx.set('memberships', next.id, next);
+    await refreshRankings(ctx, tx, next, shanghaiYear(ctx.now));
+    await ctx.audit(tx, actor, 'membership', next.id, { badges, certifiedRider, revision: next.revision }, reason);
+    return staffMember(ctx, tx, next);
+  });
+  try { await syncProfileProjections(ctx, saved.id); } catch { ctx.options.log?.({ action: ctx.request.action, code: 'BOARD_SYNC_DEFERRED' }); }
+  return saved;
 }
 export async function requestMemberKind(ctx: Context) {
   return ctx.store.transaction(async (tx) => {

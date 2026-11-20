@@ -1562,6 +1562,64 @@
         "slides"
       ],
       "businessIdempotency": false
+    },
+    {
+      "action": "staff.member.badges.save",
+      "authorization": "owner_including_verified_manager",
+      "input": [
+        "memberId",
+        "badges",
+        "reason",
+        "expectedRevision"
+      ],
+      "output": [
+        "staffMemberSummary"
+      ],
+      "businessIdempotency": false
+    },
+    {
+      "action": "media.video.begin",
+      "authorization": "member_self_for_skill_or_content_admin_or_owner_for_club_public",
+      "input": [
+        "purpose",
+        "label",
+        "bytes",
+        "mimeType",
+        "rightsAcknowledged"
+      ],
+      "output": [
+        "assetId",
+        "uploadUrl_optional",
+        "maxChunkBytes"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "media.video.chunk",
+      "authorization": "member_self_or_content_admin_or_owner_matching_asset",
+      "input": [
+        "assetId",
+        "index",
+        "totalChunks",
+        "chunkBase64"
+      ],
+      "output": [
+        "received",
+        "index"
+      ],
+      "businessIdempotency": true
+    },
+    {
+      "action": "media.video.complete",
+      "authorization": "member_self_or_content_admin_or_owner_matching_asset",
+      "input": [
+        "assetId",
+        "totalChunks_optional"
+      ],
+      "output": [
+        "mediaSummary"
+      ],
+      "businessIdempotency": true
     }
   ],
   "errors": [

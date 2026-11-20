@@ -27,11 +27,11 @@ export interface SkillSubmission {
   reviewedAt: string | null; reviewedBy: string | null; reviewReason: string;
 }
 export interface SkillReference {
-  id: string; clubId: string; skillId: string; title: string; url: string; revision: number;
+  id: string; clubId: string; skillId: string; title: string; url: string; assetId?: string; revision: number;
 }
 export interface SkillView extends SkillDefinition {
   submission: Omit<SkillSubmission, 'clubId' | 'memberId' | 'reviewedBy'> | null;
-  reference: Pick<SkillReference, 'title' | 'url' | 'revision'> | null;
+  reference: { title: string; url: string; assetId?: string; revision: number } | null;
 }
 export interface SkillQueueRow extends Omit<SkillSubmission, 'reviewedBy'> {
   nickname: string; memberNumber?: number; skillTitle: string;

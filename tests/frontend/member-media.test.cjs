@@ -156,3 +156,40 @@ test('cloud image and video drafts bind to exact AppID and EnvId; other and lega
   const preserved = env.storage.get('oradv-member-media-drafts-v1'); assert.equal(preserved.length, 10);
   for (const draft of preserved) assert(env.files.has(draft.localPath));
 });
+
+test('cloud video upload falls back from blocked presigned PUT to chunked RPCs and supports high-privilege admin demo videos', async () => {
+  const env = environment(); const { api } = reopen(); api.resetMock('empty'); api.switchMockRole('owner');
+  const apiModule = require.cache[require.resolve(apiPath)], real = apiModule.exports;
+  const rpcCalls = [];
+  global.wx.request = ({ fail }) => fail({ errMsg: 'request:fail url not in domain list' });
+  apiModule.exports = {
+    ...real,
+    isMock: false,
+    runtime: { ...real.runtime, appId: 'wx1111111111111111', envId: 'cloud-review-a' },
+    async call(action, payload, revision) {
+      rpcCalls.push({ action, payload });
+      if (action === 'media.video.begin') return { assetId: 'media_' + 'c'.repeat(64), uploadUrl: 'https://blocked.example.test/put', maxChunkBytes: 64 };
+      if (action === 'media.video.chunk') return { received: true, index: payload.index };
+      if (action === 'media.video.complete') return { id: payload.assetId, kind: 'video', purpose: 'club_public', storageMode: 'cloud', label: '示范', bytes: VIDEO.length, mimeType: 'video/mp4', createdAt: new Date().toISOString() };
+      if (action === 'media.get') return { asset: { id: payload.assetId }, url: 'https://cdn.example.test/demo.mp4?signed' };
+      return real.call(action, payload, revision);
+    },
+  };
+  try {
+    delete require.cache[require.resolve(mediaPath)];
+    const media = require(mediaPath);
+    env.select('/temp/video.mp4');
+    const demo = await media.chooseAndUploadAdminDemoVideo('骑行姿态示范视频');
+    assert.equal(demo.assetId, 'media_' + 'c'.repeat(64));
+    assert.equal(demo.previewUrl, 'https://cdn.example.test/demo.mp4?signed');
+    assert(rpcCalls.some(c => c.action === 'media.video.chunk'), 'chunked fallback must run when wx.request PUT fails');
+    assert.equal(rpcCalls.find(c => c.action === 'media.video.begin').payload.purpose, 'club_public');
+    assert.equal(rpcCalls.find(c => c.action === 'media.video.begin').payload.rightsAcknowledged, true);
+
+    api.switchMockRole('member');
+    await assert.rejects(media.chooseAndUploadAdminDemoVideo('越权上传'), error => error.code === 'FORBIDDEN');
+  } finally {
+    delete global.wx.request;
+    apiModule.exports = real;
+  }
+});

@@ -52,7 +52,10 @@ test('four tabs retain canonical block order, six separate entries and all refer
     assert.match(fs.readFileSync(path.join(app, 'pages', name, 'index.wxss'), 'utf8'), /^@import '\.\.\/\.\.\/styles\/reference-v2\.wxss';/, name);
   }
   const profile = markup('profile'); assert(profile.indexOf('class="verify-card"') < profile.indexOf('class="stats"')); assert(profile.indexOf('class="stats"') < profile.indexOf('class="grid"')); assert.equal((profile.match(/class="gi"/g) || []).length, 6); assert.equal((profile.slice(0, profile.indexOf('class="logout"')).match(/class="li"/g) || []).length, 5);
-  const home = markup('activities'); assert.equal((home.match(/class="mini"/g) || []).length, 4); assert(home.indexOf('class="sponsor-band"') < home.indexOf('class="reference-home-extra"'));
+  assert(profile.includes('工作组')); assert(!profile.includes('车队核心成员'));
+  const home = markup('activities'); assert.equal((home.match(/class="mini"/g) || []).length, 0); assert(!home.includes('reference-slogans')); assert(!home.includes('参加与费用'));
+  assert(home.indexOf('class="reference-home-extra"') < home.indexOf('class="sponsor-band"')); assert(home.includes('sponsor-marquee-track'));
+  const ranking = markup('ranking'); assert(!ranking.includes('车队核心')); assert(!ranking.includes('观察期')); assert(!ranking.includes('年度积分')); assert(ranking.includes('总榜'));
   const history = markup('history'); for (const block of ['honor', 'photo-row', 'video-card', 'review']) assert(history.includes('class="' + block), block);
 });
 test('history loads five full cards in one RPC, previews only three photos and never invents a review total or distance', async () => {
@@ -109,4 +112,32 @@ test('hero uses the canonical 4200ms opacity cycle once per visible page and cle
   p.onShow(); await flush(); assert.equal(env.intervals.size, 1); const current = p.data.heroCurrent; tick.callback(); assert.equal(p.data.heroCurrent, current, 'a queued tick from the old timer cannot advance a newly visible page');
   p.heroChange({ detail: { current: 2 } }); assert.equal(p.data.heroCurrent, 2); p.onUnload(); assert.equal(env.intervals.size, 0);
   const markup = fs.readFileSync(path.join(app, 'pages/activities/index.wxml'), 'utf8'); assert.doesNotMatch(markup, /<swiper/); assert.match(markup, /class="slide \{\{heroCurrent === index/);
+});
+
+test('home partner marquee pauses on touch and ranking/profile project +V pendant tones and multi-badge chips', async () => {
+  const env = environment();
+  const home = env.page('activities');
+  assert.equal(home.data.marqueePaused, false);
+  home.marqueePause(); assert.equal(home.data.marqueePaused, true);
+  home.marqueeResume(); assert.equal(home.data.marqueePaused, false);
+  home.sponsorTap(); assert.equal(home.data.refPanel, '');
+  home.setData({ partnersConfigured: true }); home.sponsorTap(); assert.equal(home.data.refPanel, 'partners');
+
+  const badged = { ...member('rider-v'), badges: ['media_partner', 'official_team', 'champion_rider'] };
+  env.switchTo('member', badged);
+  env.respond(async action => {
+    if (action === 'profile.overview') return overview(badged, 1);
+    if (action === 'ranking.list') return { items: [{ memberPublicId: 'pub-1', nickname: '阿哲', score: 120, completedCount: 8, rank: 1, badges: ['media_partner', 'champion_rider'] }], nextCursor: null };
+    if (action === 'club.public') return { configured: false };
+    if (action === 'ranking.mine') return { rankingOptIn: true, rank: 1, publicCount: 1 };
+    throw Error('unexpected ' + action);
+  });
+  const profile = env.page('profile'); await profile.load();
+  assert.equal(profile.data.vTone, 'orange');
+  assert.deepEqual(Array.from(profile.data.vBadges, b => b.label), ['工作组', '冠军车手', '特约影像']);
+  profile.clearIdentity(); assert.equal(profile.data.vTone, ''); assert.equal(profile.data.vBadges.length, 0);
+
+  const ranking = env.page('ranking'); await ranking.load();
+  assert.equal(ranking.data.items[0].vTone, 'gold');
+  assert.deepEqual(Array.from(ranking.data.items[0].vBadges, b => b.label), ['冠军车手', '特约影像']);
 });

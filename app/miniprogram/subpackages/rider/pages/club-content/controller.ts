@@ -9,7 +9,7 @@ import type { ClubContentDraft, ClubContentSection, ClubContentView, ClubInquiry
 import { canManagePublicContent } from '../../../../../../shared/permissions';
 
 const sections: ClubContentSection[] = ['handbook', 'points', 'core', 'contacts', 'business', 'redemption', 'partners'];
-const sectionLabels = ['车队手册', '积分说明', '核心成员与职责', '联系我们', '商务合作', '积分兑换', '合作伙伴'];
+const sectionLabels = ['车队手册', '积分说明', '工作组', '联系我们', '商务合作', '积分兑换', '合作伙伴'];
 const methods: ClubContactItem['method'][] = ['phone', 'wechat', 'address'];
 const blank = (section: ClubContentSection): ClubContentDraft => ({ title: sectionLabels[sections.indexOf(section)], introduction: '', blocks: [], people: [], contacts: [], offers: [] });
 const editable = (content: ClubContentView): ClubContentDraft => ({ title: content.title, introduction: content.introduction, blocks: content.blocks, people: content.people, contacts: content.contacts, offers: content.offers });

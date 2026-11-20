@@ -50,6 +50,7 @@ export interface MemberSummary {
   memberKind: MemberKind; memberKindVersion: number; memberKindExpiresAt: string | null;
   recommendationOptIn: boolean; recommendationConsentVersion: number;
   kindRequestStatus: 'pending' | 'resolved' | null; kindRequestedAt: string | null;
+  badges?: string[];
 }
 export interface ClubPublic {
   clubId: string; name: string; contactName: string; contactMethod: ContactMethod;
@@ -73,6 +74,7 @@ export interface StaffMemberSummary {
   kindRequestStatus: 'pending' | 'resolved' | null; kindRequestedAt: string | null;
   status: string; staffRoles: StaffRoleSummary[];
   isPrimaryOwner?: boolean;
+  badges?: string[];
 }
 export interface LedgerEntry {
   id: string; clubId: string; memberId: string; activityId: string;
@@ -84,7 +86,7 @@ export interface LedgerEntry {
 }
 export interface RankingEntry {
   memberPublicId: string; nickname: string; score: number; rank: number;
-  completedCount: number; certifiedRider?: boolean;
+  completedCount: number; certifiedRider?: boolean; badges?: string[];
 }
 export interface PageResult<T> { items: T[]; nextCursor: string | null }
 export interface PointsResult {

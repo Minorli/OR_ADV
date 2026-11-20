@@ -4,4 +4,20 @@
 .member-admin-banner{display:flex;flex-direction:column;gap:8rpx;padding:24rpx;margin:24rpx 0;background:#241b14;border:1rpx solid #67411f;border-radius:14rpx}.member-admin-banner text:first-child{color:#ff9b56;font-size:29rpx;font-weight:600}.member-admin-banner text:last-child{font-size:23rpx;color:#b7aaa0}
 
 .member-role-badges{display:flex;flex-wrap:wrap;gap:12rpx;margin-top:16rpx}
+.badge-chip{display:inline-flex;align-items:center;gap:6rpx;padding:4rpx 14rpx;border-radius:999rpx;font-size:20rpx;font-weight:600}
+.badge-chip--orange{color:#ff8a3d;background:rgba(255,107,0,.14);border:1rpx solid rgba(255,107,0,.45)}
+.badge-chip--gold{color:#f5c542;background:rgba(245,197,66,.13);border:1rpx solid rgba(245,197,66,.45)}
+.badge-chip--blue{color:#7cc0ff;background:rgba(61,155,255,.14);border:1rpx solid rgba(61,155,255,.45)}
+.badge-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14rpx;margin-top:18rpx}
+.badge-option{display:flex;flex-direction:column;align-items:flex-start;gap:4rpx;padding:16rpx 18rpx;border-radius:12rpx;border:1rpx solid #2e2e2e;background:#151515;text-align:left;width:100%}
+.badge-option::after{display:none}
+.badge-option.is-checked.tone-orange{border-color:#ff6b00;background:rgba(255,107,0,.12)}
+.badge-option.is-checked.tone-gold{border-color:#f5c542;background:rgba(245,197,66,.11)}
+.badge-option.is-checked.tone-blue{border-color:#3d9bff;background:rgba(61,155,255,.12)}
+.badge-option-head{display:flex;align-items:center;justify-content:space-between;width:100%;font-size:24rpx;font-weight:600;color:#f0f0f0}
+.badge-option-v{font-style:italic;font-weight:900;margin-right:6rpx}
+.tone-orange .badge-option-v{color:#ff7a1a}
+.tone-gold .badge-option-v{color:#f5c542}
+.tone-blue .badge-option-v{color:#5cb0ff}
+.badge-option-desc{font-size:19rpx;color:#8a8a8a;line-height:1.4}
 .hero-slide-editor{background:#151515;border:1rpx solid #2a2a2a}.hero-slide-preview{width:100%;height:260rpx;border-radius:12rpx;background:#0a0a0a;display:block}.hero-slide-actions{display:flex;gap:16rpx;align-items:center}

@@ -8,7 +8,7 @@ import { assignRole, recordReward, rewardSnapshot } from './staff';
 import type { Store } from './store';
 import type { ServiceOptions } from './models';
 import type { RpcRequest, RpcResponse, TrustedIdentity } from './types';
-import { assignMemberKind, certifyRider, listMemberRoles, listMembers, listRecommendations, requestMemberKind } from './members';
+import { assignMemberBadges, assignMemberKind, certifyRider, listMemberRoles, listMembers, listRecommendations, requestMemberKind } from './members';
 import { grantPastPoints, recordPastActivity } from './backfill';
 import { getBriefing, publicClub, saveBriefing, saveClub } from './club';
 import { getClubHero, saveClubHero } from './club-hero';
@@ -16,7 +16,7 @@ import { listQualifications, reviewQualification } from './qualifications';
 import { ownAvatar, saveAvatar } from './profile-avatar';
 import { AVATAR_REQUEST_LIMIT } from './avatar-image';
 import { getDossier, saveDossier, submitDossier, reviewDossier, listDossiers } from './dossier';
-import { saveMemberMediaImage, saveMemberMediaVideo, getMemberMediaUrl, cancelMemberMedia } from './member-media';
+import { saveMemberMediaImage, saveMemberMediaVideo, beginMemberMediaVideo, uploadMemberMediaVideoChunk, completeMemberMediaVideo, getMemberMediaUrl, cancelMemberMedia } from './member-media';
 import { LEARNING_ACTIONS, dispatchLearning } from './learning';
 import { CLUB_CONTENT_ACTIONS, dispatchClubContent } from './club-content';
 import { HISTORY_CONTENT_ACTIONS, dispatchHistoryContent } from './history-content';
@@ -35,7 +35,7 @@ export function createService(store: Store, options: ServiceOptions = {}) {
         requireThat(typeof request.requestId === 'string' && request.requestId.length > 0 && request.requestId.length <= 100, 'INVALID_INPUT', '缺少请求标识');
         requireThat(request.payload && typeof request.payload === 'object' && !Array.isArray(request.payload), 'INVALID_INPUT', '参数格式不正确');
         requireThat(request.viewerMode === undefined || request.viewerMode === 'guest', 'INVALID_INPUT', '浏览身份不正确');
-        requireThat(JSON.stringify(request).length <= (['profile.avatar.save','media.image.save'].includes(request.action) ? AVATAR_REQUEST_LIMIT : request.action === 'staff.learning.catalog.save' ? 262144 : ['staff.activity.save','staff.activity.content.save'].includes(request.action) ? 98304 : ['staff.club.content.save','staff.history.save'].includes(request.action) ? 65536 : 20000), 'INVALID_INPUT', '请求内容过大');
+        requireThat(JSON.stringify(request).length <= (request.action === 'media.video.chunk' ? 4 * 1024 * 1024 : ['profile.avatar.save','media.image.save'].includes(request.action) ? AVATAR_REQUEST_LIMIT : request.action === 'staff.learning.catalog.save' ? 262144 : ['staff.activity.save','staff.activity.content.save'].includes(request.action) ? 98304 : ['staff.club.content.save','staff.history.save','staff.skills.reference.save'].includes(request.action) ? 65536 : 20000), 'INVALID_INPUT', '请求内容过大');
         // A client may opt into a public view; it can never supply or increase identity.
         ctx = new Context(store, options, request, request.viewerMode === 'guest' ? null : identity, traceId);
         requireThat(request.clubId === ctx.clubId, 'FORBIDDEN', '没有此俱乐部访问权限');
@@ -50,6 +50,9 @@ export function createService(store: Store, options: ServiceOptions = {}) {
         else switch (request.action) {
           case 'media.image.save': data = await saveMemberMediaImage(ctx); break;
           case 'media.video.save': data = await saveMemberMediaVideo(ctx); break;
+          case 'media.video.begin': data = await beginMemberMediaVideo(ctx); break;
+          case 'media.video.chunk': data = await uploadMemberMediaVideoChunk(ctx); break;
+          case 'media.video.complete': data = await completeMemberMediaVideo(ctx); break;
           case 'media.get': data = await getMemberMediaUrl(ctx); break;
           case 'media.cancel': data = await cancelMemberMedia(ctx); break;
           case 'dossier.mine': data = await getDossier(ctx); break;
@@ -84,6 +87,7 @@ export function createService(store: Store, options: ServiceOptions = {}) {
           case 'recommendation.list': data = await listRecommendations(ctx); break;
           case 'staff.member.list': data = await listMembers(ctx); break;
           case 'staff.member.assign': data = await assignMemberKind(ctx); break;
+          case 'staff.member.badges.save': data = await assignMemberBadges(ctx); break;
           case 'staff.member.certify': data = await certifyRider(ctx); break;
           case 'staff.recommendation.save': data = await assignMemberKind(ctx, true); break;
           case 'staff.roles.list': data = await listMemberRoles(ctx); break;

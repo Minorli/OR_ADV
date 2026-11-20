@@ -4,7 +4,8 @@ import { key, shanghaiYear } from './models';
 import type { Membership } from './models';
 import { isBasicSkill } from './ranking-board';
 import type { Transaction } from './store';
-import { bindOwnedMemberMedia, requireOwnedMemberMedia } from './member-media';
+import { bindOwnedMemberMedia, bindPublicReferenceVideo, requireOwnedMemberMedia } from './member-media';
+import type { MemberMediaAsset } from './member-media-types';
 import { SKILL_CATALOG } from './learning-content';
 import { sha256 } from './hash';
 import { validatePublicVideoUrl } from './public-video-url';
@@ -219,19 +220,48 @@ async function skillHistory(ctx: Context, staff = false) {
 }
 async function ownSkills(ctx: Context) {
   fields(ctx, []);
-  return ctx.store.transaction(async tx => {
+  const initial = await ctx.store.transaction(async tx => {
     const actor = await ctx.actor(tx);
-    const items: SkillView[] = [];
+    const entries: { skill: typeof SKILL_CATALOG[number]; submission: ReturnType<typeof submissionView> | null; reference: SkillReference | null; asset: MemberMediaAsset | null }[] = [];
     for (const skill of SKILL_CATALOG) {
       const submission = await tx.get<SkillSubmission>('skill_submissions', submissionId(ctx, actor.member.id, skill.id));
       const reference = await tx.get<SkillReference>('learning_catalog', key('skill-reference', ctx.clubId, skill.id));
       requireThat(!submission || submission.clubId === ctx.clubId && submission.memberId === actor.member.id && submission.skillId === skill.id, 'FORBIDDEN', '练习记录不可访问');
       requireThat(!reference || reference.clubId === ctx.clubId && reference.skillId === skill.id, 'FORBIDDEN', '示范资料不可访问');
-      items.push({ ...skill, submission: submission ? submissionView(submission) : null,
-        reference: reference ? { title: reference.title, url: reference.url, revision: reference.revision } : null });
+      let asset: MemberMediaAsset | null = null;
+      if (reference?.assetId) {
+        const candidate = await tx.get<MemberMediaAsset>('member_media', reference.assetId);
+        if (candidate?.clubId === ctx.clubId && candidate.status === 'ready' && candidate.kind === 'video'
+          && candidate.purpose === 'club_public' && candidate.rightsAcknowledged && candidate.bindings.includes(reference.id) && candidate.fileId) {
+          asset = candidate;
+        }
+      }
+      entries.push({ skill, submission: submission ? submissionView(submission) : null, reference, asset });
     }
-    return { items, policyStatus: 'pending' };
+    return entries;
   });
+  const provider = ctx.options.memberMediaStorage;
+  const signedUrls = new Map<string, string>();
+  const assetsToSign = initial.filter(e => e.asset?.fileId && provider && provider.mode === e.asset.storageMode);
+  if (assetsToSign.length > 0 && provider) {
+    await Promise.all(assetsToSign.map(async e => {
+      try { signedUrls.set(e.asset!.id, await provider.url(e.asset!.fileId!)); }
+      catch { /* Keep card renderable even if signing one video fails transiently. */ }
+    }));
+  }
+  const items: SkillView[] = initial.map(({ skill, submission, reference, asset }) => {
+    let refView: SkillView['reference'] = null;
+    if (reference) {
+      if (reference.assetId) {
+        const resolvedUrl = asset ? signedUrls.get(asset.id) || '' : '';
+        if (resolvedUrl) refView = { title: reference.title, url: resolvedUrl, assetId: reference.assetId, revision: reference.revision };
+      } else if (reference.url) {
+        refView = { title: reference.title, url: reference.url, revision: reference.revision };
+      }
+    }
+    return { ...skill, submission, reference: refView };
+  });
+  return { items, policyStatus: 'pending' };
 }
 /** Best effort after commit: older annual rows of the same member follow the new visibility too. */
 async function syncBoardRows(ctx: Context, memberId?: string) {
@@ -331,21 +361,37 @@ async function reviewSkill(ctx: Context) {
   }).then(async ({ view, memberId, skillId }) => { if (isBasicSkill(skillId)) await syncBoardRows(ctx, memberId); return view; });
 }
 async function saveReference(ctx: Context) {
-  fields(ctx, ['skillId', 'title', 'url', 'verified', 'reason']);
-  return ctx.store.transaction(async tx => {
+  fields(ctx, ['skillId', 'title', 'url', 'assetId', 'verified', 'reason']);
+  const saved = await ctx.store.transaction(async tx => {
     const actor = await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const skill = skillDefinition(ctx.request.payload.skillId);
-    const url = validatePublicVideoUrl(text(ctx.request.payload.url, '示范视频地址', 1000));
     requireThat(ctx.request.payload.verified === true, 'INVALID_INPUT', '请核实视频来源、内容及使用权限');
     const reason = text(ctx.request.payload.reason, '来源核实说明', 500);
     const id = key('skill-reference', ctx.clubId, skill.id);
     const previous = await tx.get<SkillReference>('learning_catalog', id);
     ctx.revision(previous ?? { revision: 0 });
-    const row: SkillReference = { id, clubId: ctx.clubId, skillId: skill.id, title: text(ctx.request.payload.title, '视频标题', 100), url, revision: (previous?.revision ?? 0) + 1 };
+    const rawAssetId = typeof ctx.request.payload.assetId === 'string' ? ctx.request.payload.assetId.trim() : '';
+    let url = '';
+    let assetId: string | undefined;
+    if (rawAssetId) {
+      await bindPublicReferenceVideo(tx, ctx.clubId, actor.member.id, rawAssetId, id, previous?.assetId);
+      assetId = rawAssetId;
+    } else {
+      url = validatePublicVideoUrl(text(ctx.request.payload.url, '示范视频地址', 1000));
+    }
+    const row: SkillReference = { id, clubId: ctx.clubId, skillId: skill.id, title: text(ctx.request.payload.title, '视频标题', 100),
+      url, ...(assetId ? { assetId } : {}), revision: (previous?.revision ?? 0) + 1 };
     await tx.set('learning_catalog', id, row);
-    await ctx.audit(tx, actor, 'skill_reference', id, { skillId: skill.id, revision: row.revision }, reason);
-    return { title: row.title, url: row.url, revision: row.revision };
+    await ctx.audit(tx, actor, 'skill_reference', id, { skillId: skill.id, revision: row.revision, ...(assetId ? { assetId } : {}) }, reason);
+    const boundAsset = assetId ? await tx.get<MemberMediaAsset>('member_media', assetId) : null;
+    return { row, fileId: boundAsset?.fileId, storageMode: boundAsset?.storageMode };
   });
+  let resolvedUrl = saved.row.url;
+  const provider = ctx.options.memberMediaStorage;
+  if (saved.row.assetId && saved.fileId && provider && provider.mode === saved.storageMode) {
+    try { resolvedUrl = await provider.url(saved.fileId); } catch { /* Signed on next read if transient. */ }
+  }
+  return { title: saved.row.title, url: resolvedUrl, ...(saved.row.assetId ? { assetId: saved.row.assetId } : {}), revision: saved.row.revision };
 }
 
 export async function dispatchLearning(ctx: Context): Promise<any> {

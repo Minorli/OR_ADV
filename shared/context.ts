@@ -6,6 +6,7 @@ import { key, memberIdFor, shanghaiYear, statsIdFor, userIdFor } from './models'
 import { basicAssessmentStatus } from './ranking-board';
 import type { SkillStateOverride } from './ranking-board';
 import { memberIdentityFields } from './member-identity';
+import { normalizeMemberBadges } from './member-badges';
 import { readMemberNumber } from './member-number';
 import { STAFF_ROLES } from './permissions';
 import type { Actor, Activity, Audit, MemberStats, Membership, PublicRanking, ServiceOptions, StaffRole, User } from './models';
@@ -56,7 +57,8 @@ export class Context {
     return { id: actor.member.id, clubId: this.clubId, nickname: actor.member.nickname, memberNumber: readMemberNumber(actor.member.memberNumber), hasAvatar: !!actor.member.avatarFileId, rankingOptIn: actor.member.rankingOptIn,
       rankingConsentVersion: actor.member.rankingConsentVersion, growthPoints: growth?.points ?? 0,
       annualPoints: annual?.points ?? 0, completedCount: growth?.completedCount ?? 0, revision: actor.member.revision,
-      roles: roles.map(role => role.role), ...(owner?.designation === 'manager' ? { adminDesignation: 'manager' as const } : {}), ...memberIdentityFields(actor.member, this.now) };
+      roles: roles.map(role => role.role), ...(owner?.designation === 'manager' ? { adminDesignation: 'manager' as const } : {}), ...memberIdentityFields(actor.member, this.now),
+      badges: normalizeMemberBadges(actor.member.badges, actor.member.certifiedRider) };
   }
   async audit(tx: Transaction, actor: Actor, targetType: string, targetId: string, summary: Record<string, unknown>, reason = '') {
     const id = this.id();
@@ -91,14 +93,16 @@ export async function refreshRankings(ctx: Context, tx: Transaction, member: Mem
   const growth = await tx.get<MemberStats>('member_stats', statsIdFor(ctx.clubId, member.id, null));
   const annual = await tx.get<MemberStats>('member_stats', statsIdFor(ctx.clubId, member.id, year));
   const { visible, visibleUntil } = await rankingVisibility(ctx, tx, member, override);
-  for (const metric of ['growth','annual','completed_count']) {
-    const scopeYear = metric === 'annual' ? year : null;
-    const id = key('ranking', ctx.clubId, member.id, metric, scopeYear ?? 'all');
-    const row: PublicRanking & { visible: boolean } = { id, clubId: ctx.clubId, memberId: member.id, memberPublicId: member.publicId,
-      nickname: member.nickname, metric, year: scopeYear, score: metric === 'growth' ? growth?.points ?? 0 : metric === 'annual' ? annual?.points ?? 0 : growth?.completedCount ?? 0,
-      completedCount: growth?.completedCount ?? 0, consentVersion: member.rankingConsentVersion, visible, visibleUntil, certifiedRider: member.certifiedRider === true };
-    await tx.set('public_rankings', id, row);
-  }
+    const badges = normalizeMemberBadges(member.badges, member.certifiedRider);
+    const certified = badges.includes('certified_rider') || member.certifiedRider === true;
+    for (const metric of ['growth','annual','completed_count']) {
+      const scopeYear = metric === 'annual' ? year : null;
+      const id = key('ranking', ctx.clubId, member.id, metric, scopeYear ?? 'all');
+      const row: PublicRanking & { visible: boolean } = { id, clubId: ctx.clubId, memberId: member.id, memberPublicId: member.publicId,
+        nickname: member.nickname, metric, year: scopeYear, score: metric === 'growth' ? growth?.points ?? 0 : metric === 'annual' ? annual?.points ?? 0 : growth?.completedCount ?? 0,
+        completedCount: growth?.completedCount ?? 0, consentVersion: member.rankingConsentVersion, visible, visibleUntil, certifiedRider: certified, badges };
+      await tx.set('public_rankings', id, row);
+    }
 }
 
 /** Re-applies nickname, badge and visibility to every stored board row of one member (all years). */
@@ -109,10 +113,12 @@ export async function syncProfileProjections(ctx: Context, memberId: string) {
       const member = await tx.get<Membership>('memberships', memberId);
       requireThat(member?.clubId === ctx.clubId, 'FORBIDDEN', '成员不存在');
       const { visible, visibleUntil } = await rankingVisibility(ctx, tx, member);
+      const badges = normalizeMemberBadges(member.badges, member.certifiedRider);
+      const certified = badges.includes('certified_rider') || member.certifiedRider === true;
       for (const projection of projections.slice(start, start + 10)) {
         const row = await tx.get<Record<string, unknown>>('public_rankings', projection.id);
         if (row) await tx.set('public_rankings', projection.id, { ...row, nickname: member.nickname, memberPublicId: member.publicId,
-          visible, visibleUntil, certifiedRider: member.certifiedRider === true, consentVersion: member.rankingConsentVersion });
+          visible, visibleUntil, certifiedRider: certified, badges, consentVersion: member.rankingConsentVersion });
       }
     });
   }

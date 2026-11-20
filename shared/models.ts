@@ -16,6 +16,7 @@ export interface Membership {
   memberKind?: MemberKind; memberKindVersion?: number; memberKindExpiresAt?: string | null;
   recommendationOptIn?: boolean; recommendationConsentVersion?: number; recommendationPriority?: number;
   certifiedRider?: boolean;
+  badges?: string[];
   kindRequestStatus?: 'pending' | 'resolved'; kindRequestedAt?: string; kindRequestReason?: string;
 }
 export interface StaffRole {
@@ -47,7 +48,7 @@ export interface PublicRanking {
   id: string; clubId: string; memberId: string; memberPublicId: string;
   nickname: string; metric: string; year: number | null; score: number;
   completedCount: number; consentVersion: number;
-  visible?: boolean; visibleUntil?: string | null; certifiedRider?: boolean;
+  visible?: boolean; visibleUntil?: string | null; certifiedRider?: boolean; badges?: string[];
 }
 export interface Audit {
   id: string; clubId: string; actorId: string; action: string;

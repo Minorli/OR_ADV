@@ -18,11 +18,12 @@ function signTc3ClientCredential(secretId: string, secretKey: string, domain: st
 }
 
 const ALLOWED_BUCKETS = new Set(['member-avatars', 'member-evidence', 'club-public-assets']);
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 25_000;
 const TOKEN_MAX_CACHE_MS = 10 * 60_000;
 
 export type UnifiedStorageSdk = AvatarCloudSdk & MemberMediaCloudSdk & {
   downloadFile(input: { fileID: string }): Promise<{ statusCode: number; fileContent: Buffer }>;
+  createSignedUploadUrl(input: { cloudPath: string; maxAge?: number }): Promise<{ fileID: string; uploadUrl: string }>;
 };
 
 export interface PgStorageCredentials {
@@ -155,7 +156,12 @@ export function createPgCompatibleStorageSdk(options: PgCompatibleStorageOptions
   return {
     async uploadFile(input) {
       const { bucketId, objectKey } = splitBucketPath(input.cloudPath);
-      const contentType = objectKey.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      const lower = objectKey.toLowerCase();
+      const contentType = lower.endsWith('.png') ? 'image/png'
+        : lower.endsWith('.mp4') ? 'video/mp4'
+        : lower.endsWith('.mov') ? 'video/quicktime'
+        : lower.endsWith('.bin') ? 'application/octet-stream'
+        : 'image/jpeg';
       const classic = options.classicSdk?.uploadFile;
       return withFallback(
         classic ? () => classic(input) : undefined,
@@ -265,6 +271,27 @@ export function createPgCompatibleStorageSdk(options: PgCompatibleStorageOptions
           return { fileList: input.fileList.map(fileID => ({ fileID, status: statuses.get(fileID) ?? -1 })) };
         },
       );
+    },
+
+    async createSignedUploadUrl(input) {
+      const { bucketId, objectKey } = splitBucketPath(input.cloudPath);
+      const expiresIn = Math.max(60, Math.floor(input.maxAge || 300));
+      const { envId, baseUrl, response } = await authedFetch(`/object/upload/sign/${encodeURIComponent(bucketId)}/${encodeObjectKey(objectKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiresIn }),
+      });
+      if (!response.ok) throw new Error(`PG storage presign failed (${response.status})`);
+      const data = await response.json() as { fullUrl?: unknown; fullSignedURL?: unknown; url?: unknown };
+      const uploadUrl = typeof data?.fullUrl === 'string' && data.fullUrl
+        ? data.fullUrl
+        : typeof data?.fullSignedURL === 'string' && data.fullSignedURL
+          ? data.fullSignedURL
+          : typeof data?.url === 'string' && data.url
+            ? (data.url.startsWith('/v1/storages') ? `https://${envId}.api.tcloudbasegateway.com${data.url}` : `${baseUrl}${data.url.startsWith('/') ? '' : '/'}${data.url}`)
+            : '';
+      if (!uploadUrl) throw new Error('PG storage presign URL missing');
+      return { fileID: `cloud://${envId}/${bucketId}/${objectKey}`, uploadUrl };
     },
   };
 }

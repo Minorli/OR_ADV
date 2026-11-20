@@ -1,12 +1,15 @@
 export const DOSSIER_CONSENT_VERSION = 'dossier-purpose-v1';
 export const DOSSIER_GEAR = ['helmet', 'armor', 'knee', 'boots'] as const;
+export const DOSSIER_BLOOD_TYPES = ['', 'A型', 'B型', 'AB型', 'O型', '其他'] as const;
+export const DOSSIER_JERSEY_SIZES = ['', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'] as const;
 export type DossierGear = typeof DOSSIER_GEAR[number];
 export interface DossierBike {
   id: string; brand: string; model: string; year: string; plate: string; odometerKm: number | null;
   photoAssetId: string | null; tireAssetId: string | null;
 }
 export interface DossierDraft {
-  riderName: string; ridingExperience: string; contactMethod: 'wechat' | 'phone'; contactValue: string;
+  riderName: string; age?: string; bloodType?: string; jerseySize?: string;
+  ridingExperience: string; contactMethod: 'wechat' | 'phone'; contactValue: string;
   emergencyContact: { name: string; phone: string; relationship: string } | null;
   gear: Record<DossierGear, string | null>; bikes: DossierBike[];
 }
@@ -28,6 +31,6 @@ export interface DossierQueueItem {
   submissionRevision: number; submittedAt: string;
 }
 export function emptyDossierDraft(): DossierDraft {
-  return { riderName: '', ridingExperience: '', contactMethod: 'wechat', contactValue: '', emergencyContact: null,
+  return { riderName: '', age: '', bloodType: '', jerseySize: '', ridingExperience: '', contactMethod: 'wechat', contactValue: '', emergencyContact: null,
     gear: { helmet: null, armor: null, knee: null, boots: null }, bikes: [] };
 }

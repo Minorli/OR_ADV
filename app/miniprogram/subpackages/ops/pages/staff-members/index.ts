@@ -3,6 +3,8 @@ import type { MemberSummary, PageResult, Role, Activity } from '../../../../../.
 import { memberNumberText } from '../../../../services/member-number';
 import { chooseAndUploadMemberImage, MemberMediaError } from '../../../../services/member-media';
 import { businessAdminTitle, canManagePublicContent } from '../../../../../../shared/permissions';
+import { MEMBER_BADGES, normalizeMemberBadges, resolveBadgeDetails } from '../../../../../../shared/member-badges';
+import type { MemberBadgeDisplay, MemberBadgeId, MemberBadgeSpec } from '../../../../../../shared/member-badges';
 import type { ClubHeroSlideView, ClubHeroView } from '../../../../../../shared/club-hero';
 
 interface RoleGrant { role: Role; revision: number; enabled: boolean; activityIds: string[] | null; expiresAt: string | null; designation?: 'manager' }
@@ -13,6 +15,8 @@ interface MemberRow {
   memberNumber?: number; memberCode?: string;
   isPrimaryOwner?: boolean;
   roleBadges?: string[];
+  badges?: MemberBadgeId[];
+  vBadges?: MemberBadgeDisplay['items'];
 }
 interface ClubSettings { clubId: string; name: string; contactName: string; contactMethod: string; contactValue: string; contactInstructions: string; revision: number; configured: boolean }
 interface Qualification { id: string; memberId: string; type: string; decision: string; expiresAt: string | null; revision: number; reviewedAt: string | null }
@@ -25,10 +29,13 @@ const contactLabels = ['微信', '电话', '其他约定方式'];
 const roleBadges = (row: Pick<MemberRow, 'staffRoles' | 'isPrimaryOwner'>) => (row.staffRoles || []).filter(role => role.enabled && (!role.expiresAt || Date.parse(role.expiresAt) > Date.now()))
   .map(role => role.role === 'owner' ? row.isPrimaryOwner ? '主理人' : role.designation === 'manager' ? '车队经理' : '最高业务管理员' : roleLabels[roles.indexOf(role.role)]);
 
+const badgeChecklist = (selectedIds: readonly string[]) => MEMBER_BADGES.map(spec => ({ ...spec, checked: selectedIds.includes(spec.id) }));
+
 Page({
   data: {
     isMock, member: null as MemberSummary | null, authorized: false, canManageHero: false, adminTitle: '', pane: 'members', requestedPane: '', loading: false, loadingMore: false, busy: '', error: '', notice: '', version: 0, selectionVersion: 0, loadedRole: '', loadedEnvironment: '',
     query: '', items: [] as MemberRow[], nextCursor: null as string | null, requestVersion: 0, selected: null as MemberRow | null,
+    selectedBadges: [] as MemberBadgeId[], badgeOptions: badgeChecklist([]) as (MemberBadgeSpec & { checked: boolean })[],
     reason: '', expiryDate: '', priority: '0', roleLabels, roleValues: roles, roleIndex: 0, roleEnabled: true, roleExpiryDate: '', roleScoped: false, roleProtected: false, roleManager: false, scopeIds: [] as string[], activities: [] as Activity[], scopeOptions: [] as (Activity & { checked: boolean })[],
     qualifications: [] as Qualification[], qualificationCursor: null as string | null, qualificationType: '', qualificationDate: '', qualificationRevision: 0,
     settings: { clubId: 'oradv', name: '原始拉力', contactName: '', contactMethod: 'wechat', contactValue: '', contactInstructions: '', revision: 0, configured: false } as ClubSettings,
@@ -50,7 +57,7 @@ Page({
   },
   clearPrivate() {
     this.setData({ version: this.data.version + 1, requestVersion: this.data.requestVersion + 1, selectionVersion: this.data.selectionVersion + 1, member: null, authorized: false, canManageHero: false, adminTitle: '', loading: false, loadingMore: false,
-      selected: null, items: [], nextCursor: null, qualifications: [], qualificationCursor: null, activities: [], scopeOptions: [], scopeIds: [], busy: '', reason: '', expiryDate: '', roleExpiryDate: '', roleProtected: false, roleManager: false, query: '', priority: '0',
+      selected: null, selectedBadges: [], badgeOptions: badgeChecklist([]), items: [], nextCursor: null, qualifications: [], qualificationCursor: null, activities: [], scopeOptions: [], scopeIds: [], busy: '', reason: '', expiryDate: '', roleExpiryDate: '', roleProtected: false, roleManager: false, query: '', priority: '0',
       qualificationType: '', qualificationDate: '', qualificationRevision: 0, notice: '', settingsDirty: false, settings: { clubId: 'oradv', name: '原始拉力', contactName: '', contactMethod: 'wechat', contactValue: '', contactInstructions: '', revision: 0, configured: false },
       heroSlides: [], heroRevision: 0, heroDirty: false, heroRights: false, heroLoaded: false });
   },
@@ -118,7 +125,10 @@ Page({
     try {
       const result = await call<PageResult<MemberRow>>('staff.member.list', { query: this.data.query.trim() || undefined, cursor: append ? this.data.nextCursor : undefined });
       if (!this.matches(fence) || this.data.requestVersion !== requestVersion) return;
-      const items = result.items.map(item => ({ ...item, memberCode: memberNumberText(item.memberNumber), roleBadges: roleBadges(item) }));
+      const items = result.items.map(item => {
+        const badges = normalizeMemberBadges(item.badges);
+        return { ...item, badges, vBadges: resolveBadgeDetails(badges).items, memberCode: memberNumberText(item.memberNumber), roleBadges: roleBadges(item) };
+      });
       this.setData({ items: append ? [...this.data.items, ...items] : items, nextCursor: result.nextCursor });
     } catch (error) { if (this.matches(fence) && this.data.requestVersion === requestVersion) this.setData({ error: errorMessage(error) }); }
     finally { if (this.matches(fence) && this.data.requestVersion === requestVersion) this.setData({ loadingMore: false }); }
@@ -137,7 +147,8 @@ Page({
     const selected = this.data.items.find(item => item.id === event.currentTarget.dataset.id);
     if (!selected) return;
     const fence = this.fence(), selectionVersion = this.data.selectionVersion + 1;
-    this.setData({ selected, selectionVersion, error: '', priority: String(selected.recommendationPriority || 0), reason: '', expiryDate: selected.memberKindExpiresAt?.slice(0, 10) || '', qualifications: [], qualificationCursor: null, qualificationType: '', qualificationDate: '', qualificationRevision: 0, roleIndex: 0, scopeIds: [] });
+    const selectedBadges = normalizeMemberBadges(selected.badges);
+    this.setData({ selected, selectedBadges, badgeOptions: badgeChecklist(selectedBadges), selectionVersion, error: '', priority: String(selected.recommendationPriority || 0), reason: '', expiryDate: selected.memberKindExpiresAt?.slice(0, 10) || '', qualifications: [], qualificationCursor: null, qualificationType: '', qualificationDate: '', qualificationRevision: 0, roleIndex: 0, scopeIds: [] });
     try {
       const [result, qualifications] = await Promise.all([call<{ items: RoleGrant[]; isPrimaryOwner: boolean }>('staff.roles.list', { memberId: selected.memberId || selected.id }), call<PageResult<Qualification>>('staff.qualification.list', { memberId: selected.memberId || selected.id })]);
       if (!this.selectionMatches(fence, selected.id) || selectionVersion !== this.data.selectionVersion) return;
@@ -165,7 +176,33 @@ Page({
     if (!this.matches(fence)) return;
     const row = this.data.items.find(item => item.id === selected.id);
     // If a search moved this member off the current page, close stale controls.
-    this.setData({ selected: row || null });
+    const nextBadges = row ? normalizeMemberBadges(row.badges) : [];
+    this.setData({ selected: row || null, selectedBadges: nextBadges, badgeOptions: badgeChecklist(nextBadges) });
+  },
+  toggleBadge(event: WechatMiniprogram.TouchEvent) {
+    if (!this.matches(this.fence()) || this.data.busy || !this.data.selected) return;
+    const badgeId = String(event.currentTarget.dataset.badge || '') as MemberBadgeId;
+    if (!MEMBER_BADGES.some(item => item.id === badgeId)) return;
+    const current = this.data.selectedBadges;
+    const next = normalizeMemberBadges(current.includes(badgeId) ? current.filter(item => item !== badgeId) : [...current, badgeId]);
+    this.setData({ selectedBadges: next, badgeOptions: badgeChecklist(next) });
+  },
+  async saveBadges() {
+    if (this.data.busy || !await this.verifyOwner()) return;
+    const fence = this.fence(), selected = this.data.selected;
+    if (!selected || !this.data.authorized || this.data.busy) return;
+    const badges = normalizeMemberBadges(this.data.selectedBadges);
+    const reason = this.data.reason.trim() || '管理员设置成员 +V 认证挂件';
+    if (!await confirm('保存 +V 认证挂件', badges.length ? `确认更新 ${selected.nickname} 的 ${badges.length} 个 +V 认证挂件。` : `确认清空 ${selected.nickname} 的 +V 认证挂件。`)) return;
+    if (!await this.verifyOwner() || !this.selectionMatches(fence, selected.id)) return;
+    this.setData({ busy: 'badges', error: '' });
+    try {
+      await call('staff.member.badges.save', { memberId: selected.memberId || selected.id, badges, reason }, selected.revision);
+      if (!this.selectionMatches(fence, selected.id)) return;
+      await this.refreshSelected();
+      if (this.matches(fence)) { this.setData({ notice: '成员 +V 认证挂件已保存。', reason: '' }); toast('+V 认证挂件已更新'); }
+    } catch (error) { if (this.selectionMatches(fence, selected.id)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }
+    finally { if (this.matches(fence)) this.setData({ busy: '' }); }
   },
   async assignKind(event: WechatMiniprogram.TouchEvent) {
     if (this.data.busy || !await this.verifyOwner()) return;

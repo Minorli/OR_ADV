@@ -142,13 +142,42 @@ export async function ownPoints(ctx: Context) {
   return { memberId: summary.id, growthPoints: summary.growthPoints, annualPoints: summary.annualPoints, completedCount: summary.completedCount, year, ...page, items };
 }
 
+import { normalizeMemberBadges } from './member-badges';
+
+const PINYIN_BOUNDARIES: readonly [string, string][] = [
+  ['Z', '匝'], ['Y', '压'], ['X', '昔'], ['W', '挖'], ['T', '塌'], ['S', '撒'],
+  ['R', '然'], ['Q', '期'], ['P', '啪'], ['O', '哦'], ['N', '拿'], ['M', '妈'],
+  ['L', '垃'], ['K', '喀'], ['J', '击'], ['H', '哈'], ['G', '噶'], ['F', '发'],
+  ['E', '蛾'], ['D', '搭'], ['C', '擦'], ['B', '八'], ['A', '阿'],
+];
+
+export function nicknameInitial(value: string): string {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return '~';
+  const ch = Array.from(trimmed)[0];
+  if (/^[a-zA-Z]$/.test(ch)) return ch.toUpperCase();
+  if (ch >= '\u4e00' && ch <= '\u9fff') {
+    for (const [letter, boundary] of PINYIN_BOUNDARIES) {
+      if (ch.localeCompare(boundary, 'zh-Hans-CN-u-co-pinyin') >= 0) return letter;
+    }
+    return 'A';
+  }
+  return '~';
+}
+
 export type RankingMetric = 'growth' | 'annual' | 'completed_count';
-export type BoardRow = PublicRanking & { visible?: boolean; visibleUntil?: string | null; certifiedRider?: boolean };
-/** One read of the whole board (≤200 members). Ties are ordered by nickname, then public ID; ranks are sequential. */
+export type BoardRow = PublicRanking & { visible?: boolean; visibleUntil?: string | null; certifiedRider?: boolean; badges?: string[] };
+/** One read of the whole board (≤200 members). Ordered by: 1) score desc, 2) completedCount desc, 3) name initial A-Z. */
 export async function rankingBoard(ctx: Context, metric: RankingMetric, year: number | null): Promise<BoardRow[]> {
   const rows = await collect<BoardRow>(ctx.store, 'public_rankings', { clubId: ctx.clubId, metric, year, visible: true });
   return rows.filter(row => row.visible === true && (!row.visibleUntil || row.visibleUntil > ctx.now))
-    .sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname, 'zh') || a.memberPublicId.localeCompare(b.memberPublicId));
+    .sort((a, b) =>
+      b.score - a.score
+      || (b.completedCount ?? 0) - (a.completedCount ?? 0)
+      || nicknameInitial(a.nickname).localeCompare(nicknameInitial(b.nickname))
+      || a.nickname.localeCompare(b.nickname, 'zh')
+      || a.nickname.localeCompare(b.nickname)
+      || a.memberPublicId.localeCompare(b.memberPublicId));
 }
 export function rankingQuery(ctx: Context) {
   const selected = ctx.request.payload.metric ?? 'growth';
@@ -169,20 +198,26 @@ export async function listRankings(ctx: Context) {
   if (cursor) requireThat(Number.isInteger(offset) && offset >= 0 && offset <= 1000, 'INVALID_INPUT', '分页游标不正确');
   const slice = ranked.slice(offset, offset + 20);
   // The projection may lag a deletion or an account change made elsewhere; re-check each displayed person live.
-  const allowedIds = await ctx.store.transaction(async (tx) => {
-    const allowed: string[] = [];
+  const liveEntries = await ctx.store.transaction(async (tx) => {
+    const entries: [string, { certifiedRider: boolean; badges: string[] }][] = [];
     for (const row of slice) {
       const member = await tx.get<Membership>('memberships', row.memberId);
       if (member?.clubId !== ctx.clubId || member.publicId !== row.memberPublicId) continue;
       const user = await tx.get<User>('users', member.userId);
-      if (user?.status === 'active') allowed.push(row.id);
+      if (user?.status === 'active') {
+        const badges = normalizeMemberBadges(member.badges ?? row.badges, member.certifiedRider ?? row.certifiedRider);
+        entries.push([row.id, { certifiedRider: badges.includes('certified_rider') || member.certifiedRider === true, badges }]);
+      }
     }
-    return allowed;
+    return entries;
   });
-  const live = new Set(allowedIds);
-  const page = slice.map((row, index) => ({ row, rank: offset + index + 1 })).filter(({ row }) => live.has(row.id))
-    .map(({ row, rank }) => ({ memberPublicId: row.memberPublicId, nickname: row.nickname, score: row.score, rank,
-      completedCount: row.completedCount, certifiedRider: row.certifiedRider === true }));
+  const liveMap = new Map(liveEntries);
+  const page = slice.map((row, index) => ({ row, rank: offset + index + 1 })).filter(({ row }) => liveMap.has(row.id))
+    .map(({ row, rank }) => {
+      const meta = liveMap.get(row.id)!;
+      return { memberPublicId: row.memberPublicId, nickname: row.nickname, score: row.score, rank,
+        completedCount: row.completedCount, certifiedRider: meta.certifiedRider, badges: meta.badges };
+    });
   const next = offset + 20;
   return { items: page, nextCursor: next < ranked.length ? encodeCursor({ value: next, id: String(next), offset: next }) : null };
 }

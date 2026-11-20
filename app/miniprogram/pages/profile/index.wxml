@@ -9,11 +9,12 @@
     <view wx:if="{{identityVerified || !member}}" class="profile">
       <view class="av profile-avatar-frame">
         <button wx:if="{{member}}" class="profile-hero-avatar-button" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" binderror="avatarChoiceFailed" disabled="{{saving || avatarProcessing}}"><image wx:if="{{avatarDraftUrl && !draftPreviewFailed}}" class="profile-hero-avatar" src="{{avatarDraftUrl}}" mode="aspectFill" data-scope="draft" data-src="{{avatarDraftUrl}}" binderror="avatarFailed"/><image wx:elif="{{avatarUrl}}" class="profile-hero-avatar" src="{{avatarUrl}}" mode="aspectFill" data-scope="saved" data-src="{{avatarUrl}}" binderror="avatarFailed"/><view wx:else class="profile-hero-avatar profile-avatar-default">{{nicknameInitial}}</view></button>
-        <view wx:else class="profile-hero-avatar profile-avatar-default" bindtap="openEdit">OR</view><text class="badge i profile-or-badge">OR</text>
+        <view wx:else class="profile-hero-avatar profile-avatar-default" bindtap="openEdit">OR</view><text wx:if="{{vTone}}" class="badge i profile-or-badge v-pendant v-pendant--{{vTone}}">V</text><text wx:else class="badge i profile-or-badge">OR</text>
       </view>
       <view class="nm" bindtap="openEdit">{{member ? member.nickname : '原始拉力车友'}}</view>
       <button wx:if="{{member}}" class="id reference-profile-number" bindtap="copyMemberNumber" disabled="{{memberNumber === '待分配'}}">No.{{memberNumber}} · {{adminTitle || kindLabel}}</button>
       <view wx:else class="id" bindtap="openEdit">用微信登录，留下你的同行记录 ›</view>
+      <view wx:if="{{member && vBadges.length}}" class="profile-v-badges"><text wx:for="{{vBadges}}" wx:key="id" class="v-chip v-chip--{{item.tone}}"><text class="v-mark">V</text>{{item.label}}</text></view>
       <view class="tags"><text wx:if="{{member && joinedDays !== null}}" class="tag o">已加入 {{joinedDays}} 天</text><text wx:if="{{member && dossierApproved}}" class="tag gn">骑手资料已核对</text><text wx:if="{{member && kindExpiresText}}" class="tag">身份有效至 {{kindExpiresText}}</text><text wx:if="{{member && !showEdit}}" class="tag" bindtap="openEdit">{{avatarBase64 ? '待保存头像 · 点击保存' : '编辑头像与昵称'}}</text><text wx:if="{{!member}}" class="tag o" bindtap="openEdit">登录 / 设置个人资料</text></view>
     </view>
 
@@ -54,7 +55,7 @@
       <button class="gi" bindtap="handbook"><image class="i" src="/assets/icons/v2-doc.png" mode="aspectFit"/><text class="span">车队手册</text></button>
     </view>
     <view class="list-menu">
-      <view class="li" bindtap="core"><image class="ic" src="/assets/icons/v2-shield.png" mode="aspectFit"/><view class="tx"><text class="b">车队核心成员</text><text class="span">领队 / 技师 / 运营 / 商务</text></view><text class="ar">›</text></view>
+      <view class="li" bindtap="core"><image class="ic" src="/assets/icons/v2-shield.png" mode="aspectFit"/><view class="tx"><text class="b">工作组</text><text class="span">领队 / 技师 / 运营 / 商务</text></view><text class="ar">›</text></view>
       <view class="li" bindtap="handbook"><image class="ic" src="/assets/icons/v2-doc.png" mode="aspectFit"/><view class="tx"><text class="b">OR车队手册</text><text class="span">车队公约 / 费用制度 / 应急预案</text></view><text class="ar">›</text></view>
       <view class="li" bindtap="rules"><image class="ic" src="/assets/icons/v2-arrows.png" mode="aspectFit"/><view class="tx"><text class="b">积分规则</text><text class="span">获取 · 用途 · 记录核对</text></view><text class="ar">›</text></view>
       <view class="li" bindtap="contacts"><image class="ic" src="/assets/icons/v2-mail.png" mode="aspectFit"/><view class="tx"><text class="b">联系我们</text><text class="span">随队保障 · 组织方 · 救援联系</text></view><text class="ar">›</text></view>
@@ -72,7 +73,7 @@
 
 2. 头像与昵称均为选填，只有你主动选择头像并保存后才会记录。头像只用于自己的资料页，{{isMock ? '保存在当前设备' : '由本小程序保存'}}，不加入公开推荐或积分榜。选择头像时仅处理你确认的图片，不读取其他相册内容；不主动获取手机号或定位。不要在昵称、核对线索或普通说明中填写敏感资料。
 
-3. 本人查看自己的记录，有授权的工作人员为活动组织、资格核对和结算使用必要资料。成员身份与员工权限分别管理。骑手资料由你主动填写，可包含联系办法、经本人同意提供的紧急联系人、装备和车辆照片；草稿本人可见，提交快照由主理人核对。目前不收集证件号、血型、病史和证照照片。知识练习及技能提交分别保留实际作答和审核记录，商务与兑换咨询仅本人和有权限的组织方查看。
+3. 本人查看自己的记录，有授权的工作人员为活动组织、资格核对和结算使用必要资料。成员身份与员工权限分别管理。骑手资料由你主动填写，可包含联系办法、经本人同意提供的紧急联系人、选填的年龄、血型、队服尺码以及装备和车辆照片；草稿本人可见，提交快照由主理人核对。目前不收集证件号、病史和证照照片。知识练习及技能提交分别保留实际作答和审核记录，商务与兑换咨询仅本人和有权限的组织方查看。
 
 4. 俱乐部推荐与积分榜分别征求同意，默认不公开。活动评价的正文、昵称和荣誉展示分别由你确认，公开前由组织方核对，可撤回评价。组织方发布照片和视频前需确认公开使用权。已经打开的临时图片链接可能在短暂有效期内继续显示。
 

@@ -21,7 +21,7 @@
 | registration.cancel | registrationId、reason、expectedRevision | 仅本人允许阶段；只释放一次 |
 | registration.mine | 游标 | 本人申请，无他人电话 |
 | points.mine | 年份/游标 | 本人汇总与流水 |
-| ranking.list / ranking.mine | 维度/年份/游标 | 须登录；已注册且通过基础控车考核（basic_control 资格或5项基础技能复核通过）的成员自动进入，无单独公开同意；按分数排序，同分按昵称、名次顺延；本人名次取同一榜单 |
+| ranking.list / ranking.mine | 维度/年份/游标 | 须登录；已注册且通过基础控车考核（basic_control 资格或5项基础技能复核通过）的成员自动进入统一总榜；按 1. 积分降序 → 2. 参与次数降序 → 3. 昵称首字母（拼音/英文）升序排列，同序按公开ID稳定顺延；实时返回成员 +V 挂件投影 |
 | staff.activity.save/publish/close | 变更和 expectedRevision | 运营/主理人；冻结发布规则 |
 | staff.registration.review | registrationId、decision、reason | 检查角色与活动，记录审核 |
 | staff.registration.confirm | registrationId、expectedRevision | 确认参加，非缴费确认 |
@@ -29,7 +29,8 @@
 | staff.checkin.record | registrationId、phase、day、result | 限现场角色和本场；重复不重复核验 |
 | staff.settlement.preview/run | activityId、ruleVersion、taskId | 运营/主理人；逐人事务幂等 |
 | staff.points.reverse | ledgerId、reason、expectedRevision | 主理人；防重复冲正 |
-| staff.member.certify | memberPublicId、certified、reason | 主理人；榜单“认证车手”称号，留审计 |
+| staff.member.certify | memberPublicId、certified、reason | 主理人；榜单“认证车手”快捷开关（与 `certified_rider` +V 挂件双向同步），留审计 |
+| staff.member.badges.save | memberId、badges、reason、expectedRevision | 主理人/车队经理；为成员多选配置内置 +V 认证挂件（橙V/金V/蓝V），同步榜单投影与审计 |
 | staff.activity.backfill | 标题、简介、地点、起止时间、默认成长/年度积分 | 主理人；补录已结束活动，直接归档且不开放报名，标记 backfill |
 | staff.points.backfill | activityId、memberNumber、可选积分、reason | 主理人；仅限补录活动；同人同场幂等，冲正后可按新分值重记 |
 | club.hero.get / staff.club.hero.get / staff.club.hero.save | slides、rightsAcknowledged、expectedRevision | 首页公开轮播读取与主理人/经理/内容管理上传更换（最多6张，清空恢复默认） |
@@ -70,13 +71,14 @@ profile.update只允许昵称及两类公开同意，不接收成员身份或员
 | action | 请求与边界 |
 |---|---|
 | media.image.save / get / cancel | 保存用途与实际图片，不接收客户端fileID；get返回获准的短期URL，cancel仅本人未绑定资产 |
-| media.video.save | 仅本机mock接收真实持久文件；云端返回MEDIA_VIDEO_UNAVAILABLE，不伪造完成 |
-| dossier.mine / save / submit | 本人部分草稿、revision、明确用途同意；提交冻结快照并绑定照片 |
+| media.video.save | 仅本机mock接收真实持久文件；云端练习与示范短片改走 `media.video.begin / chunk / complete` |
+| media.video.begin / chunk / complete | 云端 MP4/MOV 视频上传（优先网关签名直传 PUT，受域名限制时自动回退 2MiB 分片中转）；校验 ISO BMFF/QuickTime 文件头、字节数与权限，固化服务端新路径并清理 `_staging` 临时对象；练习短片上限 25MiB，管理员公开示范视频（`club_public`）仅限 `owner`/`manager`/`content_admin` 且上限 50MiB |
+| dossier.mine / save / submit | 本人部分草稿（含选填年龄、血型、队服尺码，禁收身份证号/驾驶证/行驶证/病史）、revision、明确用途同意；提交冻结快照并绑定照片 |
 | staff.dossier.list / get / review | 仅owner待审队列；读取提交快照，审核绑定revision与submissionRevision，不能审核旧草稿 |
 | learning.catalog / mine / start / answer | 公共题库摘要；本人服务端抽20题、逐题锁定答案与成绩，不提前返回答案库 |
 | staff.learning.catalog.get / save | owner维护题库，发布须至少20题及指导人员核定确认 |
-| skills.mine / submit / cancel / history | 本人实际视频资产、当前状态与有界版本归档，不接受外部文件链接冒充提交 |
-| staff.skills.queue / review / history / reference.save | owner人工复核与来源核实的示范影片；通过不自动发资格或积分 |
+| skills.mine / submit / cancel / history | 本人实际视频资产、当前状态与有界版本归档，动态签发已绑定云端示范视频的 Range 播放链接 |
+| staff.skills.queue / review / history / reference.save | owner人工复核练习视频；`owner`/`manager`/`content_admin` 可上传绑定云端示范视频（`assetId`）或保存核实的 HTTPS 示范链接 |
 
 媒体用途只允许`dossier`、`skill`、`club_public`。`club_public`图片仅owner在确认公开使用权后保存；其他用途不能转成公开图片。普通`media.get`不提供游客入口，owner读取他人材料也限已绑定的资料或技能证据；公开历史相册另从已发布回顾解析获准图片。
 
@@ -97,9 +99,10 @@ profile.update只允许昵称及两类公开同意，不接收成员身份或员
 
 | action | 云入口JSON字节上限 | 领域服务JSON字符串长度上限 |
 |---|---:|---:|
-| profile.avatar.save、media.image.save | 131072 | 131072 |
+| media.video.chunk | 4194304 | 4194304 |
 | staff.learning.catalog.save | 262144 | 262144 |
-| staff.club.content.save、staff.history.save | 65536 | 65536 |
+| profile.avatar.save、media.image.save | 131072 | 131072 |
+| dossier.save、staff.club.content.save、staff.club.hero.save、staff.history.save、staff.briefing.save、staff.activity.backfill、staff.redemption.catalog.save | 65536 | 65536 |
 | 其他RPC | 16384 | 20000 |
 
 头像和资料图片解码后均最多64KiB，独立校验JPEG/PNG及尺寸；云入口另限头像5次／分钟、资料图片20次／分钟，并保留每个可信身份120次／分钟的总限制。新文件与事务关联分开，保存前后复核账号及版本；未知结果不得删除可能已绑定的文件。

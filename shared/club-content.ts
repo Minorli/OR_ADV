@@ -7,7 +7,7 @@ import { starterClubContent } from './club-content-starters';
 import type { ClubContentDraft, ClubContentDocument, ClubContentSection, ClubContentView, ClubInquiry } from './club-content-types';
 
 export const CLUB_CONTENT_ACTIONS = ['club.content.get', 'staff.club.content.get', 'staff.club.content.save', 'club.inquiry.submit', 'club.inquiry.mine', 'club.inquiry.withdraw', 'staff.club.inquiry.list', 'staff.club.inquiry.review'] as const;
-export const CONTENT_TITLES: Record<ClubContentSection, string> = { handbook: '车队手册', points: '积分说明', core: '核心成员与职责', contacts: '联系我们', business: '商务合作', redemption: '积分兑换', partners: '合作伙伴' };
+export const CONTENT_TITLES: Record<ClubContentSection, string> = { handbook: '车队手册', points: '积分说明', core: '工作组', contacts: '联系我们', business: '商务合作', redemption: '积分兑换', partners: '合作伙伴' };
 function section(value: unknown): ClubContentSection {
   requireThat(typeof value === 'string' && Object.prototype.hasOwnProperty.call(CONTENT_TITLES, value), 'INVALID_INPUT', '请选择有效栏目');
   return value as ClubContentSection;
@@ -58,7 +58,7 @@ export function validateClubContent(value: unknown, selected: ClubContentSection
     return { id, name: text(row.name, '兑换项目名称', 60), description: text(row.description, '项目说明', 300) };
   });
   requireThat(new Set(offers.map(item => item.id)).size === offers.length, 'INVALID_INPUT', '兑换项目标识不能重复');
-  requireThat(!people.length || selected === 'core', 'INVALID_INPUT', '成员职责应保存到核心成员栏目');
+  requireThat(!people.length || selected === 'core', 'INVALID_INPUT', '成员职责应保存到工作组栏目');
   requireThat(!contacts.length || selected === 'contacts', 'INVALID_INPUT', '联系信息应保存到联系栏目');
   requireThat(!offers.length || selected === 'redemption', 'INVALID_INPUT', '兑换项目应保存到兑换栏目');
   return { title: text(p.title, '栏目标题', 60), introduction: optional(p.introduction, '栏目介绍', 400), blocks, people, contacts, offers };

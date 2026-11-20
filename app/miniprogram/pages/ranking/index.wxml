@@ -1,38 +1,30 @@
 <view class="page reference-v2 ranking-reference" style="padding-top:{{v2Chrome.top}}px">
   <view class="status-guard" style="height:{{v2Chrome.top}}px"></view>
-  <view class="topbar" style="top:{{v2Chrome.top}}px;padding-right:{{v2Chrome.right}}px"><text class="h1">积分排行</text><view class="tb-actions"><text class="tag o">{{year}}赛季</text></view></view>
+  <view class="topbar" style="top:{{v2Chrome.top}}px;padding-right:{{v2Chrome.right}}px"><text class="h1">积分排行</text><view class="tb-actions"><text class="tag o">总榜</text></view></view>
   <view class="reference-ranking-body">
     <view class="rank-head">
-      <view class="muted reference-score-label">{{metric === 'completed_count' ? '我的完成次数' : metric === 'annual' ? '我的年度积分' : '我的积分'}}</view>
-      <view class="pt" bindtap="points"><text class="b">{{member ? (metric === 'completed_count' ? member.completedCount : metric === 'annual' ? member.annualPoints : member.growthPoints) : '—'}}</text><text class="span">{{metric === 'completed_count' ? '次 · 留下每一次同行的记录' : '分 · 留下每一次同行的记录'}}</text></view>
-      <view class="myrank" wx:if="{{member && ownRanking && ownRanking.rank !== null}}">当前排名 <text class="b">第 {{ownRanking.rank}} 名</text> / 共 {{ownRanking.publicCount}} 人</view>
+      <view class="muted reference-score-label">我的累计积分</view>
+      <view class="pt" bindtap="points"><text class="b">{{member ? member.growthPoints : '—'}}</text><text class="span">分 · 留下每一次同行的记录</text></view>
+      <view class="myrank" wx:if="{{member && ownRanking && ownRanking.rank !== null}}">当前排名 <text class="b">第 {{ownRanking.rank}} 名</text> / 共 {{ownRanking.publicCount}} 人 · 已参与 {{member.completedCount}} 次同行</view>
       <view class="myrank" wx:elif="{{member && ownRanking}}">完成基础控车考核后进入榜单 · 当前 {{ownRanking.publicCount || 0}} 人在榜</view>
       <view class="myrank" wx:elif="{{ownRankingError}}">{{ownRankingError}}<button class="link a" bindtap="retryOwnRanking">重试</button></view>
       <view class="myrank" wx:elif="{{member}}">正在核对排名…</view>
       <view class="myrank" wx:else bindtap="profile">登录后查看积分榜 ›</view>
     </view>
 
-    <view class="card-h"><text class="h3">车队核心</text><button class="link a" bindtap="duties">查看职责 ›</button></view>
-    <scroll-view scroll-x class="reference-core-scroll" show-scrollbar="{{false}}"><view class="core-strip">
-      <view wx:for="{{corePeople}}" wx:key="name" class="cs" bindtap="duties"><view class="av">{{item.avatarText || item.initial}}</view><view class="rl">{{item.duty}}</view><view class="nm">{{item.name}}</view><view class="km">{{item.serviceText || (item.distanceKm !== undefined && item.distanceKm !== null ? item.distanceKm + ' km' : '经历待补充')}}</view></view>
-      <view wx:if="{{!corePeople.length}}" class="cs reference-core-empty" bindtap="duties"><view class="av">OR</view><view class="rl">核心成员</view><view class="nm">职责待公布</view><view class="km">{{coreError ? '暂时无法显示' : '主理人核实后更新'}}</view></view>
-    </view></scroll-view>
-
     <view class="card-h"><text class="h3">积分榜</text><button class="link a" bindtap="rules">积分规则</button></view>
     <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
     <block wx:if="{{signedIn}}">
-      <view class="reference-ranking-filters months"><button wx:for="{{filters}}" wx:key="value" class="{{metric === item.value ? 'on' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view>
-      <view wx:for="{{items}}" wx:key="memberPublicId" class="ri"><view class="no">{{item.rank}}</view><view class="av">{{item.initial}}</view><view class="in"><view class="nm">{{item.nickname}}<text wx:if="{{item.certifiedRider}}" class="tag o certified-tag">认证车手</text></view><view class="st">完成 {{item.completedCount}} 次同行</view></view><view class="sc"><text class="b">{{item.score}}</text><text class="span">{{metric === 'completed_count' ? '次完成' : metric === 'annual' ? '年度积分' : '成长积分'}}</text><button wx:if="{{canCertify}}" class="link a certify-link" data-id="{{item.memberPublicId}}" data-certified="{{item.certifiedRider ? 'true' : 'false'}}" disabled="{{saving}}" bindtap="certify">{{item.certifiedRider ? '取消认证' : '认证车手'}}</button></view></view>
+      <view wx:for="{{items}}" wx:key="memberPublicId" class="ri"><view class="no {{item.rank === 1 ? 'reference-rank-1' : item.rank === 2 ? 'reference-rank-2' : item.rank === 3 ? 'reference-rank-3' : ''}}">{{item.rank}}</view><view class="av-wrap"><view class="av">{{item.initial}}</view><text wx:if="{{item.vTone}}" class="v-pendant v-pendant--{{item.vTone}}">V</text></view><view class="in"><view class="nm"><text class="nm-text">{{item.nickname}}</text><view wx:if="{{item.vBadges.length}}" class="v-chips"><text wx:for="{{item.vBadges}}" wx:for-item="badge" wx:key="id" class="v-chip v-chip--{{badge.tone}}"><text class="v-mark">V</text>{{badge.label}}</text></view></view><view class="st">参与 {{item.completedCount}} 次同行</view></view><view class="sc"><text class="b">{{item.score}}</text><text class="span">积分</text><button wx:if="{{canCertify}}" class="link a certify-link" data-id="{{item.memberPublicId}}" data-certified="{{item.certifiedRider ? 'true' : 'false'}}" disabled="{{saving}}" bindtap="certify">{{item.certifiedRider ? '取消认证' : '认证车手'}}</button></view></view>
       <view wx:if="{{!loading && !error && !items.length}}" class="empty">暂无进入榜单的车手。登录并完成基础控车考核后会出现在这里。</view>
       <button wx:if="{{nextCursor && !loading}}" class="btn ghost mt" bindtap="more">查看更多记录</button>
-      <view class="reference-ranking-note">按当前积分从高到低排列。积分相同的，按昵称字母顺序排列，名次依次顺延。</view>
+      <view class="reference-ranking-note">按累计积分从高到低排列；积分相同时，依次按参与次数、姓名首字母排序。</view>
     </block>
     <view wx:elif="{{!loading && !error}}" class="empty">登录并完成注册后才能查看积分榜。<button class="btn primary mt" bindtap="profile">去登录</button></view>
     <view wx:if="{{loading}}" class="loading">正在加载成员记录…</view>
 
-    <view class="sec-t">新人 · 观察期</view><view class="reference-observation-empty">观察期名单尚未公布</view>
-    <view class="reference-ranking-settings">
-      <button wx:if="{{contact.configured}}" class="link a" bindtap="contact">联系{{contact.contactName || '组织方'}} ›</button>
+    <view wx:if="{{contact.configured}}" class="reference-ranking-settings">
+      <button class="link a" bindtap="contact">联系{{contact.contactName || '组织方'}} ›</button>
     </view>
   </view>
   <reference-overlay kind="{{refPanel}}" params="{{refParams}}" bindclose="closeReference"/>

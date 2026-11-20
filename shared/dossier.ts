@@ -5,7 +5,7 @@ import { key } from './models';
 import type { Membership } from './models';
 import type { Transaction } from './store';
 import { bindOwnedMemberMedia, requireOwnedMemberMedia } from './member-media';
-import { DOSSIER_CONSENT_VERSION, DOSSIER_GEAR, emptyDossierDraft } from './dossier-types';
+import { DOSSIER_BLOOD_TYPES, DOSSIER_CONSENT_VERSION, DOSSIER_GEAR, DOSSIER_JERSEY_SIZES, emptyDossierDraft } from './dossier-types';
 import type { DossierBike, DossierDraft, DossierQueueItem, DossierReview, DossierSubmission, MemberDossier } from './dossier-types';
 
 const COLLECTION = 'member_dossiers';
@@ -38,8 +38,14 @@ function bike(value: unknown): DossierBike {
     odometerKm, photoAssetId: asset(p.photoAssetId), tireAssetId: asset(p.tireAssetId) };
 }
 export function validateDossierDraft(value: unknown): DossierDraft {
-  const p = object(value, ['riderName', 'ridingExperience', 'contactMethod', 'contactValue', 'emergencyContact', 'gear', 'bikes'], '资料');
+  const p = object(value, ['riderName', 'age', 'bloodType', 'jerseySize', 'ridingExperience', 'contactMethod', 'contactValue', 'emergencyContact', 'gear', 'bikes'], '资料');
   requireThat(p.contactMethod === 'wechat' || p.contactMethod === 'phone', 'INVALID_INPUT', '联系渠道不正确');
+  const age = p.age === undefined ? '' : optional(p.age, '年龄', 3);
+  requireThat(!age || (/^\d{1,3}$/.test(age) && Number(age) >= 12 && Number(age) <= 100), 'INVALID_INPUT', '请填写合理的年龄（12–100）');
+  const bloodType = p.bloodType === undefined ? '' : optional(p.bloodType, '血型', 10);
+  requireThat((DOSSIER_BLOOD_TYPES as readonly string[]).includes(bloodType), 'INVALID_INPUT', '请选择有效的血型');
+  const jerseySize = p.jerseySize === undefined ? '' : optional(p.jerseySize, '队服尺码', 10);
+  requireThat((DOSSIER_JERSEY_SIZES as readonly string[]).includes(jerseySize), 'INVALID_INPUT', '请选择有效的队服尺码');
   const contactValue = optional(p.contactValue, '联系方式', 80);
   requireThat(p.contactMethod !== 'phone' || !contactValue || /^[+0-9 ()-]{5,30}$/.test(contactValue), 'INVALID_INPUT', '电话格式不正确');
   let emergencyContact: DossierDraft['emergencyContact'] = null;
@@ -52,7 +58,7 @@ export function validateDossierDraft(value: unknown): DossierDraft {
   requireThat(Array.isArray(p.bikes) && p.bikes.length <= 3, 'INVALID_INPUT', '最多保存三辆车辆');
   const bikes = p.bikes.map(bike);
   requireThat(new Set(bikes.map(b => b.id)).size === bikes.length, 'INVALID_INPUT', '车辆标识重复');
-  return { riderName: optional(p.riderName, '骑手称呼', 40), ridingExperience: optional(p.ridingExperience, '骑行经历', 300), contactMethod: p.contactMethod, contactValue, emergencyContact,
+  return { riderName: optional(p.riderName, '骑手称呼', 40), age, bloodType, jerseySize, ridingExperience: optional(p.ridingExperience, '骑行经历', 300), contactMethod: p.contactMethod, contactValue, emergencyContact,
     gear: { helmet: asset(g.helmet), armor: asset(g.armor), knee: asset(g.knee), boots: asset(g.boots) }, bikes };
 }
 export function dossierMediaIds(draft: DossierDraft): string[] {
@@ -81,9 +87,9 @@ export async function getDossier(ctx: Context, staff = false): Promise<MemberDos
     const row = await tx.get<MemberDossier>(COLLECTION, dossierId(ctx.clubId, member.id));
     if (staff) {
       requireThat(row?.status === 'pending' && row.submission, 'STATE_CONFLICT', '这份资料当前不在待审队列，请刷新');
-      return { ...row, draft: row.submission.snapshot };
+      return { ...row, draft: validateDossierDraft(row.submission.snapshot) };
     }
-    return row ?? empty(ctx, member.id);
+    return row ? { ...row, draft: validateDossierDraft(row.draft) } : empty(ctx, member.id);
   });
 }
 export async function saveDossier(ctx: Context): Promise<MemberDossier> {
@@ -98,7 +104,7 @@ export async function saveDossier(ctx: Context): Promise<MemberDossier> {
       const media = await requireOwnedMemberMedia(tx, ctx.clubId, actor.member.id, mediaIds, 'dossier');
       requireThat(media.every(asset => asset.kind === 'image'), 'INVALID_INPUT', '骑手资料仅接受照片');
     }
-    if (stored && JSON.stringify(prior.draft) === JSON.stringify(draft)) return prior;
+    if (stored && JSON.stringify(validateDossierDraft(prior.draft)) === JSON.stringify(draft)) return { ...prior, draft };
     const row: MemberDossier = { ...prior, draft, revision: prior.revision + 1, status: 'draft', review: null, updatedAt: ctx.now };
     await tx.set(COLLECTION, id, row);
     await ctx.audit(tx, actor, 'member_dossier', id, { revision: row.revision, state: row.status, bikeCount: draft.bikes.length, photoCount: mediaIds.length });

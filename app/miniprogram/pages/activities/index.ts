@@ -24,7 +24,7 @@ function referenceActivity(activity: Activity) {
   return { ...card, shortDateText };
 }
 Page({
-  data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, items: [] as ReturnType<typeof referenceActivity>[], displayItems: [] as ReturnType<typeof referenceActivity>[], heroCurrent: 0, coverErrors: {} as Record<string, boolean>, heroSlides: DEFAULT_HERO_SLIDES, sponsorLogos: [
+  data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, items: [] as ReturnType<typeof referenceActivity>[], displayItems: [] as ReturnType<typeof referenceActivity>[], heroCurrent: 0, coverErrors: {} as Record<string, boolean>, heroSlides: DEFAULT_HERO_SLIDES, marqueePaused: false, sponsorLogos: [
     { id: 'og', src: '/assets/sponsors/og.png' }, { id: 'cardo', src: '/assets/sponsors/cardo.png' }, { id: 'simpson', src: '/assets/sponsors/simpson.png' }, { id: 'shuodong', src: '/assets/sponsors/shuodong.png' },
     { id: 'juemiao', src: '/assets/sponsors/juemiao.png' }, { id: 'fox', src: '/assets/sponsors/fox.png' }, { id: 'percent', src: '/assets/sponsors/percent.png' }, { id: 'arc', src: '/assets/sponsors/arc.png' },
   ], member: null as MemberSummary | null, kindLabel: '游客', nextTrip: null as NextTrip | null,
@@ -127,6 +127,9 @@ Page({
   more() { void this.load(true); },
   retry() { void this.load(); },
   retryPartners() { void this.loadPartners(this.data.requestVersion, mockRole()); },
+  marqueePause() { if (!this.data.marqueePaused) this.setData({ marqueePaused: true }); },
+  marqueeResume() { if (this.data.marqueePaused) this.setData({ marqueePaused: false }); },
+  sponsorTap() { if (this.data.partnersConfigured) this.partners(); },
   partners() { openReferencePanel(this, 'partners'); },
   learning() { openReferencePanel(this, 'learning'); },
   open(event: WechatMiniprogram.TouchEvent) { openReferencePanel(this, 'activity', { id: event.currentTarget.dataset.id }); },

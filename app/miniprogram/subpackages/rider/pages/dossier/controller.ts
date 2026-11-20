@@ -2,10 +2,12 @@ import { defineReferencePage } from '../../../../services/reference-controller';
 import { closeReferenceLeaf, markReferenceChanged } from '../../../../services/reference-ui';
 import { ApiError, call, confirm, currentMember, errorMessage, isMock, mockRole, toast } from '../../../../services/api';
 import { chooseAndUploadMemberImage, discardMemberMediaDraft, memberMediaDrafts, MemberMediaError, resolveMemberMedia, retryMemberMediaDraft } from '../../../../services/member-media';
-import { DOSSIER_CONSENT_VERSION, emptyDossierDraft } from '../../../../../../shared/dossier-types';
+import { DOSSIER_BLOOD_TYPES, DOSSIER_CONSENT_VERSION, DOSSIER_JERSEY_SIZES, emptyDossierDraft } from '../../../../../../shared/dossier-types';
 import type { DossierDraft, DossierGear, DossierQueueItem, MemberDossier } from '../../../../../../shared/dossier-types';
 
 const gearNames: Record<DossierGear, string> = { helmet: '头盔', armor: '护甲 / 骑行服', knee: '护膝 / 护胫', boots: '越野靴' };
+const bloodTypeLabels = DOSSIER_BLOOD_TYPES.map(v => v || '暂不填写');
+const jerseySizeLabels = DOSSIER_JERSEY_SIZES.map(v => v || '暂不填写');
 const labels = { draft: '草稿', pending: '等待主理人审核', approved: '本次资料已通过', returned: '请补充后重新提交' };
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const friendly = (error: unknown) => error instanceof MemberMediaError ? error.message : errorMessage(error);
@@ -27,6 +29,7 @@ export const controller = defineReferencePage({
   referenceClose() { closeReferenceLeaf(this); },
   data: { embedded: false,
     isMock, mode: 'own', memberId: '', viewerId: '', loadedRole: '', version: 0, queue: [] as DossierQueueItem[], nextCursor: null as string | null, contactMethods: ['微信', '电话'],
+    bloodTypes: bloodTypeLabels, jerseySizes: jerseySizeLabels, bloodTypeIndex: 0, jerseySizeIndex: 0,
     dossier: null as MemberDossier | null, draft: emptyDossierDraft(), gearRows: [] as { key: DossierGear; name: string; assetId: string | null; url: string; error: string }[],
     bikeRows: [] as (DossierDraft['bikes'][number] & { photoUrl: string; tireUrl: string; photoError: string; tireError: string })[],
     urls: {} as Record<string, string>, photoErrors: {} as Record<string, string>, statusText: '', consent: false, emergencyEnabled: false,
@@ -86,7 +89,9 @@ export const controller = defineReferencePage({
     const gearRows = (Object.keys(gearNames) as DossierGear[]).map(key => ({ key, name: gearNames[key], assetId: draft.gear[key], url: urls[draft.gear[key] || ''] || '', error: errors[draft.gear[key] || ''] || '' }));
     const bikeRows = draft.bikes.map(b => ({ ...b, photoUrl: urls[b.photoAssetId || ''] || '', tireUrl: urls[b.tireAssetId || ''] || '', photoError: errors[b.photoAssetId || ''] || '', tireError: errors[b.tireAssetId || ''] || '' }));
     const all = [...Object.values(draft.gear), ...draft.bikes.flatMap(b => [b.photoAssetId, b.tireAssetId])];
-    this.setData({ draft, gearRows, bikeRows, photoCount: all.filter(Boolean).length, photoTotal: all.length, emergencyEnabled: !!draft.emergencyContact, ...extra });
+    const bloodTypeIndex = Math.max(0, DOSSIER_BLOOD_TYPES.indexOf((draft.bloodType || '') as typeof DOSSIER_BLOOD_TYPES[number]));
+    const jerseySizeIndex = Math.max(0, DOSSIER_JERSEY_SIZES.indexOf((draft.jerseySize || '') as typeof DOSSIER_JERSEY_SIZES[number]));
+    this.setData({ draft, gearRows, bikeRows, bloodTypeIndex, jerseySizeIndex, photoCount: all.filter(Boolean).length, photoTotal: all.length, emergencyEnabled: !!draft.emergencyContact, ...extra });
   },
   async load(more = false) {
     const role = mockRole(), version = this.data.version + 1;
@@ -155,7 +160,21 @@ export const controller = defineReferencePage({
   field(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     if (this.data.mode !== 'own' || this.data.saving) return;
     const name = event.currentTarget.dataset.field;
+    if (name === 'age') {
+      this.updateDraft({ ...this.data.draft, age: event.detail.value.replace(/\D+/g, '').slice(0, 3) });
+      return;
+    }
     if (['riderName', 'ridingExperience', 'contactValue'].includes(name)) this.updateDraft({ ...this.data.draft, [name]: event.detail.value });
+  },
+  bloodType(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    if (this.data.mode !== 'own' || this.data.saving) return;
+    const picked = DOSSIER_BLOOD_TYPES[Number(event.detail.value)] ?? '';
+    this.updateDraft({ ...this.data.draft, bloodType: picked });
+  },
+  jerseySize(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    if (this.data.mode !== 'own' || this.data.saving) return;
+    const picked = DOSSIER_JERSEY_SIZES[Number(event.detail.value)] ?? '';
+    this.updateDraft({ ...this.data.draft, jerseySize: picked });
   },
   contactMethod(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     if (this.data.mode === 'own' && !this.data.saving) this.updateDraft({ ...this.data.draft, contactMethod: event.detail.value === '1' ? 'phone' : 'wechat' });

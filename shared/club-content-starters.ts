@@ -23,7 +23,7 @@ export function starterClubContent(section: ClubContentSection): ClubContentDraf
       ],
     },
     core: {
-      title: '核心成员与职责', introduction: '把事情交给明确的人，让每次同行都有照应。',
+      title: '工作组', introduction: '把事情交给明确的人，让每次同行都有照应。',
       blocks: [
         { heading: '主理人', body: '负责车队方向、活动政策、成员身份与管理授权，统筹需要共同决定的事项。' },
         { heading: '车队经理', body: '统筹日常活动、成员协作和记录核对，协调报名、现场与活动结束后的工作。' },

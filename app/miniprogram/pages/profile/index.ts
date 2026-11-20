@@ -8,6 +8,8 @@ import { memberNumberText } from '../../services/member-number';
 import type { MemberDossier } from '../../../../shared/dossier-types';
 import { profileDossierProgress } from '../../../../shared/profile-overview-types';
 import type { ProfileOverview, ProfileStatistics, ProfileDossierProgress } from '../../../../shared/profile-overview-types';
+import { resolveBadgeDetails } from '../../../../shared/member-badges';
+import type { MemberBadgeDisplay } from '../../../../shared/member-badges';
 import { readReferenceChrome, syncReferenceTab, openReferencePanel, closeReferencePanel } from '../../services/reference-ui';
 const profileEnvironment = () => JSON.stringify([runtime.mode, runtime.appId, runtime.envId]);
 const activeLoads = new WeakMap<object, { role: string; version: number; lifecycle: number; environment: string; promise: Promise<void> }>();
@@ -21,7 +23,10 @@ function freshIdentity(page: object, role: string, version: number, lifecycle: n
   return promise;
 }
 interface ProfileReadSnapshot { member: MemberSummary; profileVersion: number; loadVersion: number; role: string; lifecycle: number; environment: string }
-const accessFor = (member: MemberSummary | null) => ({ staff: canOperateActivities(member), isOwner: !!member?.roles.includes('owner'), canManageContent: canManagePublicContent(member), adminTitle: businessAdminTitle(member) });
+const accessFor = (member: MemberSummary | null) => {
+  const badge = resolveBadgeDetails(member?.badges);
+  return { staff: canOperateActivities(member), isOwner: !!member?.roles.includes('owner'), canManageContent: canManagePublicContent(member), adminTitle: businessAdminTitle(member), vTone: badge.primaryTone, vBadges: badge.items };
+};
 function dossierVisual(progress: ProfileDossierProgress | null) {
   const approved = !!progress?.status.includes('已通过');
   return { dossierPercent: progress?.total ? Math.min(100, Math.round(progress.ready / progress.total * 100)) : 0,
@@ -36,7 +41,7 @@ Page({
     isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, statistics: null as ProfileStatistics | null, statisticsError: '', joinedDays: null as number | null,
     member: null as MemberSummary | null, contact: emptyContact, kindLabel: '游客', memberNumber: '', kindExpiresText: '',
     nickname: '', nicknameInitial: 'OR', nicknameStatus: 'unchanged', nicknameError: '', consent: false, kindReason: '', roles: mockRoleLabels, roleLabel: '',
-    staff: false, isOwner: false, canManageContent: false, adminTitle: '', showPrivacy: false, showEdit: false, loading: false, saving: false, error: '', notice: '', logoutError: '',
+    staff: false, isOwner: false, canManageContent: false, adminTitle: '', vTone: '' as MemberBadgeDisplay['primaryTone'], vBadges: [] as MemberBadgeDisplay['items'], showPrivacy: false, showEdit: false, loading: false, saving: false, error: '', notice: '', logoutError: '',
     avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false,
     loadVersion: 0, profileVersion: 0, lifecycleVersion: 0, loadedScope: '', avatarVersion: 0, avatarReadVersion: 0, loadedRole: '',
     identityVerified: false, dossierReadVersion: 0, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。',
@@ -65,7 +70,7 @@ Page({
   },
   clearIdentity() {
     this.setData({ member: null, memberNumber: '', nickname: '', nicknameInitial: 'OR', nicknameStatus: 'unchanged', nicknameError: '', avatarUrl: '', avatarDraftUrl: '', avatarBase64: '', avatarError: '', avatarLoading: false, avatarProcessing: false, draftPreviewFailed: false, saving: false, kindReason: '', consent: false, kindExpiresText: '', showEdit: false, logoutError: '',
-      staff: false, isOwner: false, canManageContent: false, adminTitle: '', identityVerified: false, statistics: null, statisticsError: '', joinedDays: null, ...dossierVisual(null), dossierReadVersion: this.data.dossierReadVersion + 1, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。', dossierCount: '0 / 7', dossierParts: [],
+      staff: false, isOwner: false, canManageContent: false, adminTitle: '', vTone: '', vBadges: [], identityVerified: false, statistics: null, statisticsError: '', joinedDays: null, ...dossierVisual(null), dossierReadVersion: this.data.dossierReadVersion + 1, dossierLoading: false, dossierError: '', dossierStatus: '尚未提交骑手资料', dossierNote: '分次准备，保存后可继续填写。', dossierCount: '0 / 7', dossierParts: [],
       profileVersion: this.data.profileVersion + 1, avatarVersion: this.data.avatarVersion + 1, avatarReadVersion: this.data.avatarReadVersion + 1 });
   },
   async verifyIdentity() {

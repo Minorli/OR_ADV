@@ -1,7 +1,7 @@
 import { defineReferencePage } from '../../../../services/reference-controller';
 import { closeReferenceLeaf, markReferenceChanged, navigateToReferenceLogin } from '../../../../services/reference-ui';
 import { ApiError, call, currentMember, errorMessage, isMock, mockRole, confirm, toast } from '../../../../services/api';
-import { chooseAndUploadMemberVideo, discardMemberMediaDraft, hasMemberMediaDrafts, memberMediaDrafts, MemberMediaError, resolveMemberMedia, retryMemberMediaDraft } from '../../../../services/member-media';
+import { chooseAndUploadAdminDemoVideo, chooseAndUploadMemberVideo, discardMemberMediaDraft, hasMemberMediaDrafts, memberMediaDrafts, MemberMediaError, resolveMemberMedia, retryMemberMediaDraft } from '../../../../services/member-media';
 import type { MemberMediaDraft } from '../../../../services/member-media';
 import type { MemberSummary, PageResult } from '../../../../../../shared/types';
 import type { SkillHistoryEntry, SkillQueueRow, SkillView } from '../../../../../../shared/learning-types';
@@ -18,7 +18,7 @@ export const controller = defineReferencePage({
     approvedCount: 0, submittedCount: 0, selected: null as SkillCard | null, note: '', assetId: '', previewUrl: '', mediaConsent: false,
     drafts: [] as MemberMediaDraft[], isOwner: false, canManageContent: false, reviewMode: false, queue: [] as SkillQueueRow[], nextCursor: null as string | null,
     reviewTarget: null as SkillQueueRow | null, reviewReason: '', reviewVideoUrl: '',
-    referenceEditor: false, referenceTitle: '', referenceUrl: '', referenceReason: '', referenceVerified: false,
+    referenceEditor: false, referenceTitle: '', referenceUrl: '', referenceAssetId: '', referencePreviewUrl: '', referenceReason: '', referenceVerified: false,
     historyItems: [] as (SkillHistoryEntry & { stateText: string; dateText: string })[], historyCursor: null as string | null,
     historyLoaded: false, historyMode: 'own', historyTitle: '', historyMissing: 0, historyVideoUrl: '',
     loading: false, busy: false, error: '', notice: '', loadVersion: 0, loadedRole: '',
@@ -32,7 +32,7 @@ export const controller = defineReferencePage({
     this.setData({ loadVersion: this.data.loadVersion + 1, loadedRole: '', member: null, items: [], visibleItems: [], approvedCount: 0, submittedCount: 0,
       selected: null, note: '', assetId: '', previewUrl: '', mediaConsent: false, drafts: [], isOwner: false, canManageContent: false, reviewMode: false,
       queue: [], nextCursor: null, reviewTarget: null, reviewReason: '', reviewVideoUrl: '', referenceEditor: false,
-      referenceTitle: '', referenceUrl: '', referenceReason: '', referenceVerified: false, historyItems: [], historyCursor: null,
+      referenceTitle: '', referenceUrl: '', referenceAssetId: '', referencePreviewUrl: '', referenceReason: '', referenceVerified: false, historyItems: [], historyCursor: null,
       historyLoaded: false, historyTitle: '', historyMissing: 0, historyVideoUrl: '', loading: false, busy: false, error: '', notice: '' });
   },
   viewerFence(): ViewerFence { return { version: this.data.loadVersion, memberId: this.data.member?.id || '', role: this.data.loadedRole }; },
@@ -116,8 +116,11 @@ export const controller = defineReferencePage({
   open(event: WechatMiniprogram.TouchEvent) {
     const selected = this.data.items.find(item => item.id === event.currentTarget.dataset.id);
     if (!selected || !this.localViewer() || this.data.busy) return;
+    const hasUploadedRef = !!selected.reference?.assetId;
     this.setData({ selected, note: selected.submission?.note || '', assetId: '', previewUrl: '', mediaConsent: false, referenceEditor: false,
-      referenceTitle: selected.reference?.title || '', referenceUrl: selected.reference?.url || '', referenceReason: '', referenceVerified: false,
+      referenceTitle: selected.reference?.title || `${selected.title}标准动作示范`, referenceUrl: hasUploadedRef ? '' : (selected.reference?.url || ''),
+      referenceAssetId: selected.reference?.assetId || '', referencePreviewUrl: hasUploadedRef ? (selected.reference?.url || '') : '',
+      referenceReason: '', referenceVerified: false,
       historyItems: [], historyCursor: null, historyLoaded: false, historyVideoUrl: '', notice: '' });
   },
   close() { if (this.localViewer() && !this.data.busy) this.setData({ selected: null }); },
@@ -253,15 +256,57 @@ export const controller = defineReferencePage({
     catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
   },
   referenceConsent(event: WechatMiniprogram.CustomEvent<{ value: string[] }>) { if (this.localViewer() && this.data.canManageContent) this.setData({ referenceVerified: event.detail.value.includes('verified') }); },
+  async uploadReferenceVideo() {
+    const selected = this.data.selected;
+    if (!selected || this.data.busy) return;
+    const fence = this.viewerFence(), skillId = selected.id;
+    this.setData({ busy: true, error: '', notice: '' });
+    try {
+      await this.assertViewer(fence, false, true);
+      const uploaded = await chooseAndUploadAdminDemoVideo(`${selected.title}示范视频`);
+      await this.assertViewer(fence, false, true);
+      if (this.matches(fence) && this.data.selected?.id === skillId) {
+        this.setData({
+          referenceAssetId: uploaded.assetId,
+          referencePreviewUrl: uploaded.previewUrl,
+          referenceUrl: '',
+          referenceTitle: this.data.referenceTitle.trim() || `${selected.title}标准动作示范`,
+          notice: '示范视频已上传，勾选下方授权后点击“保存并发布示范视频”即可生效。',
+        });
+        toast('示范视频已上传');
+      }
+    } catch (error) {
+      const cancelled = (error instanceof MemberMediaError && error.code === 'CANCELLED') || /cancel/i.test(String((error as { errMsg?: string })?.errMsg || (error as Error)?.message || ''));
+      if (this.matches(fence) && !cancelled) { const msg = message(error); this.setData({ error: msg }); toast(msg); }
+    } finally { if (this.matches(fence)) this.setData({ busy: false }); }
+  },
+  clearReferenceVideo() {
+    if (this.localViewer() && this.data.canManageContent && !this.data.busy) {
+      this.setData({ referenceAssetId: '', referencePreviewUrl: '' });
+    }
+  },
   async saveReference() {
     const selected = this.data.selected;
     if (!selected || this.data.busy) return;
+    if (!this.data.referenceVerified) { toast('请勾选确认来源、内容及公开展示权限'); return; }
+    const hasUploaded = !!this.data.referenceAssetId;
+    if (!hasUploaded && !this.data.referenceUrl.trim()) { toast('请上传示范视频或填写 HTTPS 视频地址'); return; }
+    const title = this.data.referenceTitle.trim() || `${selected.title}标准动作示范`;
+    const reason = this.data.referenceReason.trim() || (hasUploaded ? '管理员上传俱乐部考核动作示范视频' : '');
+    if (!reason) { toast('请填写来源核实说明'); return; }
     const fence = this.viewerFence();
     this.setData({ busy: true, error: '' });
     try {
-      await this.verifiedCall(fence, 'staff.skills.reference.save', { skillId: selected.id, title: this.data.referenceTitle.trim(), url: this.data.referenceUrl.trim(), verified: this.data.referenceVerified, reason: this.data.referenceReason.trim() }, selected.reference?.revision ?? 0, false, true);
-      if (this.matches(fence)) { this.setData({ notice: '示范资料已更新。' }); await this.load(); }
-    } catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
+      await this.verifiedCall(fence, 'staff.skills.reference.save', {
+        skillId: selected.id,
+        title,
+        url: hasUploaded ? '' : this.data.referenceUrl.trim(),
+        ...(hasUploaded ? { assetId: this.data.referenceAssetId } : {}),
+        verified: this.data.referenceVerified,
+        reason,
+      }, selected.reference?.revision ?? 0, false, true);
+      if (this.matches(fence)) { this.setData({ referenceEditor: false, notice: '示范视频已更新并公开生效。' }); toast('示范视频已发布'); await this.load(); }
+    } catch (error) { if (this.matches(fence)) { const msg = message(error); this.setData({ error: msg }); toast(msg); } }
     finally { if (this.matches(fence)) this.setData({ busy: false }); }
   },
   history() { return this.loadHistory(false, false); },

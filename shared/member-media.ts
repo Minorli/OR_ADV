@@ -5,7 +5,8 @@ import { sha256 } from './hash';
 import { validateAvatarImage } from './avatar-image';
 import type { Transaction } from './store';
 import type { MemberMediaAsset, MemberMediaKind, MemberMediaPurpose, MemberMediaStorage, MemberMediaStoredFile, MemberMediaSummary } from './member-media-types';
-import { MEMBER_MEDIA_VIDEO_MAX_BYTES } from './member-media-types';
+import { CLOUD_VIDEO_CHUNK_BYTES, MEMBER_MEDIA_VIDEO_MAX_BYTES, maxCloudVideoBytes } from './member-media-types';
+import { integer } from './errors';
 import { PUBLIC_CONTENT_ROLES } from './permissions';
 import type { ActivityStory } from './history-content-types';
 export type { MemberMediaSummary, MemberMediaStorage } from './member-media-types';
@@ -47,7 +48,7 @@ async function save(ctx: Context, kind: MemberMediaKind): Promise<MemberMediaSum
   const p = ctx.request.payload;
   requireThat(Object.keys(p).every(field => ['purpose', 'label', 'rightsAcknowledged', kind === 'image' ? 'imageBase64' : 'sourcePath'].includes(field)), 'INVALID_INPUT', '包含不支持的资料字段');
   const use = purpose(p.purpose), label = p.label === undefined ? (kind === 'image' ? '资料图片' : '练习短片') : text(p.label, '资料名称', 80);
-  requireThat(kind !== 'video' || use === 'skill', 'INVALID_INPUT', '短片仅用于技能练习提交');
+  requireThat(kind !== 'video' || ['skill', 'club_public'].includes(use), 'INVALID_INPUT', '短片仅用于技能练习或公开示范');
   const image = kind === 'image' ? validateAvatarImage(p.imageBase64) : undefined;
   const source = kind === 'image' ? p.imageBase64 as string : text(p.sourcePath, '本机短片', 1000);
   const provider = storage(ctx);
@@ -151,6 +152,127 @@ export async function bindPublicStoryMedia(tx: Transaction, clubId: string, memb
 export function bindPublicHeroMedia(tx: Transaction, clubId: string, memberId: string, assetIds: unknown, bindingId: string, previousIds: readonly string[]) {
   return bindPublicStoryMedia(tx, clubId, memberId, assetIds, bindingId, previousIds, 6);
 }
+export async function bindPublicReferenceVideo(tx: Transaction, clubId: string, memberId: string, assetId: string, bindingId: string, previousAssetId?: string): Promise<MemberMediaSummary> {
+  requireThat(/^media_[a-f0-9]{64}$/.test(assetId), 'INVALID_INPUT', '示范视频编号不正确');
+  const row = await tx.get<MemberMediaAsset>('member_media', assetId);
+  requireThat(row?.clubId === clubId && row.status === 'ready' && row.kind === 'video' && row.purpose === 'club_public' && row.rightsAcknowledged
+    && (row.memberId === memberId || previousAssetId === assetId && row.bindings.includes(bindingId)),
+  'FORBIDDEN', '仅能选用本人上传的公开示范视频或保留当前已绑定视频');
+  if (!row.bindings.includes(bindingId)) {
+    requireThat(row.bindings.length < 100, 'STATE_CONFLICT', '资料引用过多，请重新选择');
+    await tx.set('member_media', assetId, { ...row, bindings: [...row.bindings, bindingId], revision: row.revision + 1 });
+  }
+  return summary(row);
+}
+export async function beginMemberMediaVideo(ctx: Context): Promise<{ assetId: string; uploadUrl?: string; maxChunkBytes: number; ready?: MemberMediaSummary }> {
+  const p = ctx.request.payload;
+  requireThat(Object.keys(p).every(field => ['purpose', 'label', 'bytes', 'mimeType', 'rightsAcknowledged'].includes(field)), 'INVALID_INPUT', '包含不支持的视频上传字段');
+  const use = purpose(p.purpose);
+  requireThat(use === 'skill' || use === 'club_public', 'INVALID_INPUT', '短片仅用于技能练习或公开示范');
+  const label = p.label === undefined ? (use === 'club_public' ? '考核示范视频' : '练习短片') : text(p.label, '资料名称', 80);
+  const maxBytes = maxCloudVideoBytes(use);
+  const bytes = integer(p.bytes, '视频大小', 16);
+  requireThat(bytes <= maxBytes, 'INVALID_INPUT', `视频大小需在 ${Math.round(maxBytes / (1024 * 1024))}MB 以内`);
+  const mimeType = String(p.mimeType || 'video/mp4');
+  requireThat(mimeType === 'video/mp4' || mimeType === 'video/quicktime', 'INVALID_INPUT', '请选择 MP4 或 MOV 格式视频');
+  const provider = storage(ctx);
+  if (provider.mode !== 'cloud' || !provider.beginVideo || !provider.completeVideo) {
+    throw new DomainError('MEDIA_VIDEO_UNAVAILABLE', '短片已保留为本机草稿。云端上传暂未开通，尚未提交审核', true);
+  }
+  const digest = sha256(JSON.stringify(['video', use, label, bytes, mimeType, p.rightsAcknowledged === true]));
+  const initial = await ctx.store.transaction(async tx => {
+    const actor = await ctx.actor(tx);
+    if (use === 'club_public') {
+      await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
+      requireThat(p.rightsAcknowledged === true, 'INVALID_INPUT', '请确认拥有示范视频的公开使用权');
+    }
+    const id = key('media', ctx.clubId, actor.member.id, ctx.request.requestId);
+    const previous = await tx.get<MemberMediaAsset>('member_media', id);
+    if (previous) {
+      requireThat(previous.memberId === actor.member.id && previous.userId === actor.user.id && previous.clubId === ctx.clubId
+        && previous.requestDigest === digest && previous.storageMode === 'cloud', 'STATE_CONFLICT', '本次视频信息已改变，请重新选择');
+      requireThat(previous.status !== 'cancelled', 'STATE_CONFLICT', '这份资料已取消，请重新选择');
+      return previous;
+    }
+    const row: MemberMediaAsset = { id, clubId: ctx.clubId, memberId: actor.member.id, userId: actor.user.id, kind: 'video', purpose: use,
+      label, storageMode: 'cloud', status: 'uploading', requestDigest: digest, expectedBytes: bytes, mimeType: mimeType as 'video/mp4' | 'video/quicktime',
+      bindings: [], rightsAcknowledged: use === 'club_public', revision: 1, createdAt: ctx.now, updatedAt: ctx.now };
+    await tx.set('member_media', id, row);
+    return row;
+  });
+  if (initial.status === 'ready') return { assetId: initial.id, maxChunkBytes: CLOUD_VIDEO_CHUNK_BYTES, ready: summary(initial) };
+  const ext = mimeType === 'video/quicktime' ? 'mov' : 'mp4';
+  const session = await provider.beginVideo(initial.memberId, initial.id, use, ext);
+  await ctx.store.transaction(async tx => {
+    const row = await own(ctx, tx, initial.id);
+    if (row.status === 'uploading') {
+      await tx.set('member_media', row.id, { ...row, uploadTarget: session.storagePrefix, revision: row.revision + 1, updatedAt: ctx.now });
+    }
+  });
+  return { assetId: initial.id, uploadUrl: session.uploadUrl, maxChunkBytes: CLOUD_VIDEO_CHUNK_BYTES };
+}
+export async function uploadMemberMediaVideoChunk(ctx: Context): Promise<{ received: true; index: number }> {
+  const p = ctx.request.payload;
+  requireThat(Object.keys(p).every(field => ['assetId', 'index', 'totalChunks', 'chunkBase64'].includes(field)), 'INVALID_INPUT', '包含不支持的分片字段');
+  const assetId = text(p.assetId, '资料编号', 100);
+  const index = integer(p.index, '分片序号', 0);
+  const totalChunks = integer(p.totalChunks, '总分片数', 1);
+  requireThat(totalChunks <= 40 && index < totalChunks, 'INVALID_INPUT', '分片序号超出范围');
+  requireThat(typeof p.chunkBase64 === 'string' && p.chunkBase64.length > 0 && p.chunkBase64.length <= Math.ceil(CLOUD_VIDEO_CHUNK_BYTES * 4 / 3) + 64,
+    'INVALID_INPUT', '单个视频分片大小超出限制');
+  const chunkBytes = Buffer.from(p.chunkBase64, 'base64');
+  requireThat(chunkBytes.length > 0 && chunkBytes.length <= CLOUD_VIDEO_CHUNK_BYTES, 'INVALID_INPUT', '视频分片解码失败');
+  const provider = storage(ctx);
+  if (provider.mode !== 'cloud' || !provider.saveVideoChunk) throw new DomainError('MEDIA_VIDEO_UNAVAILABLE', '云端分片上传暂不可用', true);
+  const row = await ctx.store.transaction(async tx => {
+    const current = await own(ctx, tx, assetId);
+    if (current.purpose === 'club_public') await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
+    requireThat(current.status === 'uploading' && current.kind === 'video' && !!current.uploadTarget, 'STATE_CONFLICT', '视频上传会话无效，请重新选择');
+    return current;
+  });
+  await provider.saveVideoChunk(row.uploadTarget!, index, chunkBytes);
+  return { received: true, index };
+}
+export async function completeMemberMediaVideo(ctx: Context): Promise<MemberMediaSummary> {
+  const p = ctx.request.payload;
+  requireThat(Object.keys(p).every(field => ['assetId', 'totalChunks'].includes(field)), 'INVALID_INPUT', '包含不支持的确认字段');
+  const assetId = text(p.assetId, '资料编号', 100);
+  const totalChunks = p.totalChunks === undefined ? undefined : integer(p.totalChunks, '总分片数', 1);
+  if (totalChunks !== undefined) requireThat(totalChunks <= 40, 'INVALID_INPUT', '分片数量超出上限');
+  const provider = storage(ctx);
+  if (provider.mode !== 'cloud' || !provider.completeVideo) throw new DomainError('MEDIA_VIDEO_UNAVAILABLE', '云端视频确认暂不可用', true);
+  const initial = await ctx.store.transaction(async tx => {
+    const current = await own(ctx, tx, assetId);
+    if (current.purpose === 'club_public') await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
+    return current;
+  });
+  if (initial.status === 'ready') return summary(initial);
+  requireThat(initial.status === 'uploading' && initial.kind === 'video' && !!initial.uploadTarget && !!initial.expectedBytes,
+    'STATE_CONFLICT', '视频上传尚未准备完成，请重新选择');
+  const maxBytes = maxCloudVideoBytes(initial.purpose);
+  let file: MemberMediaStoredFile;
+  try {
+    file = await provider.completeVideo(initial.uploadTarget, initial.expectedBytes, maxBytes, totalChunks);
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
+    throw new DomainError('TEMPORARY_FAILURE', '视频上传核验未完成，请重试', true);
+  }
+  requireThat(file.bytes > 0 && file.bytes <= maxBytes && ['video/mp4', 'video/quicktime'].includes(file.mimeType),
+    'INVALID_INPUT', '视频格式或大小不符合要求');
+  const result = await ctx.store.transaction(async tx => {
+    if (initial.purpose === 'club_public') await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
+    const row = await own(ctx, tx, initial.id);
+    if (row.status === 'ready') return { row, discarded: row.fileId !== file.fileId };
+    requireThat(row.status === 'uploading' && row.uploadTarget === initial.uploadTarget, 'STATE_CONFLICT', '视频上传状态已更新，请重试');
+    const updated: MemberMediaAsset = { ...row, status: 'ready', fileId: file.fileId, bytes: file.bytes, mimeType: file.mimeType,
+      revision: row.revision + 1, updatedAt: ctx.now };
+    await tx.set('member_media', row.id, updated);
+    await ctx.audit(tx, await ctx.actor(tx), 'member_media', row.id, { kind: 'video', purpose: row.purpose, bytes: file.bytes, storageMode: 'cloud' });
+    return { row: updated, discarded: false };
+  });
+  if (result.discarded) await cleanup(ctx, provider, file.fileId);
+  return summary(result.row);
+}
 async function readOtherMedia(ctx: Context, tx: Transaction, asset: MemberMediaAsset) {
   if (asset.purpose !== 'club_public') {
     await ctx.staff(tx, ['owner']);
@@ -162,6 +284,11 @@ async function readOtherMedia(ctx: Context, tx: Transaction, asset: MemberMediaA
   if (typeof bindingId === 'string' && /^club_hero_[a-f0-9]{64}$/.test(bindingId) && asset.bindings.includes(bindingId) && asset.kind === 'image' && asset.rightsAcknowledged) {
     const hero = await tx.get<{ clubId: string; slides?: { assetId: string }[] }>('club_content', bindingId);
     requireThat(hero?.clubId === ctx.clubId && hero.slides?.some(slide => slide.assetId === asset.id), 'FORBIDDEN', '轮播图片已移除或更新');
+    return;
+  }
+  if (typeof bindingId === 'string' && /^skill_reference_[a-f0-9]{64}$/.test(bindingId) && asset.bindings.includes(bindingId) && asset.kind === 'video' && asset.rightsAcknowledged) {
+    const ref = await tx.get<{ clubId: string; assetId?: string }>('learning_catalog', bindingId);
+    requireThat(ref?.clubId === ctx.clubId && ref.assetId === asset.id, 'FORBIDDEN', '示范视频已移除或更新');
     return;
   }
   requireThat(typeof bindingId === 'string' && /^activity_story_[a-f0-9]{64}$/.test(bindingId) && asset.bindings.includes(bindingId)

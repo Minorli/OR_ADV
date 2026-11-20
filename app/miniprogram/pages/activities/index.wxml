@@ -8,13 +8,6 @@
     <view class="dots"><view wx:for="{{heroSlides}}" wx:key="id" class="i {{heroCurrent === index ? 'on' : ''}}" data-index="{{index}}" bindtap="heroDot"></view></view>
   </view>
 
-  <scroll-view scroll-x class="reference-slogans" show-scrollbar="{{false}}"><view class="slogan-strip">
-    <view class="mini"><text class="b">一起出发</text><text class="span">成员与新车友 / 名额以活动为准</text></view>
-    <view class="mini"><text class="b">参加与费用</text><text class="span">具体安排，请向组织方确认</text></view>
-    <view class="mini"><text class="b">每一公里</text><text class="span">按实际完成的路线累计</text></view>
-    <view class="mini"><text class="b">随队保障</text><text class="span">人员与装备详见行前安排</text></view>
-  </view></scroll-view>
-
   <view class="reference-home-body">
     <view class="card-h"><text class="h3">近期活动</text><button class="link a" bindtap="history">查看往期 ›</button></view>
     <scroll-view scroll-x class="reference-activity-filters mb" show-scrollbar="{{false}}"><view class="months"><button wx:for="{{filters}}" wx:key="value" class="{{filter === item.value ? 'on' : ''}}" data-value="{{item.value}}" bindtap="filter">{{item.label}}</button></view></scroll-view>
@@ -34,15 +27,20 @@
     <button wx:if="{{nextCursor && !loading}}" class="btn ghost reference-more" bindtap="more">查看更多活动</button>
   </view>
 
-  <view class="sponsor-band">
-    <view class="lb"><text class="span">{{partnersTitle || '官方合作伙伴'}}</text><view class="i"></view><button wx:if="{{partnersConfigured}}" class="link a" bindtap="partners">了解合作 ›</button></view>
-    <scroll-view scroll-x class="reference-partner-scroll" show-scrollbar="{{false}}"><view class="marquee sponsor-logos"><view wx:for="{{sponsorLogos}}" wx:key="id" class="sp"><image class="sponsor-logo" src="{{item.src}}" mode="aspectFit"/></view></view></scroll-view>
-  </view>
-
   <view class="reference-home-extra">
     <view wx:if="{{nextTrip}}" class="card reference-next-trip"><view class="between"><text class="h3">我的本场同行</text><text class="tag o">{{nextTrip.stateText}}</text></view><view class="reference-next-title">{{nextTrip.title}}</view><view class="muted">{{nextTrip.dateText}}</view><view class="muted mt">{{nextTrip.nextAction}}</view><button class="btn primary mt" bindtap="trip">{{nextTrip.buttonLabel}}</button></view>
     <view wx:elif="{{member}}" class="reference-welcome">{{member.nickname}}，下一场见。<button class="link a" bindtap="profile">我的记录 ›</button></view>
     <view wx:if="{{personalError}}" class="notice error">{{personalError}}<button class="text-button" bindtap="retry">重试</button></view>
+  </view>
+
+  <view class="sponsor-band" bindtouchstart="marqueePause" bindtouchend="marqueeResume" bindtouchcancel="marqueeResume">
+    <view class="lb"><text class="span">{{partnersTitle || '官方合作伙伴'}}</text><view class="i"></view><button wx:if="{{partnersConfigured}}" class="link a" bindtap="partners">了解合作 ›</button></view>
+    <view class="sponsor-marquee-viewport">
+      <view class="sponsor-marquee-track {{marqueePaused ? 'is-paused' : ''}}">
+        <view class="sponsor-marquee-group sponsor-logos"><view wx:for="{{sponsorLogos}}" wx:key="id" class="sp" bindtap="sponsorTap"><image class="sponsor-logo" src="{{item.src}}" mode="aspectFit"/></view></view>
+        <view class="sponsor-marquee-group sponsor-logos"><view wx:for="{{sponsorLogos}}" wx:key="id" class="sp" bindtap="sponsorTap"><image class="sponsor-logo" src="{{item.src}}" mode="aspectFit"/></view></view>
+      </view>
+    </view>
   </view>
   <reference-overlay kind="{{refPanel}}" params="{{refParams}}" bindclose="closeReference"/>
 </view>

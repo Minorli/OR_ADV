@@ -61,8 +61,9 @@ test('leaf markup keeps canonical internal structure and native bindings without
     assert.match(markup, /class="page reference-v2/); assert.match(markup, /embedded \? 'is-embedded'/); assert.match(markup, /v2-(?:sheet|modal)-content/); assert.match(markup, /bindtap="referenceClose"/); assert.doesNotMatch(markup, /<(?:h[1-6]|p|b|i|span|a|em|svg)\b/);
   }
   const markup = fs.readFileSync(resolvePageFile(app, 'dossier/index', '.wxml'), 'utf8');
-  for (const text of ['一、个人基础信息', '二、全套护具照片', '三、车辆信息', '四、轮胎状态', '血型', '身份证号', '驾驶证照片', '摩托车行驶证', '既往病史 / 过敏史', '队服尺码']) assert(markup.includes(text), text);
-  assert.doesNotMatch(markup, /data-field="(?:blood|idno|lic|ins|med|age|size)"/);
+  for (const text of ['一、个人基础信息', '二、全套护具照片', '三、车辆信息', '四、轮胎状态', '年龄', '血型', '队服尺码']) assert(markup.includes(text), text);
+  for (const removed of ['身份证号', '驾驶证照片', '摩托车行驶证', '既往病史']) assert(!markup.includes(removed), removed);
+  assert.doesNotMatch(markup, /data-field="(?:blood|idno|lic|ins|med|size)"/);
   const history = fs.readFileSync(resolvePageFile(app, 'history-detail/index', '.wxml'), 'utf8');
   assert(history.indexOf('class="honor"') < history.indexOf('class="photo-row"')); assert(history.indexOf('class="photo-row"') < history.indexOf('class="video-card')); assert(history.indexOf('class="video-card') < history.indexOf('class="review"'));
 });
@@ -82,6 +83,12 @@ test('dossier rejects forged targets, changed viewers and failed uploads without
   env.identity(who(), 'member'); env.image(new Error('照片暂时无法上传')); await p.openUpload(event({ gear: 'helmet' })); await p.uploadFrom(event({ source: 'album' })); assert.equal(p.data.draft.gear.helmet, null); assert.match(p.data.error, /无法上传/); assert.equal(p.data.uploading, false);
   for (const field of ['blood', 'idno', 'med', 'size']) p.field({ currentTarget: { dataset: { field } }, detail: { value: '不应保存' } });
   for (const field of ['blood', 'idno', 'med', 'size']) assert.equal(Object.hasOwn(p.data.draft, field), false);
+  p.field({ currentTarget: { dataset: { field: 'age' } }, detail: { value: '32岁' } });
+  p.bloodType({ detail: { value: '4' } });
+  p.jerseySize({ detail: { value: '4' } });
+  assert.equal(p.data.draft.age, '32');
+  assert.equal(p.data.draft.bloodType, 'O型');
+  assert.equal(p.data.draft.jerseySize, 'L');
 });
 test('late dossier target verification cannot reopen an upload selector after unload', async () => {
   const env = environment(), p = dossier(env), held = gate(); env.api.currentMember = async () => { await held.promise; return who(); };
