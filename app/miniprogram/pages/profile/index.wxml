@@ -82,7 +82,6 @@
 6. 更正、隐私与注销问题，请通过本页组织方联系办法反馈。</view><view class="notice">参加活动须满足本场资格、装备和安全要求。成员身份与积分都不替代技能或现场核验。</view><button wx:if="{{member && identityVerified}}" class="text-button full profile-delete" disabled="{{saving}}" bindtap="deletion">提交注销申请</button></view>
   <view class="logout"><button wx:if="{{member && identityVerified}}" class="a" bindtap="logout">退出登录</button><button wx:elif="{{!member}}" class="a" bindtap="openEdit">用微信登录</button><view class="reference-profile-version">OriginalRally · ADV 探险拉力俱乐部</view></view>
   <view wx:if="{{isMock}}" class="card profile-panel profile-demo-panel"><view class="profile-setting-head"><view class="card-title">切换身份</view><text class="profile-setting-status">本地</text></view><view class="small muted mt">人物和活动均为虚构，仅保存在当前设备。切换身份可查看不同成员的页面。</view><picker mode="selector" range="{{roles}}" bindchange="role"><view class="picker mt">当前：{{roleLabel}} <text>切换 ›</text></view></picker><button class="secondary full mt" bindtap="reset">重置数据</button><view class="profile-panel-note">恢复初始人物和活动，清除当前设备上的修改。</view></view>
-  <view class="footer-note">ORIGINAL RALLY · 原始拉力</view>
   </view>
   <reference-overlay kind="{{refPanel}}" params="{{refParams}}" bindclose="closeReference"/>
 </view>

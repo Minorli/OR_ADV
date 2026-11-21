@@ -1,6 +1,18 @@
 # 当前交接状态
 
-更新：2026-11-20。源代码与官方开发版 `0.5.0-test.7`（zip 1,402,268 字节，含 1 主包 + 5 业务子包）指向 2026-11-18 新开通的个人版测试环境 （EnvId 仅存本地配置）（上海，baas_personal，到期 2026-12-18 23:59:59）。该环境的文档数据库是 PostgreSQL DocumentExt，集合通过 `tcb api tcb CreateTable` 加 MongoConnector 管理；`scripts/cloud-setup.cjs` 的 manager-node 列表接口在此环境报 InstanceHasBeenDeleted，不能用来核对。已补齐 v4 兑换钱包 5 个集合、4 个索引及 v5 活动索引，读回 32 个集合、36 个项目索引，集合权限 ADMINONLY（PG DocumentExt 不支持 CUSTOM 规则）；PostgreSQL 云存储已创建 `member-avatars`、`member-evidence`、`club-public-assets` 三个私有桶（`public=false`，无公开 RLS 策略）。云函数 `oradv` 已重部署 `native-envelope-20261120.1`，下载包 9,029,423 字节（zip SHA256 `76b5653b2a8ddbc50cf7899365363f47bd85f501cbb57e83383ed43c5621eaee`），包内 `lib/index.js` SHA256 `ca1274d57105a559250ef0a57db79e95cb93102d36e5952162624136df66f744` 与本地完全一致，Active／Event／Nodejs20.19／30秒／256MB，两项环境变量匹配，无触发器。授权 CLI 临时凭据已完成实云 PostgreSQL 云存储视频预签名 PUT 直传、HTTP 206 Range 字节范围播放校验及多片分片上传→固化→清理闭环回归；这不是微信真机登录验收。2026-11-19 14:52（北京时间）已在新环境完成可信授权并读回：0 号主理人、1 号车队经理（`manager` 称谓）拥有全局永久 `owner`，开发账号为 1024 号，普通新成员编号从 10 号起递增。同一 `ci机器人1` 槽位已带体验版标记，`0.5.0-test.7` 上传自动接替；线上与审核均无版本。官方体验码保存为本机 `OR_ADV体验版二维码.png`（平台提示 11 月 26 日前有效）。公开仓库：[Minorli/OR_ADV](https://github.com/Minorli/OR_ADV)。
+更新：2026-11-21。源代码与官方开发版 `0.5.0-test.9`（zip 1,424,855 字节，含 1 主包 + 5 业务子包）指向 2026-11-18 新开通的个人版测试环境 （EnvId 仅存本地配置）（上海，baas_personal，到期 2026-12-18 23:59:59）。该环境的文档数据库是 PostgreSQL DocumentExt，集合通过 `tcb api tcb CreateTable` 加 MongoConnector 管理；`scripts/cloud-setup.cjs` 的 manager-node 列表接口在此环境报 InstanceHasBeenDeleted，不能用来核对。已补齐 v4 兑换钱包 5 个集合、4 个索引及 v5 活动索引，读回 32 个集合、36 个项目索引，集合权限 ADMINONLY（PG DocumentExt 不支持 CUSTOM 规则）；PostgreSQL 云存储已创建 `member-avatars`、`member-evidence`、`club-public-assets` 三个私有桶（`public=false`，无公开 RLS 策略）。云函数 `oradv` 已重部署 `native-envelope-20261120.2`，下载包 9,030,214 字节（zip SHA256 `3235d966859adeabd7a35c87275a5f1a5daa32a7f8ad2ef5bbb8780ae5f9687a`），包内 `lib/index.js` SHA256 `1537bda550c1e7320547b0ae11c4f235aa62053e4c6ff91191890a950363813b` 与本地完全一致，Active／Event／Nodejs20.19／60秒／512MB，两项环境变量匹配，无触发器。授权 CLI 临时凭据已完成实云 PostgreSQL 云存储视频预签名 PUT 直传、HTTP 206 Range 字节范围播放校验、512KiB 分片回退上传→固化→清理及全角色 9 大套件端到端实云压测闭环；这不是微信真机登录验收。2026-11-19 14:52（北京时间）已在新环境完成可信授权并读回：0 号主理人、1 号车队经理（`manager` 称谓）拥有全局永久 `owner`，开发账号为 1024 号，普通新成员编号从 10 号起递增。同一 `ci机器人1` 槽位已带体验版标记，`0.5.0-test.9` 上传自动接替；线上与审核均无版本。官方体验码保存为本机 `OR_ADV体验版二维码.png`（平台提示 11 月 26 日前有效）。公开仓库：[Minorli/OR_ADV](https://github.com/Minorli/OR_ADV)。
+
+## 0.5.0-test.9 界面排布精修与全站冗余留白清理（2026-11-21）
+
+- **消除双端首页底部窄空条，实现「官方合作伙伴」无缝吸底并随页自然滚动**：定位此前 Android 与 iPhone 均存在约 12px 窄黑空条的根因（`.reference-v2` 底内边距 `138.461538rpx` 比 `.reference-tabbar` 净高 `115.384615rpx` 多出 `23.08rpx`），将页面底内边距精准对齐为 `calc(115.384615rpx + env(safe-area-inset-bottom))`。配合 `.home-reference` 纵向 Flex 布局与 `.sponsor-band { margin-top: auto; margin-bottom: 0 }`，页面未满屏或滚到底时与底部导航栏上沿 **0px 严丝合缝贴合**，用户上下滚动时随页面内容自然滚动。
+- **「官方合作伙伴」窄条化与弱边界视觉融底**：整体高度压缩约 40%（内边距收紧至 `12rpx 0 14rpx`，Logo 容器由 `192×80rpx` 收窄至 `148×52rpx`），移除上下实线边框与深色粗框，改为由透明过渡至微弱暖黑的渐变背景、极细弱描边（`rgba(255,255,255,.055)`）及跑马灯左右两侧 7% 边缘渐隐遮罩。
+- **全站 17 页空容器与多重间距治理**：移除「我的」页底部与退出区重复的 `ORIGINAL RALLY · 原始拉力` 铭文；消除「我的」页 `考核中心` 标题下 `.card-h` 与 `.grid` 叠加产生的 `50rpx` 断层间距；为首页访客态 `.reference-home-extra`、往期详情 `.v2-extra`、安全知识题库 `.v2-extra`、俱乐部公开栏目弹窗 `.v2-extra` 补齐渲染条件并增加 `:empty` 兜底归零；隐藏独立页面路由打开 `.v2-sheet-content` 时的重复内嵌顶栏。
+
+## 0.5.0-test.8 全角色深度测试与迭代修复（2026-11-21）
+
+- **视频分片上传真机稳定性重构**：分片回退尺寸调整为 `512KiB`（Base64 请求包低于微信客户端 `callFunction` 1MB 硬上限，独立每分钟 240 片限流桶，跳过微信 `saveFile` 10MB 沙盒瓶颈），云函数 `oradv` 升级至 `512MB / 60s` 单缓冲区拼装。
+- **业务闭环与管理工作台修复**：解锁活动跨零点补记「结束核验」；开放主理人/车队经理按「待审核 / 已通过 / 已退回」调阅已提交骑手资料快照；修复往期详情审核评价覆盖未保存编辑、20+场往期挤出首页新招募场次、成员目录翻页编辑自动收起、题库一键导入 25 道参考题草稿、注销后自动退回访客态，以及灵动岛/右上角胶囊/底部安全区适配。
+- **全量检查与实云全角色压测通过**：`npm run check` **451 项**全部通过，实云隔离命名空间 9 大套件全角色端到端压测 100% 通过并完成零残留清理。
 
 ## 0.5.0-test.7 需求方九项产品微调与云视频开通（2026-11-20）
 

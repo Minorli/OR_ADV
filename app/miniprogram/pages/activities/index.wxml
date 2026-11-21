@@ -28,7 +28,7 @@
     <button wx:if="{{nextCursor && !loading}}" class="btn ghost reference-more" bindtap="more">查看更多活动</button>
   </view>
 
-  <view class="reference-home-extra">
+  <view class="reference-home-extra" wx:if="{{nextTrip || member || personalError}}">
     <view wx:if="{{nextTrip}}" class="card reference-next-trip"><view class="between"><text class="h3">我的本场同行</text><text class="tag o">{{nextTrip.stateText}}</text></view><view class="reference-next-title">{{nextTrip.title}}</view><view class="muted">{{nextTrip.dateText}}</view><view class="muted mt">{{nextTrip.nextAction}}</view><button class="btn primary mt" bindtap="trip">{{nextTrip.buttonLabel}}</button></view>
     <view wx:elif="{{member}}" class="reference-welcome">{{member.nickname}}，下一场见。<button class="link a" bindtap="profile">我的记录 ›</button></view>
     <view wx:if="{{personalError}}" class="notice error">{{personalError}}<button class="text-button" bindtap="retry">重试</button></view>

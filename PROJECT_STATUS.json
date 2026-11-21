@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.5.0-test.8",
+  "version": "0.5.0-test.9",
   "asOf": "2026-11-21",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -67,7 +67,7 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.5.0-test.8",
+    "sourceVersion": "0.5.0-test.9",
     "typecheck": "passed",
     "domainTests": "included_in_typescriptTests",
     "cloudTests": "included_in_typescriptTests",
@@ -232,19 +232,19 @@
     "functionRuntime": "Nodejs20.19",
     "functionType": "Event",
     "functionStatus": "Active",
-    "functionMemoryMB": 256,
-    "functionTimeoutSeconds": 30,
+    "functionMemoryMB": 512,
+    "functionTimeoutSeconds": 60,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "ca1274d57105a559250ef0a57db79e95cb93102d36e5952162624136df66f744",
+    "functionBackendSha256": "1537bda550c1e7320547b0ae11c4f235aa62053e4c6ff91191890a950363813b",
     "currentFunction": {
       "envId": "local_config_only",
-      "deployedOn": "2026-11-20",
+      "deployedOn": "2026-11-21",
       "action": "update",
-      "diagnosticBuild": "native-envelope-20261120.1",
-      "backendSha256": "ca1274d57105a559250ef0a57db79e95cb93102d36e5952162624136df66f744",
-      "remoteZipBytes": 9029423,
-      "remoteZipSha256": "76b5653b2a8ddbc50cf7899365363f47bd85f501cbb57e83383ed43c5621eaee",
+      "diagnosticBuild": "native-envelope-20261120.2",
+      "backendSha256": "1537bda550c1e7320547b0ae11c4f235aa62053e4c6ff91191890a950363813b",
+      "remoteZipBytes": 9030214,
+      "remoteZipSha256": "3235d966859adeabd7a35c87275a5f1a5daa32a7f8ad2ef5bbb8780ae5f9687a",
       "wxAppIdAssociatedOnTencentSide": true,
       "phoneCloudCallVerified": true,
       "businessRecordsPresent": true,
@@ -293,11 +293,11 @@
   },
   "developmentUpload": {
     "status": "officially_compiled_and_uploaded",
-    "version": "0.5.0-test.7",
+    "version": "0.5.0-test.9",
     "mode": "cloud",
-    "uploadedOn": "2026-11-20",
+    "uploadedOn": "2026-11-21",
     "envId": "local_config_only",
-    "zipBufferBytes": 1402268,
+    "zipBufferBytes": 1424855,
     "formalReviewSubmitted": false,
     "published": false,
     "experienceSelectionByVersionManager": "same_ci_robot_slot_auto_updated_from_verified_test.3"
@@ -534,9 +534,9 @@
     "requireActualVersionReadback": true,
     "mustReportEffectiveVersion": true,
     "developmentUploadIsNotExperienceRelease": true,
-    "sourceVersion": "0.5.0-test.7",
-    "developmentVersion": "0.5.0-test.7",
-    "effectiveExperienceVersion": "0.5.0-test.7",
+    "sourceVersion": "0.5.0-test.9",
+    "developmentVersion": "0.5.0-test.9",
+    "effectiveExperienceVersion": "0.5.0-test.9",
     "effectiveOnlineVersion": null
   },
   "visualParityV2": {
