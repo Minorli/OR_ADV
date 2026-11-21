@@ -6,16 +6,24 @@ interface ReferenceHost {
   triggerEvent?(name: string, detail?: unknown): void;
 }
 export function readReferenceChrome() {
-  const info = typeof wx.getWindowInfo === 'function' ? wx.getWindowInfo() : null;
-  const menu = typeof wx.getMenuButtonBoundingClientRect === 'function' ? wx.getMenuButtonBoundingClientRect() : null;
-  const width = info?.windowWidth || 390;
-  return { top: info?.statusBarHeight ?? 44, right: menu && menu.left > 0 ? Math.max(0, width - menu.left + 8) : 16,
-    bottom: info?.safeArea ? Math.max(0, info.screenHeight - info.safeArea.bottom) : 0 };
+  const info = typeof wx !== 'undefined' && typeof wx.getWindowInfo === 'function' ? wx.getWindowInfo() : null;
+  const menu = typeof wx !== 'undefined' && typeof wx.getMenuButtonBoundingClientRect === 'function' ? wx.getMenuButtonBoundingClientRect() : null;
+  const width = info?.windowWidth && info.windowWidth >= 280 && info.windowWidth <= 1400 ? info.windowWidth : 390;
+  const rawTop = info?.statusBarHeight;
+  const top = typeof rawTop === 'number' && rawTop >= 0 && rawTop <= 80 ? rawTop : 44;
+  const validCapsule = !!menu && menu.width >= 50 && menu.width <= 130 && menu.left >= width * 0.5 && menu.left < width;
+  const rawRight = validCapsule ? Math.round(width - menu!.left + 8) : 104;
+  const right = validCapsule ? Math.min(124, Math.max(88, rawRight)) : (menu ? 104 : 16);
+  const bottom = info?.safeArea && info.screenHeight ? Math.max(0, Math.min(48, info.screenHeight - info.safeArea.bottom)) : 0;
+  return { top, right, bottom };
 }
 export function syncReferenceTab(host: object, selected: number) {
   const page = host as ReferenceHost;
   page.setData({ v2Chrome: readReferenceChrome() });
   page.getTabBar?.()?.setData({ selected, hidden: !!page.data.refPanel });
+  if (typeof wx !== 'undefined' && typeof wx.nextTick === 'function') {
+    wx.nextTick(() => { page.setData({ v2Chrome: readReferenceChrome() }); });
+  }
 }
 export function openReferencePanel(host: object, kind: ReferencePanel, params: Record<string, string> = {}) {
   const page = host as ReferenceHost;

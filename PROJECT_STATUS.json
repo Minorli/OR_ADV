@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.5.0-test.11",
+  "version": "0.5.0-test.12",
   "asOf": "2026-11-21",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -67,7 +67,7 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.5.0-test.11",
+    "sourceVersion": "0.5.0-test.12",
     "typecheck": "passed",
     "domainTests": "included_in_typescriptTests",
     "cloudTests": "included_in_typescriptTests",
@@ -293,11 +293,11 @@
   },
   "developmentUpload": {
     "status": "officially_compiled_and_uploaded",
-    "version": "0.5.0-test.11",
+    "version": "0.5.0-test.12",
     "mode": "cloud",
     "uploadedOn": "2026-11-21",
     "envId": "local_config_only",
-    "zipBufferBytes": 1424351,
+    "zipBufferBytes": 1424751,
     "formalReviewSubmitted": false,
     "published": false,
     "experienceSelectionByVersionManager": "same_ci_robot_slot_auto_updated_from_verified_test.3"
@@ -534,9 +534,9 @@
     "requireActualVersionReadback": true,
     "mustReportEffectiveVersion": true,
     "developmentUploadIsNotExperienceRelease": true,
-    "sourceVersion": "0.5.0-test.11",
-    "developmentVersion": "0.5.0-test.11",
-    "effectiveExperienceVersion": "0.5.0-test.11",
+    "sourceVersion": "0.5.0-test.12",
+    "developmentVersion": "0.5.0-test.12",
+    "effectiveExperienceVersion": "0.5.0-test.12",
     "effectiveOnlineVersion": null
   },
   "visualParityV2": {

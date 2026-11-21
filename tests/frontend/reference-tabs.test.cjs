@@ -140,4 +140,7 @@ test('home partner marquee pauses on touch and ranking/profile project +V pendan
   const ranking = env.page('ranking'); await ranking.load();
   assert.equal(ranking.data.items[0].vTone, 'gold');
   assert.deepEqual(Array.from(ranking.data.items[0].vBadges, b => b.label), ['冠军车手', '特约影像']);
+
+  const v2Css = fs.readFileSync(path.join(app, 'styles/reference-v2.wxss'), 'utf8');
+  assert.match(v2Css, /\.reference-v2 \.topbar \.h1\{[^}]*white-space:nowrap/);
 });
