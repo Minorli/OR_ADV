@@ -9,7 +9,7 @@ import { dateText } from '../../../../services/presentation';
 const gearNames: Record<DossierGear, string> = { helmet: '头盔', armor: '护甲 / 骑行服', knee: '护膝 / 护胫', boots: '越野靴' };
 const bloodTypeLabels = DOSSIER_BLOOD_TYPES.map(v => v || '暂不填写');
 const jerseySizeLabels = DOSSIER_JERSEY_SIZES.map(v => v || '暂不填写');
-const labels = { draft: '草稿', pending: '等待主理人审核', approved: '本次资料已通过', returned: '请补充后重新提交' };
+const labels = { draft: '草稿', pending: '等待管理员审核', approved: '本次资料已通过', returned: '请补充后重新提交' };
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const friendly = (error: unknown) => error instanceof MemberMediaError ? error.message : errorMessage(error);
 async function mapPool<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<R[]> {
@@ -35,7 +35,7 @@ export const controller = defineReferencePage({
     bikeRows: [] as (DossierDraft['bikes'][number] & { photoUrl: string; tireUrl: string; photoError: string; tireError: string })[],
     urls: {} as Record<string, string>, photoErrors: {} as Record<string, string>, statusText: '', consent: false, emergencyEnabled: false,
     pendingUploads: [] as PendingUpload[], uploadTarget: null as UploadTarget | null,
-    dirty: false, previewing: false, loading: false, saving: false, uploading: false, uploadLabel: '', error: '', notice: '', reviewReason: '', photoCount: 0, photoTotal: 4,
+    dirty: false, previewing: false, loading: false, saving: false, uploading: false, uploadLabel: '', error: '', notice: '', reviewReason: '', photoCount: 0, photoTotal: 4, selfManagerBlocked: false,
   },
   onLoad(options: Record<string, string>) {
     this.setData({ mode: options.mode === 'review' && options.memberId ? 'review' : options.mode === 'queue' ? 'queue' : 'own', memberId: options.memberId || '', includeReviewed: options.reviewed === '1' });
@@ -44,7 +44,7 @@ export const controller = defineReferencePage({
   onUnload() { this.clearPrivate(); },
   clearPrivate() {
     this.renderDraft(emptyDossierDraft(), { version: this.data.version + 1, dossier: null, viewerId: '', dirty: false, consent: false,
-      urls: {}, photoErrors: {}, queue: [], nextCursor: null, pendingUploads: [], uploadTarget: null, statusText: '', reviewReason: '',
+      urls: {}, photoErrors: {}, queue: [], nextCursor: null, pendingUploads: [], uploadTarget: null, statusText: '', reviewReason: '', selfManagerBlocked: false,
       saving: false, uploading: false, uploadLabel: '', notice: '', loading: false, loadedRole: '' });
   },
   async resume() {
@@ -117,7 +117,8 @@ export const controller = defineReferencePage({
       }
       const dossier = await call<MemberDossier>(this.data.mode === 'review' ? 'staff.dossier.get' : 'dossier.mine', this.data.mode === 'review' ? { memberId: this.data.memberId, ...(this.data.includeReviewed ? { includeReviewed: true } : {}) } : {});
       if (!this.matches(version, member.id, role)) return;
-      this.renderDraft(clone(dossier.draft), { dossier, statusText: labels[dossier.status], dirty: false, consent: false, urls: {}, photoErrors: {}, notice: '', reviewReason: '' });
+      const selfManagerBlocked = this.data.mode === 'review' && member.id === dossier.memberId && (member.adminDesignation === 'manager' || (member.memberNumber !== undefined && member.memberNumber !== 0));
+      this.renderDraft(clone(dossier.draft), { dossier, statusText: labels[dossier.status], dirty: false, consent: false, urls: {}, photoErrors: {}, notice: '', reviewReason: '', selfManagerBlocked });
       await Promise.all([this.loadPhotos(), this.data.mode === 'own' ? this.loadPendingUploads() : Promise.resolve()]);
     } catch (error) { if (version === this.data.version && (!isMock || mockRole() === role)) { this.clearPrivate(); this.setData({ error: friendly(error) }); } }
     finally { if (version === this.data.version && (!isMock || mockRole() === role)) this.setData({ loading: false }); }

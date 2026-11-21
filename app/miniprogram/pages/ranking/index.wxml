@@ -15,17 +15,13 @@
     <view class="card-h"><text class="h3">积分榜</text><button class="link a" bindtap="rules">积分规则</button></view>
     <view wx:if="{{error}}" class="notice error">{{error}}<button class="text-button" bindtap="retry">重试</button></view>
     <block wx:if="{{signedIn}}">
-      <view wx:for="{{items}}" wx:key="memberPublicId" class="ri"><view class="no {{item.rank === 1 ? 'reference-rank-1' : item.rank === 2 ? 'reference-rank-2' : item.rank === 3 ? 'reference-rank-3' : ''}}">{{item.rank}}</view><view class="av-wrap"><view class="av">{{item.initial}}</view><text wx:if="{{item.vTone}}" class="v-pendant v-pendant--{{item.vTone}}">V</text></view><view class="in"><view class="nm"><text class="nm-text">{{item.nickname}}</text><view wx:if="{{item.vBadges.length}}" class="v-chips"><text wx:for="{{item.vBadges}}" wx:for-item="badge" wx:key="id" class="v-chip v-chip--{{badge.tone}}"><text class="v-mark">V</text>{{badge.label}}</text></view></view><view class="st">参与 {{item.completedCount}} 次同行</view></view><view class="sc"><text class="b">{{item.score}}</text><text class="span">积分</text><button wx:if="{{canCertify}}" class="link a certify-link" data-id="{{item.memberPublicId}}" data-certified="{{item.certifiedRider ? 'true' : 'false'}}" disabled="{{saving}}" bindtap="certify">{{item.certifiedRider ? '取消认证' : '认证车手'}}</button></view></view>
+      <view wx:for="{{items}}" wx:key="memberPublicId" class="ri"><view class="no {{item.rank === 1 ? 'reference-rank-1' : item.rank === 2 ? 'reference-rank-2' : item.rank === 3 ? 'reference-rank-3' : ''}}">{{item.rank}}</view><view class="av-wrap"><view class="av">{{item.initial}}</view><text wx:if="{{item.vTone}}" class="v-pendant v-pendant--{{item.vTone}}">V</text></view><view class="in"><view class="nm"><text class="nm-text">{{item.nickname}}</text><view wx:if="{{item.vBadges.length}}" class="v-chips"><text wx:for="{{item.vBadges}}" wx:for-item="badge" wx:key="id" class="v-chip v-chip--{{badge.tone}}"><text class="v-mark">V</text>{{badge.label}}</text></view></view><view class="st">参与 {{item.completedCount}} 次同行</view></view><view class="sc"><text class="b">{{item.score}}</text><text class="span">积分</text></view></view>
       <view wx:if="{{!loading && !error && !items.length}}" class="empty">暂无进入榜单的车手。登录并完成基础控车考核后会出现在这里。</view>
       <button wx:if="{{nextCursor && !loading}}" class="btn ghost mt" bindtap="more">查看更多记录</button>
       <view class="reference-ranking-note">按累计积分从高到低排列；积分相同时，依次按参与次数、姓名首字母排序。</view>
     </block>
     <view wx:elif="{{!loading && !error}}" class="empty">登录并完成注册后才能查看积分榜。<button class="btn primary mt" bindtap="profile">去登录</button></view>
     <view wx:if="{{loading}}" class="loading">正在加载成员记录…</view>
-
-    <view wx:if="{{contact.configured}}" class="reference-ranking-settings">
-      <button class="link a" bindtap="contact">联系{{contact.contactName || '组织方'}} ›</button>
-    </view>
   </view>
   <reference-overlay kind="{{refPanel}}" params="{{refParams}}" bindclose="closeReference"/>
 </view>

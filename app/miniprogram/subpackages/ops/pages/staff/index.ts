@@ -179,7 +179,11 @@ Page({
   field(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const field = String(event.currentTarget.dataset.field);
     const editable = this.data.editorKind === 'content' ? ['title', 'description', 'reason', 'distanceKm'] : Object.keys(emptyForm()).filter(key => !['id', 'revision', 'itinerary', 'coverKey', 'requiresReview'].includes(key));
-    if (this.formMatches() && !this.data.busy && editable.includes(field)) this.setData({ [`form.${field}`]: event.detail.value, formDirty: true });
+    if (this.formMatches() && !this.data.busy && editable.includes(field)) {
+      const updates: Record<string, unknown> = { [`form.${field}`]: event.detail.value, formDirty: true };
+      if (field === 'growth') updates['form.annual'] = event.detail.value;
+      this.setData(updates);
+    }
   },
   cover(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const index = Number(event.detail.value);
@@ -342,7 +346,10 @@ Page({
   pastField(event: WechatMiniprogram.Input) {
     const field = event.currentTarget.dataset.field as string;
     if (!['pastTitle', 'pastLocation', 'pastDescription', 'pastGrowth', 'pastAnnual', 'pastMemberNumber', 'pastReason', 'pastDate', 'pastEndDate', 'grantGrowth', 'grantAnnual'].includes(field)) return;
-    this.setData({ [field]: event.detail.value });
+    const updates: Record<string, unknown> = { [field]: event.detail.value };
+    if (field === 'pastGrowth') updates.pastAnnual = event.detail.value;
+    if (field === 'grantGrowth') updates.grantAnnual = event.detail.value;
+    this.setData(updates);
   },
   pickPastActivity(event: WechatMiniprogram.PickerChange) {
     const index = Number(event.detail.value), choice = this.data.settledChoices[index];
@@ -358,7 +365,7 @@ Page({
     if (pastEndDate > today) { toast('只能补录已经结束的活动'); return; }
     const growth = pointValue(pastGrowth), annual = pointValue(pastAnnual);
     if (growth === null || annual === null) { toast('积分请填写 0 到 1000 的整数'); return; }
-    if (!await confirm('补录已完成活动', `「${pastTitle.trim()}」会直接进入往期档案，不开放报名。默认每人成长 ${growth} 分、年度 ${annual} 分，之后按成员编号逐人补记。`)) return;
+    if (!await confirm('补录已完成活动', `「${pastTitle.trim()}」会直接进入往期档案，不开放报名。默认每人 ${growth} 分，之后按成员编号逐人补记。`)) return;
     if (!await this.verifyIdentity() || !this.data.isOwner || !this.matches(fence)) return;
     this.setData({ busy: 'past', error: '' });
     try {
@@ -386,7 +393,7 @@ Page({
     const growth = this.data.grantGrowth.trim() === '' ? choice.growth : pointValue(this.data.grantGrowth);
     const annual = this.data.grantAnnual.trim() === '' ? choice.annual : pointValue(this.data.grantAnnual);
     if (growth === null || annual === null) { toast('积分请填写 0 到 1000 的整数'); return; }
-    if (!await confirm('补记参加积分', `「${choice.title}」给 ${memberNumber} 号补记成长 ${growth} 分、年度 ${annual} 分。同一人同一场重复提交不会重复加分；分值不同需要先冲正。`)) return;
+    if (!await confirm('补记参加积分', `「${choice.title}」给 ${memberNumber} 号补记 ${growth} 分。同一人同一场重复提交不会重复加分；分值不同需要先冲正。`)) return;
     if (!await this.verifyIdentity() || !this.data.isOwner || !this.matches(fence)) return;
     this.setData({ busy: 'grant', error: '' });
     try {

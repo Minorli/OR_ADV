@@ -1,6 +1,6 @@
 {
   "packageVersion": "1.0.0",
-  "version": "0.5.0-test.9",
+  "version": "0.5.0-test.11",
   "asOf": "2026-11-21",
   "product": "OriginalRally原始拉力",
   "repository": {
@@ -67,7 +67,7 @@
     "content safety, retention and finalized privacy information"
   ],
   "validation": {
-    "sourceVersion": "0.5.0-test.9",
+    "sourceVersion": "0.5.0-test.11",
     "typecheck": "passed",
     "domainTests": "included_in_typescriptTests",
     "cloudTests": "included_in_typescriptTests",
@@ -236,13 +236,13 @@
     "functionTimeoutSeconds": 60,
     "functionTriggers": [],
     "functionEnvVariablesMatch": true,
-    "functionBackendSha256": "1537bda550c1e7320547b0ae11c4f235aa62053e4c6ff91191890a950363813b",
+    "functionBackendSha256": "19329a4b5980799c0310ec77f97271057eaeebf319b03ba79df8b75654f3deb3",
     "currentFunction": {
       "envId": "local_config_only",
       "deployedOn": "2026-11-21",
       "action": "update",
-      "diagnosticBuild": "native-envelope-20261120.2",
-      "backendSha256": "1537bda550c1e7320547b0ae11c4f235aa62053e4c6ff91191890a950363813b",
+      "diagnosticBuild": "native-envelope-20261121.1",
+      "backendSha256": "19329a4b5980799c0310ec77f97271057eaeebf319b03ba79df8b75654f3deb3",
       "remoteZipBytes": 9030214,
       "remoteZipSha256": "3235d966859adeabd7a35c87275a5f1a5daa32a7f8ad2ef5bbb8780ae5f9687a",
       "wxAppIdAssociatedOnTencentSide": true,
@@ -293,11 +293,11 @@
   },
   "developmentUpload": {
     "status": "officially_compiled_and_uploaded",
-    "version": "0.5.0-test.9",
+    "version": "0.5.0-test.11",
     "mode": "cloud",
     "uploadedOn": "2026-11-21",
     "envId": "local_config_only",
-    "zipBufferBytes": 1424855,
+    "zipBufferBytes": 1424351,
     "formalReviewSubmitted": false,
     "published": false,
     "experienceSelectionByVersionManager": "same_ci_robot_slot_auto_updated_from_verified_test.3"
@@ -534,9 +534,9 @@
     "requireActualVersionReadback": true,
     "mustReportEffectiveVersion": true,
     "developmentUploadIsNotExperienceRelease": true,
-    "sourceVersion": "0.5.0-test.9",
-    "developmentVersion": "0.5.0-test.9",
-    "effectiveExperienceVersion": "0.5.0-test.9",
+    "sourceVersion": "0.5.0-test.11",
+    "developmentVersion": "0.5.0-test.11",
+    "effectiveExperienceVersion": "0.5.0-test.11",
     "effectiveOnlineVersion": null
   },
   "visualParityV2": {

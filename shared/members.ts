@@ -30,10 +30,17 @@ export async function roleSummaries(ctx: Context, tx: Transaction, member: Membe
   return rows.filter((row): row is StaffRole => !!row && row.clubId === ctx.clubId && row.userId === member.userId)
     .map((row) => ({ role: row.role, revision: row.revision ?? 0, activityIds: row.activityIds, enabled: row.enabled, expiresAt: row.expiresAt, ...(row.role === 'owner' && row.designation === 'manager' ? { designation: 'manager' as const } : {}) }));
 }
-async function isPrimaryOwner(ctx: Context, tx: Transaction, member: Membership): Promise<boolean> {
+export async function isPrimaryOwner(ctx: Context, tx: Transaction, member: Membership): Promise<boolean> {
   const sequence = await tx.get<MemberNumberSequence>('clubs', memberSequenceId(ctx.clubId));
   if (sequence) validateMemberSequence(sequence, ctx.clubId);
   return sequence?.primaryOwnerMemberId === member.id;
+}
+export async function canSelfReviewAsPrimaryOwner(ctx: Context, tx: Transaction, member: Membership): Promise<boolean> {
+  const ownerRole = await tx.get<StaffRole>('staff_roles', key('role', ctx.clubId, member.userId, 'owner'));
+  if (ownerRole?.designation === 'manager') return false;
+  const sequence = await tx.get<MemberNumberSequence>('clubs', memberSequenceId(ctx.clubId));
+  if (sequence) validateMemberSequence(sequence, ctx.clubId);
+  return !sequence?.primaryOwnerMemberId || sequence.primaryOwnerMemberId === member.id;
 }
 async function staffMember(ctx: Context, tx: Transaction, member: Membership): Promise<StaffMemberSummary> {
   const user = await tx.get<User>('users', member.userId);

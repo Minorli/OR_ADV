@@ -229,6 +229,76 @@ test('team manager (#1) views approved/returned rider dossiers, searches #0/#1, 
   assert.equal(reviewedSnapshot.draft.emergencyContact?.phone, '13900005678');
   assert(reviewedSnapshot.memberNickname);
 
+  // Team Manager (#1) submits their own dossier: #1 cannot self-approve, Primary Owner (#0) reviews & approves!
+  const mgrInitDossier = await rpc('dossier.mine', {}, managerIdentity);
+  const mgrSavedDossier = await rpc('dossier.save', {
+    draft: {
+      ...mgrInitDossier.draft,
+      riderName: '经理阿凯',
+      contactMethod: 'wechat',
+      contactValue: 'akai_adv',
+      ridingExperience: '8年拉力领队经验',
+      bikes: [{ id: 'mgr-bike-1', brand: 'BMW', model: 'R1250GS ADV', year: '2024', plate: '', odometerKm: 26000, photoAssetId: null, tireAssetId: null }],
+    },
+  }, managerIdentity, mgrInitDossier.revision);
+  const mgrSubmitted = await rpc('dossier.submit', { consent: true, consentVersion: DOSSIER_CONSENT_VERSION }, managerIdentity, mgrSavedDossier.revision);
+  await assert.rejects(rpc('staff.dossier.review', {
+    memberId: mgrMember.id,
+    decision: 'approved',
+    reason: '经理尝试自审应被拦截',
+    submissionRevision: mgrSubmitted.submission.submissionRevision,
+  }, managerIdentity, mgrSubmitted.revision), { code: 'FORBIDDEN' });
+  await assert.rejects(rpc('staff.qualification.review', {
+    memberId: mgrMember.id,
+    type: 'basic_control',
+    decision: 'approved',
+    expiresAt: null,
+    reason: '经理尝试自批资格应被拦截',
+  }, managerIdentity, 0), { code: 'FORBIDDEN' });
+
+  // #0 Primary Owner approves #1 Team Manager's dossier & qualification!
+  const mgrApprovedByOwner = await rpc('staff.dossier.review', {
+    memberId: mgrMember.id,
+    decision: 'approved',
+    reason: '0号主理人核实1号车队经理资料通过',
+    submissionRevision: mgrSubmitted.submission.submissionRevision,
+  }, DEMO_IDENTITIES.owner, mgrSubmitted.revision);
+  assert.equal(mgrApprovedByOwner.status, 'approved');
+  await rpc('staff.qualification.review', {
+    memberId: mgrMember.id,
+    type: 'basic_control',
+    decision: 'approved',
+    expiresAt: null,
+    reason: '0号主理人核验1号基础控车通过',
+  }, DEMO_IDENTITIES.owner, 0);
+
+  // Future new member registers & submits dossier -> visible to BOTH #0 and #1, and #0 or #1 can review!
+  const futureIdentity: TrustedIdentity = { appId: DEMO_IDENTITIES.owner.appId, openId: 'qa-future-rider-10' };
+  const futureMember = await rpc('identity.ensure', { nickname: '新车友小周', consentVersions: { privacy: 1, terms: 1 } }, futureIdentity);
+  const futInit = await rpc('dossier.mine', {}, futureIdentity);
+  const futSaved = await rpc('dossier.save', {
+    draft: {
+      ...futInit.draft,
+      riderName: '小周',
+      contactMethod: 'wechat',
+      contactValue: 'zhou_rally',
+      ridingExperience: '1年非铺装入门',
+      bikes: [{ id: 'fut-bike-1', brand: 'Honda', model: 'CRF300 Rally', year: '2025', plate: '', odometerKm: 3100, photoAssetId: null, tireAssetId: null }],
+    },
+  }, futureIdentity, futInit.revision);
+  const futSubmitted = await rpc('dossier.submit', { consent: true, consentVersion: DOSSIER_CONSENT_VERSION }, futureIdentity, futSaved.revision);
+  const pendingForOwner = await rpc('staff.dossier.list', {}, DEMO_IDENTITIES.owner);
+  const pendingForManager = await rpc('staff.dossier.list', {}, managerIdentity);
+  assert(pendingForOwner.items.some((r: { memberId: string }) => r.memberId === futureMember.id));
+  assert(pendingForManager.items.some((r: { memberId: string }) => r.memberId === futureMember.id));
+  const futApproved = await rpc('staff.dossier.review', {
+    memberId: futureMember.id,
+    decision: 'approved',
+    reason: '0号主理人审核新车友资料通过',
+    submissionRevision: futSubmitted.submission.submissionRevision,
+  }, DEMO_IDENTITIES.owner, futSubmitted.revision);
+  assert.equal(futApproved.status, 'approved');
+
   // Team Manager imports 25 starter safety questions in 1 batch call & publishes -> Ordinary Member takes quiz!
   const bank0 = await rpc('staff.learning.catalog.get', {}, managerIdentity);
   const imported = await rpc('staff.learning.catalog.save', {

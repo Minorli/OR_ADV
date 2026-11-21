@@ -45,5 +45,5 @@
     </block>
     <button wx:if="{{cursor && !loading}}" class="btn ghost secondary full mt" bindtap="more" disabled="{{busy}}">查看更多</button>
   </block>
-  <view class="footer-note">成长与年度积分不因兑换减少。兑换事项由俱乐部核定，积分不能转赠、交易或提现。</view>
+  <view class="footer-note">累计积分与总榜排名不因兑换减少。兑换事项由俱乐部核定，积分不能转赠、交易或提现。</view>
 </view></view></view>

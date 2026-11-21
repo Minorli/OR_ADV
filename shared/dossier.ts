@@ -5,6 +5,7 @@ import { key } from './models';
 import type { Membership } from './models';
 import type { Transaction } from './store';
 import { bindOwnedMemberMedia, requireOwnedMemberMedia } from './member-media';
+import { canSelfReviewAsPrimaryOwner } from './members';
 import { DOSSIER_BLOOD_TYPES, DOSSIER_CONSENT_VERSION, DOSSIER_GEAR, DOSSIER_JERSEY_SIZES, emptyDossierDraft } from './dossier-types';
 import type { DossierBike, DossierDraft, DossierQueueItem, DossierReview, DossierSubmission, MemberDossier } from './dossier-types';
 
@@ -144,6 +145,7 @@ export async function reviewDossier(ctx: Context): Promise<MemberDossier> {
   const reason = text(p.reason, '审核说明', 500), submissionRevision = integer(p.submissionRevision, '提交版本', 1);
   return ctx.store.transaction(async tx => {
     const actor = await ctx.staff(tx, ['owner']), member = await target(ctx, tx, p.memberId);
+    if (actor.member.id === member.id) requireThat(await canSelfReviewAsPrimaryOwner(ctx, tx, actor.member), 'FORBIDDEN', '本人提交的骑手资料需由主理人审核');
     const id = dossierId(ctx.clubId, member.id), row = await tx.get<MemberDossier>(COLLECTION, id);
     requireThat(row?.status === 'pending' && row.submission, 'STATE_CONFLICT', '资料已修改或处理，请刷新');
     ctx.revision(row);

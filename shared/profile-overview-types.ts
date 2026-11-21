@@ -28,8 +28,8 @@ export function profileDossierProgress(dossier: MemberDossier | null): ProfileDo
   const statuses = { draft: '骑手资料待准备', pending: '骑手资料等待审核', approved: '本次骑手资料已通过', returned: '骑手资料需补充' };
   const state = dossier?.status ?? 'draft';
   return { status: statuses[state], ready: parts.filter(part => part.ready).length, total: parts.length,
-    note: state === 'returned' ? dossier?.review?.reason || '请查看主理人的补充说明。'
-      : state === 'pending' ? `已提交第 ${dossier?.submission?.submissionRevision} 版，等待主理人核对。`
+    note: state === 'returned' ? dossier?.review?.reason || '请查看审核补充说明。'
+      : state === 'pending' ? `已提交第 ${dossier?.submission?.submissionRevision} 版，等待管理员核对。`
       : state === 'approved' ? '仅适用于本次提交资料；修改后需重新审核。' : '填写称呼、联系方式、骑行经历，以及车辆品牌、车型、年份和里程。照片选填。',
     parts };
 }

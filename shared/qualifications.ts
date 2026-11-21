@@ -3,6 +3,7 @@ import { requireThat, text } from './errors';
 import { key, shanghaiYear } from './models';
 import type { Membership, Qualification } from './models';
 import { BASIC_QUALIFICATION, normalizeQualificationType } from './ranking-board';
+import { canSelfReviewAsPrimaryOwner } from './members';
 
 export async function listQualifications(ctx: Context, own = false) {
   const memberId = await ctx.store.transaction(async (tx) => {
@@ -23,6 +24,7 @@ export async function reviewQualification(ctx: Context) {
     const p = ctx.request.payload;
     const member = await tx.get<Membership>('memberships', text(p.memberId, 'memberId', 100));
     requireThat(member?.clubId === ctx.clubId, 'FORBIDDEN', '成员不可访问');
+    if (actor.member.id === member.id) requireThat(await canSelfReviewAsPrimaryOwner(ctx, tx, actor.member), 'FORBIDDEN', '本人的技能资格需由主理人核验');
     requireThat(p.decision === 'approved' || p.decision === 'rejected', 'INVALID_INPUT', '资格结论不正确');
     const type = normalizeQualificationType(text(p.type, '资格类型', 60));
     const id = key('qualification', ctx.clubId, member.id, type);

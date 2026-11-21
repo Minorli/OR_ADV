@@ -17,7 +17,7 @@ export const controller = defineReferencePage({
   data: { embedded: false, isMock, member: null as MemberSummary | null, level: 'basic', items: [] as SkillCard[], visibleItems: [] as SkillCard[],
     approvedCount: 0, submittedCount: 0, selected: null as SkillCard | null, note: '', assetId: '', previewUrl: '', mediaConsent: false,
     drafts: [] as MemberMediaDraft[], isOwner: false, canManageContent: false, reviewMode: false, queue: [] as SkillQueueRow[], nextCursor: null as string | null,
-    reviewTarget: null as SkillQueueRow | null, reviewReason: '', reviewVideoUrl: '',
+    reviewTarget: null as SkillQueueRow | null, reviewReason: '', reviewVideoUrl: '', selfManagerBlocked: false,
     referenceEditor: false, referenceTitle: '', referenceUrl: '', referenceAssetId: '', referencePreviewUrl: '', referenceReason: '', referenceVerified: false,
     historyItems: [] as (SkillHistoryEntry & { stateText: string; dateText: string })[], historyCursor: null as string | null,
     historyLoaded: false, historyMode: 'own', historyTitle: '', historyMissing: 0, historyVideoUrl: '',
@@ -31,7 +31,7 @@ export const controller = defineReferencePage({
   clearPrivate() {
     this.setData({ loadVersion: this.data.loadVersion + 1, loadedRole: '', member: null, items: [], visibleItems: [], approvedCount: 0, submittedCount: 0,
       selected: null, note: '', assetId: '', previewUrl: '', mediaConsent: false, drafts: [], isOwner: false, canManageContent: false, reviewMode: false,
-      queue: [], nextCursor: null, reviewTarget: null, reviewReason: '', reviewVideoUrl: '', referenceEditor: false,
+      queue: [], nextCursor: null, reviewTarget: null, reviewReason: '', reviewVideoUrl: '', selfManagerBlocked: false, referenceEditor: false,
       referenceTitle: '', referenceUrl: '', referenceAssetId: '', referencePreviewUrl: '', referenceReason: '', referenceVerified: false, historyItems: [], historyCursor: null,
       historyLoaded: false, historyTitle: '', historyMissing: 0, historyVideoUrl: '', loading: false, busy: false, error: '', notice: '' });
   },
@@ -215,7 +215,7 @@ export const controller = defineReferencePage({
   },
   async toggleReview() {
     const fence = this.viewerFence();
-    try { await this.assertViewer(fence, true); if (this.matches(fence)) { const next = !this.data.reviewMode; this.setData({ reviewMode: next, queue: [], reviewTarget: null, reviewVideoUrl: '' }); if (next) await this.loadQueue(); } }
+    try { await this.assertViewer(fence, true); if (this.matches(fence)) { const next = !this.data.reviewMode; this.setData({ reviewMode: next, queue: [], reviewTarget: null, reviewVideoUrl: '', selfManagerBlocked: false }); if (next) await this.loadQueue(); } }
     catch (error) { if (this.matches(fence)) this.setData({ error: message(error) }); }
   },
   async loadQueue(append = false) {
@@ -235,7 +235,9 @@ export const controller = defineReferencePage({
     try {
       await this.assertViewer(fence, true);
       if (!this.matches(fence)) return;
-      this.setData({ reviewTarget: row, reviewReason: '', reviewVideoUrl: '', historyItems: [], historyCursor: null, historyLoaded: false, historyVideoUrl: '' });
+      const viewer = this.data.member;
+      const selfManagerBlocked = !!viewer && viewer.id === row.memberId && (viewer.adminDesignation === 'manager' || (viewer.memberNumber !== undefined && viewer.memberNumber !== 0));
+      this.setData({ reviewTarget: row, reviewReason: '', reviewVideoUrl: '', selfManagerBlocked, historyItems: [], historyCursor: null, historyLoaded: false, historyVideoUrl: '' });
       const resolved = await resolveMemberMedia(row.assetId); await this.assertViewer(fence, true);
       if (this.matches(fence) && this.data.reviewTarget?.id === row.id) this.setData({ reviewVideoUrl: resolved.url });
     }

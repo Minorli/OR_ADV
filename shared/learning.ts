@@ -5,6 +5,7 @@ import type { Membership } from './models';
 import { isBasicSkill } from './ranking-board';
 import type { Transaction } from './store';
 import { bindOwnedMemberMedia, bindPublicReferenceVideo, requireOwnedMemberMedia } from './member-media';
+import { canSelfReviewAsPrimaryOwner } from './members';
 import type { MemberMediaAsset } from './member-media-types';
 import { SKILL_CATALOG } from './learning-content';
 import { sha256 } from './hash';
@@ -350,6 +351,7 @@ async function reviewSkill(ctx: Context) {
     const reason = text(p.reason, '复核依据', 600);
     const row = await tx.get<SkillSubmission>('skill_submissions', text(p.submissionId, '提交编号', 100));
     requireThat(row?.clubId === ctx.clubId, 'FORBIDDEN', '提交记录不可访问');
+    if (actor.member.id === row.memberId) requireThat(await canSelfReviewAsPrimaryOwner(ctx, tx, actor.member), 'FORBIDDEN', '本人提交的练习视频需由主理人复核');
     ctx.revision(row);
     requireThat(row.state === 'submitted', 'STATE_CONFLICT', '该记录当前不在待复核状态');
     const [asset] = await requireOwnedMemberMedia(tx, ctx.clubId, row.memberId, [row.assetId], 'skill');
