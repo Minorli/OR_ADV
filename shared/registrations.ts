@@ -2,7 +2,7 @@ import { Context, paginated, parseCursor } from './context';
 import { DomainError, requireThat, text } from './errors';
 import { key, registrationIdFor, shanghaiDay, statsIdFor } from './models';
 import type { Activity, Checkin, MemberStats, Membership, Qualification, Registration } from './models';
-import type { Transaction } from './store';
+import { readFrom, type ReadOnlyTransaction, type Transaction } from './store';
 import { WAITLIST_RECHECK_BATCH } from './limits';
 import { effectiveMemberKind } from './member-identity';
 import { publicClub } from './club';
@@ -24,7 +24,7 @@ export async function checkEligibility(ctx: Context, tx: Transaction, activity: 
 export function requireOpen(ctx: Context, activity: Activity) {
   requireThat(activity.state === 'published' && activity.applicationClosesAt > ctx.now, 'REGISTRATION_CLOSED', '本场已停止报名或候补提升');
 }
-export async function readRegistration(ctx: Context, tx: Transaction, id: unknown) {
+export async function readRegistration(ctx: Context, tx: ReadOnlyTransaction, id: unknown) {
   const registration = await tx.get<Registration>('registrations', text(id, 'registrationId', 100));
   requireThat(registration?.clubId === ctx.clubId, 'STATE_CONFLICT', '申请不存在或不可访问');
   return registration;
@@ -173,7 +173,7 @@ export async function promoteWaitlist(ctx: Context) {
 }
 
 export async function listRegistrations(ctx: Context, staff = false) {
-  const actor = await ctx.store.transaction(async (tx) => staff
+  const actor = await readFrom(ctx.store, async (tx) => staff
     ? ctx.staff(tx, ['owner','operator','leader','checkin'], text(ctx.request.payload.activityId, 'activityId', 100)) : ctx.actor(tx));
   const filters: Record<string, unknown> = { clubId: ctx.clubId };
   if (staff) filters.activityId = ctx.request.payload.activityId;
@@ -184,20 +184,23 @@ export async function listRegistrations(ctx: Context, staff = false) {
   if (ctx.request.payload.state) filters.state = text(ctx.request.payload.state, 'state', 30);
   const rows = await ctx.store.query<Registration>('registrations', filters, { orderBy: 'updatedAt', direction: 'desc', limit: 21, after: parseCursor(ctx.request.payload.cursor) });
   const page = paginated(rows, 'updatedAt');
-  return ctx.store.transaction(async (tx) => {
-    if (staff) await ctx.staff(tx, ['owner','operator','leader','checkin'], String(filters.activityId)); else await ctx.actor(tx);
-    const items = [];
-    for (const row of page.items) {
-      const activity = await tx.get<Activity>('activities', row.activityId);
-      const member = staff ? await tx.get<Membership>('memberships', row.memberId) : actor.member;
-      const legacyReturn = !row.lastReturnDay && row.lastDepartureDay ? await tx.get<Checkin>('checkins', key('checkin', ctx.clubId, row.activityId, row.memberId, 'return', row.lastDepartureDay)) : null;
-      items.push({ ...row, activityTitle: activity?.title ?? '活动', nickname: member?.nickname ?? '车友',
-        ...(staff && member ? { memberNumber: readMemberNumber(member.memberNumber) } : {}),
-        memberKind: member ? effectiveMemberKind(member, ctx.now) : 'regular',
-        confirmationPath: row.confirmationPath ?? 'staff_manual', activityStartAt: activity?.startAt,
-        activityEndAt: activity?.endAt, activityLocation: activity?.location, activityState: activity?.state,
-        lastReturnDay: row.lastReturnDay ?? legacyReturn?.day });
-    }
+  return readFrom(ctx.store, async (tx) => {
+    const [, items] = await Promise.all([
+      staff ? ctx.staff(tx, ['owner','operator','leader','checkin'], String(filters.activityId)) : ctx.actor(tx),
+      Promise.all(page.items.map(async row => {
+        const [activity, member, legacyReturn] = await Promise.all([
+          tx.get<Activity>('activities', row.activityId),
+          staff ? tx.get<Membership>('memberships', row.memberId) : Promise.resolve(actor.member),
+          !row.lastReturnDay && row.lastDepartureDay ? tx.get<Checkin>('checkins', key('checkin', ctx.clubId, row.activityId, row.memberId, 'return', row.lastDepartureDay)) : Promise.resolve(null),
+        ]);
+        return { ...row, activityTitle: activity?.title ?? '活动', nickname: member?.nickname ?? '车友',
+          ...(staff && member ? { memberNumber: readMemberNumber(member.memberNumber) } : {}),
+          memberKind: member ? effectiveMemberKind(member, ctx.now) : 'regular',
+          confirmationPath: row.confirmationPath ?? 'staff_manual', activityStartAt: activity?.startAt,
+          activityEndAt: activity?.endAt, activityLocation: activity?.location, activityState: activity?.state,
+          lastReturnDay: row.lastReturnDay ?? legacyReturn?.day };
+      })),
+    ]);
     return { ...page, items };
   });
 }
@@ -268,16 +271,15 @@ export async function recordCheckin(ctx: Context) {
 
 export async function registrationTimeline(ctx: Context) {
   const registrationId = text(ctx.request.payload.registrationId, 'registrationId', 100);
-  const access = async (tx: Transaction) => {
-    const actor = await ctx.actor(tx);
-    const registration = await readRegistration(ctx, tx, registrationId);
+  const access = async (tx: ReadOnlyTransaction) => {
+    const [actor, registration] = await Promise.all([ctx.actor(tx), readRegistration(ctx, tx, registrationId)]);
     if (registration.memberId !== actor.member.id) await ctx.staff(tx, ['owner','operator','leader','checkin'], registration.activityId);
     return registration;
   };
-  const registration = await ctx.store.transaction(access);
+  const registration = await readFrom(ctx.store, access);
   const rows = await ctx.store.query<Checkin>('checkins', { clubId: ctx.clubId, memberId: registration.memberId, activityId: registration.activityId },
     { orderBy: 'verifiedAt', direction: 'asc', limit: 21, after: parseCursor(ctx.request.payload.cursor) });
-  await ctx.store.transaction(access);
+  await readFrom(ctx.store, access);
   const page = paginated(rows, 'verifiedAt');
   return { ...page, items: page.items.map(({ id, phase, day, result, verifiedAt, reason }) => ({ id, phase, day, result, verifiedAt, reason })) };
 }

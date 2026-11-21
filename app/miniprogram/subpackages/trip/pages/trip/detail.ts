@@ -29,17 +29,19 @@ Page({
       const registration = registrationCard({ ...found, activityState: activity.state });
       const canReadBriefing = activity.state !== 'cancelled' && ['confirmed', 'checked_in', 'pending_settlement', 'completed'].includes(registration.state) && !registration.completionVoided;
       this.setData({ registration, canReadBriefing, canCancel: registration.canCancel && ['published', 'closed'].includes(activity.state), feeHint: needsOfflineArrangement(registration, member), nextAction: tripNextAction(registration, member) });
-      await this.loadRecords(false, requestVersion);
-      if (canReadBriefing) {
-        try {
-          const briefing = await call<ActivityBriefing | null>('activity.briefing.get', { activityId: activity.id });
-          if (this.data.requestVersion !== requestVersion) return;
-          if (!briefing) { this.setData({ briefingError: '行前安排尚未发布，请联系负责人' }); return; }
-          const saved = wx.getStorageSync(checklistKey(registration.id, briefing.revision));
-          const checked = Array.isArray(saved) ? saved as string[] : [];
-          this.setData({ briefing, meetingText: Number.isFinite(Date.parse(briefing.meetingTime)) ? dateText(briefing.meetingTime) : briefing.meetingTime, checklist: briefing.checklist.map((label, index) => ({ label, value: String(index), checked: checked.includes(String(index)) })) });
-        } catch (error) { if (this.data.requestVersion === requestVersion) this.setData({ briefingError: errorMessage(error) }); }
-      }
+      await Promise.all([
+        this.loadRecords(false, requestVersion),
+        canReadBriefing ? (async () => {
+          try {
+            const briefing = await call<ActivityBriefing | null>('activity.briefing.get', { activityId: activity.id });
+            if (this.data.requestVersion !== requestVersion) return;
+            if (!briefing) { this.setData({ briefingError: '行前安排尚未发布，请联系负责人' }); return; }
+            const saved = wx.getStorageSync(checklistKey(registration.id, briefing.revision));
+            const checked = Array.isArray(saved) ? saved as string[] : [];
+            this.setData({ briefing, meetingText: Number.isFinite(Date.parse(briefing.meetingTime)) ? dateText(briefing.meetingTime) : briefing.meetingTime, checklist: briefing.checklist.map((label, index) => ({ label, value: String(index), checked: checked.includes(String(index)) })) });
+          } catch (error) { if (this.data.requestVersion === requestVersion) this.setData({ briefingError: errorMessage(error) }); }
+        })() : Promise.resolve(),
+      ]);
     } catch (error) { if (this.data.requestVersion === requestVersion) this.setData({ error: errorMessage(error) }); }
     finally { if (this.data.requestVersion === requestVersion) this.setData({ loading: false }); }
   },

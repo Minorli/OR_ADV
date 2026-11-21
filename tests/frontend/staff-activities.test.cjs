@@ -6,13 +6,30 @@ const root = path.resolve(__dirname, '../../app/miniprogram'), apiPath = path.jo
 const event = (field, value) => ({ currentTarget: { dataset: { field } }, detail: { value } });
 const gate = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
 function environment() {
-  const storage = new Map(), calls = [], routes = [], scroll = [], toasts = []; let onConfirm, intercept, identity = member => member;
-  global.wx = { getStorageSync: key => structuredClone(storage.get(key)), setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j1ioAAAAASUVORK5CYII=';
+  const storage = new Map(), files = new Map([['/picked/cover.png', PNG]]), dirs = new Set(['/user-data']);
+  const calls = [], routes = [], scroll = [], toasts = []; let onConfirm, intercept, identity = member => member, savedSeq = 0;
+  const fs = {
+    accessSync(p) { if (!files.has(p) && !dirs.has(p)) throw new Error('ENOENT'); },
+    mkdirSync(p) { dirs.add(p); },
+    statSync(p) { if (!files.has(p)) throw new Error('ENOENT'); return { size: Buffer.from(files.get(p), 'base64').length }; },
+    readFileSync(p) { if (!files.has(p)) throw new Error('ENOENT'); return files.get(p); },
+    writeFileSync(p, v) { files.set(p, v); },
+    unlinkSync(p) { files.delete(p); },
+    saveFile({ tempFilePath, success }) { const out = `/saved/cover-${++savedSeq}.png`; files.set(out, files.get(tempFilePath)); success({ savedFilePath: out }); },
+    removeSavedFile({ filePath, success }) { files.delete(filePath); success?.({}); },
+  };
+  global.wx = { env: { USER_DATA_PATH: '/user-data' }, getFileSystemManager: () => fs,
+    chooseMedia: async () => ({ tempFiles: [{ tempFilePath: '/picked/cover.png' }] }),
+    getImageInfo: async () => ({ width: 1, height: 1, type: 'png' }),
+    compressImage: async ({ src }) => ({ tempFilePath: src }),
+    getStorageSync: key => structuredClone(storage.get(key)), setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
     getStorageInfoSync: () => ({ keys: [...storage.keys()] }), removeStorageSync: key => storage.delete(key),
     showToast(value) { toasts.push(value.title); }, showModal: async value => ({ confirm: await onConfirm?.(value) !== false }), pageScrollTo: value => scroll.push(value.selector),
     navigateTo: value => routes.push(value.url), switchTab: value => routes.push(value.url), stopPullDownRefresh() {},
   };
-  delete require.cache[require.resolve(apiPath)]; const real = require(apiPath); real.resetMock('empty'); real.switchMockRole('owner');
+  for (const rel of ['services/api.js', 'services/member-media.js', 'services/member-media-local.js']) delete require.cache[require.resolve(path.join(root, rel))];
+  const real = require(apiPath); real.resetMock('empty'); real.switchMockRole('owner');
   const module = require.cache[require.resolve(apiPath)], runtime = { ...real.runtime }; module.exports = { ...real, runtime,
     async currentMember() { calls.push({ action: 'identity.me' }); return identity(await real.currentMember()); },
     async call(action, payload, revision) { calls.push({ action, payload, revision }); return intercept ? intercept(action, payload, revision, real) : real.call(action, payload, revision); },
@@ -187,5 +204,33 @@ test('invalid display edits never write; switching identity discards route draft
     p.cover({ detail: { value: '999' } }); assert.equal(p.data.form.coverKey, '');
     env.api.switchMockRole('operator'); env.calls.length = 0; await p.save();
     assert(!env.calls.some(row => row.action === 'staff.activity.save')); assert.deepEqual(p.data.form.itinerary, []); assert.equal(p.data.editor, false);
+  } finally { env.restore(); }
+});
+
+test('custom activity cover can be uploaded on draft or published revision and cleared back to preset', async () => {
+  const env = environment(), p = env.p;
+  try {
+    await p.load(); await p.newActivity(); fill(p);
+    await p.uploadCover();
+    assert.match(p.data.form.coverAssetId, /^media_[a-f0-9]{64}$/);
+    assert(p.data.form.coverPreviewUrl);
+    await p.save();
+    assert.equal(p.data.error, '');
+    const id = p.data.selected.id;
+    const savedDraft = await env.api.call('activity.get', { activityId: id });
+    assert.equal(savedDraft.coverAssetId, p.data.selected.coverAssetId);
+    assert(savedDraft.coverUrl);
+
+    await p.lifecycle({ currentTarget: { dataset: { action: 'publish' } } });
+    await p.edit();
+    assert.equal(p.data.form.coverAssetId, savedDraft.coverAssetId);
+    assert.equal(p.data.form.coverPreviewUrl, savedDraft.coverUrl);
+    p.clearCustomCover();
+    assert.equal(p.data.form.coverAssetId, '');
+    p.field(event('reason', '切换回预设封面'));
+    await p.save();
+    const cleared = await env.api.call('activity.get', { activityId: id });
+    assert.equal(cleared.coverAssetId, null);
+    assert.equal(cleared.coverUrl, undefined);
   } finally { env.restore(); }
 });

@@ -3,6 +3,7 @@ import { integer, requireThat, text } from './errors';
 import { key } from './models';
 import { sha256 } from './hash';
 import { PUBLIC_CONTENT_ROLES } from './permissions';
+import { readFrom } from './store';
 import { starterClubContent } from './club-content-starters';
 import type { ClubContentDraft, ClubContentDocument, ClubContentSection, ClubContentView, ClubInquiry } from './club-content-types';
 
@@ -71,7 +72,7 @@ function view(row: ClubContentDocument | null, selected: ClubContentSection, sta
 export async function getClubContent(ctx: Context, staff = false): Promise<ClubContentView> {
   fields(ctx.request.payload, ['section']);
   const selected = section(ctx.request.payload.section);
-  return ctx.store.transaction(async tx => {
+  return readFrom(ctx.store, async tx => {
     if (staff) await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const row = await tx.get<ClubContentDocument>('club_content', key('club-content', ctx.clubId, selected));
     requireThat(!row || row.clubId === ctx.clubId, 'FORBIDDEN', '栏目不可访问');

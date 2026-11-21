@@ -1,4 +1,4 @@
-import type { QueryOptions, Store, Transaction } from '../../shared/store';
+import type { QueryOptions, ReadOnlyTransaction, Store, Transaction } from '../../shared/store';
 import { withMetadata } from '../../shared/store';
 
 type RecordData = Record<string, unknown>;
@@ -77,6 +77,26 @@ function retryableTransaction(error: unknown, documentFailure: unknown, document
 /** wx-server-sdk wrapper, configured with throwOnNotFound:false by the entry. */
 export class CloudStore implements Store {
   constructor(private readonly database: CloudDatabase) {}
+
+  async read<T>(work: (transaction: ReadOnlyTransaction) => Promise<T>): Promise<T> {
+    const cache = new Map<string, Promise<unknown | null>>();
+    const copy = <U>(value: U): U => value === undefined ? value : JSON.parse(JSON.stringify(value)) as U;
+    return work({
+      get: <U>(collection: string, id: string): Promise<U | null> => {
+        const cacheKey = JSON.stringify([collection, id]);
+        if (!cache.has(cacheKey)) {
+          cache.set(cacheKey, (async () => {
+            const reference = this.database.collection(collection).doc(id);
+            const result = await withBackendCode(reference, 'get', () => reference.get());
+            if (result.data === null) return null;
+            if (!record(result.data)) throw new Error('Invalid wx-server-sdk document result');
+            return copy(result.data);
+          })());
+        }
+        return cache.get(cacheKey)!.then(value => copy(value as U | null));
+      },
+    });
+  }
 
   async transaction<T>(work: (transaction: Transaction) => Promise<T>): Promise<T> {
     for (let attempt = 0; ; attempt++) {

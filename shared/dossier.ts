@@ -3,7 +3,7 @@ import { encodeCursor, parseCursor } from './context';
 import { integer, requireThat, text } from './errors';
 import { key } from './models';
 import type { Membership } from './models';
-import type { Transaction } from './store';
+import { readFrom, type ReadOnlyTransaction, type Transaction } from './store';
 import { bindOwnedMemberMedia, requireOwnedMemberMedia } from './member-media';
 import { canSelfReviewAsPrimaryOwner } from './members';
 import { DOSSIER_BLOOD_TYPES, DOSSIER_CONSENT_VERSION, DOSSIER_GEAR, DOSSIER_JERSEY_SIZES, emptyDossierDraft } from './dossier-types';
@@ -75,7 +75,7 @@ function empty(ctx: Context, memberId: string): MemberDossier {
   return { id: dossierId(ctx.clubId, memberId), clubId: ctx.clubId, memberId, kind: 'dossier', revision: 0,
     status: 'draft', draft: emptyDossierDraft(), submission: null, review: null, createdAt: ctx.now, updatedAt: ctx.now };
 }
-async function target(ctx: Context, tx: Transaction, id: unknown): Promise<Membership> {
+async function target(ctx: Context, tx: ReadOnlyTransaction, id: unknown): Promise<Membership> {
   const member = await tx.get<Membership>('memberships', text(id, 'memberId', 100));
   requireThat(member?.clubId === ctx.clubId, 'FORBIDDEN', '成员资料不可访问');
   return member;
@@ -83,7 +83,7 @@ async function target(ctx: Context, tx: Transaction, id: unknown): Promise<Membe
 export async function getDossier(ctx: Context, staff = false): Promise<MemberDossier> {
   object(ctx.request.payload, staff ? ['memberId', 'includeReviewed'] : [], '查询');
   const includeReviewed = staff && ctx.request.payload.includeReviewed === true;
-  return ctx.store.transaction(async tx => {
+  return readFrom(ctx.store, async tx => {
     const actor = staff ? await ctx.staff(tx, ['owner']) : await ctx.actor(tx);
     const member = staff ? await target(ctx, tx, ctx.request.payload.memberId) : actor.member;
     const row = await tx.get<MemberDossier>(COLLECTION, dossierId(ctx.clubId, member.id));

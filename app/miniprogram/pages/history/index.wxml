@@ -22,7 +22,7 @@
         <button class="link a reference-story-link" data-id="{{item.id}}" bindtap="open">查看本场记录 / 留下评价 ›</button>
       </view>
     </view>
-    <view wx:if="{{loading}}" class="loading">正在加载往期活动…</view>
+    <view wx:if="{{loading && !visibleItems.length}}" class="loading">正在加载往期活动…</view>
     <view wx:if="{{!loading && !error && !visibleItems.length}}" class="empty">{{month !== 'all' || query ? '没有找到相关活动' : '第一段同行，等你一起出发。'}}<button wx:if="{{month === 'all' && !query}}" class="btn primary mt" bindtap="explore">查看近期活动</button></view>
     <button wx:if="{{nextCursor && !loading}}" class="btn ghost mt" bindtap="more">继续查看往期活动</button>
     <view wx:if="{{!loading && items.length}}" class="hist-foot">已加载 {{items.length}} 场活动 · 滑动查看往期档案</view>

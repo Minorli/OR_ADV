@@ -75,7 +75,7 @@ export const controller = defineReferencePage({
       const [detail, member] = await Promise.all([call<PublicHistoryDetail>('history.detail', { activityId: this.data.activityId }), currentMember()]);
       if (!this.valid(version, role)) return;
       const isOwner = !!member?.roles.includes('owner');
-      this.setData({ detail, historyCover: coverForKey(detail.activity.coverKey, detail.activity.id), historyCoverFailed: false, member, isOwner, canManageContent: canManagePublicContent(member), date: dateText(detail.activity.endAt), photos: detail.story?.photos ?? [], documentaryUrl: detail.story?.documentary?.url ?? '', videoError: '',
+      this.setData({ detail, historyCover: detail.activity.coverUrl || coverForKey(detail.activity.coverKey, detail.activity.id), historyCoverFailed: false, member, isOwner, canManageContent: canManagePublicContent(member), date: dateText(detail.activity.endAt), photos: detail.story?.photos ?? [], documentaryUrl: detail.story?.documentary?.url ?? '', videoError: '',
         reviews: detail.reviews.items.map(row => ({ ...row, starText: '★'.repeat(row.stars) + '☆'.repeat(5 - row.stars) })), nextCursor: detail.reviews.nextCursor });
       if (this.data.manage && !this.data.canManageContent) throw new Error('没有本场内容管理权限');
       const snapshot = this.readSnapshot();

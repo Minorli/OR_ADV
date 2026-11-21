@@ -1,6 +1,6 @@
 import { call, currentMember, errorMessage, isMock, mockRole, toast } from '../../services/api';
 import { dateText, registrationCard } from '../../services/presentation';
-import { activityVisual } from '../../services/visual';
+import { activityVisual, seedActivityPreview } from '../../services/visual';
 import { memberKindText, tripNextAction } from '../../services/member';
 import type { Activity, MemberSummary, PageResult, Registration } from '../../../../shared/types';
 import type { ClubContentView } from '../../../../shared/club-content-types';
@@ -151,7 +151,12 @@ Page({
   sponsorTap() { if (this.data.partnersConfigured) this.partners(); else toast('合作伙伴详情整理中，欢迎通过“我的 → 商务合作”联系俱乐部'); },
   partners() { openReferencePanel(this, 'partners'); },
   learning() { openReferencePanel(this, 'learning'); },
-  open(event: WechatMiniprogram.TouchEvent) { openReferencePanel(this, 'activity', { id: event.currentTarget.dataset.id }); },
+  open(event: WechatMiniprogram.TouchEvent) {
+    const id = String(event.currentTarget?.dataset?.id || '');
+    const found = this.data.displayItems.find(item => item.id === id);
+    if (found) seedActivityPreview(found);
+    openReferencePanel(this, 'activity', { id: event.currentTarget.dataset.id });
+  },
   closeReference(event?: WechatMiniprogram.CustomEvent<{ changed?: boolean; login?: boolean }>) {
     closeReferencePanel(this);
     if (event?.detail?.login) { wx.setStorageSync('oradv-open-login', true); wx.switchTab({ url: '/pages/profile/index' }); return; }

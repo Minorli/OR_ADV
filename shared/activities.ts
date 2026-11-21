@@ -1,18 +1,55 @@
 import { Context, collect, paginated, parseCursor, publicActivity } from './context';
 import { integer, requireThat, text } from './errors';
 import { key } from './models';
-import type { Activity, Checkin, Registration } from './models';
+import type { Activity, Checkin, Registration, User } from './models';
 import { BETA_MAX_CAPACITY } from './limits';
 import { publicClub } from './club';
 import { activityWalletReward, validateActivityWalletReward } from './points-wallet';
 import { activityDisplayFields } from './activity-display';
 import { normalizeQualificationType } from './ranking-board';
+import { bindPublicActivityCover } from './member-media';
+import type { MemberMediaAsset } from './member-media-types';
+import { readFrom } from './store';
+
+export const activityCoverBindingId = (clubId: string, activityId: string) => key('activity_cover', clubId, activityId);
+
+async function resolveActivityCovers<T extends ReturnType<typeof publicActivity>>(ctx: Context, items: T[]): Promise<T[]> {
+  const provider = ctx.options.memberMediaStorage;
+  const targets = items.filter(item => typeof item.coverAssetId === 'string' && item.coverAssetId.length > 0);
+  if (!provider || !targets.length) return items;
+  const verifiedRows = await readFrom(ctx.store, async tx => {
+    const assets = await Promise.all(targets.map(item => tx.get<MemberMediaAsset>('member_media', item.coverAssetId!)));
+    const valid = targets.map((item, idx) => ({ item, asset: assets[idx] }))
+      .filter((pair): pair is { item: T; asset: MemberMediaAsset } => Boolean(pair.asset?.clubId === ctx.clubId && pair.asset.status === 'ready'
+        && pair.asset.kind === 'image' && pair.asset.purpose === 'club_public' && pair.asset.rightsAcknowledged
+        && pair.asset.bindings.includes(activityCoverBindingId(ctx.clubId, pair.item.id)) && pair.asset.fileId));
+    const users = await Promise.all(valid.map(pair => tx.get<User>('users', pair.asset.userId)));
+    const out: { activityId: string; assetId: string; fileId: string }[] = [];
+    for (let idx = 0; idx < valid.length; idx++) {
+      if (users[idx]?.status === 'active') out.push({ activityId: valid[idx].item.id, assetId: valid[idx].asset.id, fileId: valid[idx].asset.fileId! });
+    }
+    return out;
+  });
+  if (!verifiedRows.length) return items;
+  const verified = new Map(verifiedRows.map(row => [row.activityId, row]));
+  const fileUrls = new Map<string, string>();
+  await Promise.all([...new Set(verifiedRows.map(v => v.fileId))].map(async fileId => {
+    try { fileUrls.set(fileId, await provider.url(fileId)); }
+    catch { /* Keep card renderable with preset fallback if signing one cover fails transiently. */ }
+  }));
+  return items.map(item => {
+    const info = verified.get(item.id);
+    const url = info ? fileUrls.get(info.fileId) : undefined;
+    return url ? { ...item, coverUrl: url } : item;
+  });
+}
 
 const publicStates = ['published','closed','in_progress','ended','settled','cancelled'];
 export async function listActivities(ctx: Context, staff = false) {
   let allowedIds: string[] | null = null;
   if (staff) {
-    allowedIds = await ctx.store.transaction(async (tx) => {
+    allowedIds = await readFrom(ctx.store, async (tx) => {
+      await ctx.prefetchViewer(tx);
       const actor = await ctx.staff(tx, ['owner','operator','leader','checkin']);
       const roles = await ctx.roles(tx, actor);
       return roles.some((role) => role.activityIds === null) ? null : [...new Set(roles.flatMap((role) => role.activityIds ?? []))];
@@ -25,21 +62,18 @@ export async function listActivities(ctx: Context, staff = false) {
   const states = state ? [state as string] : [...publicStates, ...(staff ? ['draft'] : [])];
   const batches = allowedIds === null
     ? await Promise.all(states.map((value) => ctx.store.query<Activity>('activities', { clubId: ctx.clubId, state: value }, { orderBy: 'startAt', direction: 'asc', after: cursor, limit: 21 })))
-    : [await ctx.store.transaction(async (tx) => {
-      const rows: Activity[] = [];
-      for (const id of allowedIds!) {
-        const activity = await tx.get<Activity>('activities', id);
-        if (activity?.clubId === ctx.clubId && states.includes(activity.state) && (!cursor || activity.startAt > String(cursor.value) || (activity.startAt === cursor.value && activity.id > cursor.id))) rows.push(activity);
-      }
-      return rows;
+    : [await readFrom(ctx.store, async (tx) => {
+      const loaded = await Promise.all(allowedIds!.map(id => tx.get<Activity>('activities', id)));
+      return loaded.filter((activity): activity is Activity => Boolean(activity?.clubId === ctx.clubId && states.includes(activity.state)
+        && (!cursor || activity.startAt > String(cursor.value) || (activity.startAt === cursor.value && activity.id > cursor.id))));
     })];
   const compare = (a: string, b: string) => a === b ? 0 : a < b ? -1 : 1;
   const rows = batches.flat().sort((a,b) => compare(a.startAt,b.startAt) || compare(a.id,b.id));
   const page = paginated(rows, 'startAt');
-  return { ...page, items: page.items.map(publicActivity) };
+  return { ...page, items: await resolveActivityCovers(ctx, page.items.map(publicActivity)) };
 }
 export async function getActivity(ctx: Context) {
-  return ctx.store.transaction(async (tx) => {
+  const projected = await readFrom(ctx.store, async (tx) => {
     const activity = await ctx.activity(tx, ctx.request.payload.activityId);
     if (activity.state === 'draft') {
       try { await ctx.staff(tx, ['owner','operator','leader','checkin'], activity.id); }
@@ -47,6 +81,8 @@ export async function getActivity(ctx: Context) {
     }
     return publicActivity(activity);
   });
+  const [resolved] = await resolveActivityCovers(ctx, [projected]);
+  return resolved;
 }
 
 function timestamp(value: unknown, name: string) {
@@ -57,9 +93,9 @@ function timestamp(value: unknown, name: string) {
 export async function saveActivity(ctx: Context) {
   const p = (ctx.request.payload.activity ?? ctx.request.payload) as Record<string, unknown>;
   requireThat(p && typeof p === 'object' && !Array.isArray(p), 'INVALID_INPUT', '活动资料不正确');
-  const allowed = ['id','title','description','location','difficulty','startAt','endAt','applicationClosesAt','capacity','minGrowthPoints','requiredQualifications','requiresReview','pointsRule','safetyNotice','equipment','revision','expectedRevision','coverKey','distanceKm','itinerary'];
+  const allowed = ['id','title','description','location','difficulty','startAt','endAt','applicationClosesAt','capacity','minGrowthPoints','requiredQualifications','requiresReview','pointsRule','safetyNotice','equipment','revision','expectedRevision','coverKey','coverAssetId','distanceKm','itinerary'];
   requireThat(Object.keys(p).every((field) => allowed.includes(field)), 'INVALID_INPUT', '含不允许编辑的活动字段');
-  return ctx.store.transaction(async (tx) => {
+  const saved = await ctx.store.transaction(async (tx) => {
     const actor = await ctx.staff(tx, ['owner','operator']);
     const existing = p.id ? await ctx.activity(tx, p.id) : null;
     if (existing) {
@@ -81,6 +117,10 @@ export async function saveActivity(ctx: Context) {
     const startAt = timestamp(value.startAt, '开始时间'), endAt = timestamp(value.endAt, '结束时间'), deadline = timestamp(value.applicationClosesAt, '报名截止时间');
     requireThat(deadline <= startAt && startAt < endAt, 'INVALID_INPUT', '活动时间顺序不正确');
     const id = existing?.id ?? ctx.id();
+    const display = activityDisplayFields(value, existing ?? {});
+    if (display.coverAssetId) {
+      await bindPublicActivityCover(tx, ctx.clubId, actor.member.id, display.coverAssetId, activityCoverBindingId(ctx.clubId, id), existing?.coverAssetId);
+    }
     const activity: Activity = { id, clubId: ctx.clubId, title: text(value.title, '标题', 80), description: text(value.description, '活动介绍', 4000),
       location: text(value.location, '公开区域', 100), difficulty: text(value.difficulty ?? '入门', '难度', 30), state: 'draft',
       startAt, endAt, applicationClosesAt: deadline, capacity, reservedSeats: 0,
@@ -88,23 +128,28 @@ export async function saveActivity(ctx: Context) {
       ruleVersion: existing?.ruleVersion ?? 1, revision: (existing?.revision ?? 0) + 1,
       pointsRule: { growth, annual, ...walletRule },
       nextQueueSeq: 0, actualCompletedAt: null, safetyNotice: text(value.safetyNotice, '风险说明', 2000), equipment: text(value.equipment, '装备要求', 1000),
-      ...activityDisplayFields(value, existing ?? {}) };
+      ...display };
     await tx.set('activities', id, activity);
     await ctx.audit(tx, actor, 'activity', id, { state: activity.state, revision: activity.revision });
     return publicActivity(activity);
   });
+  const [resolved] = await resolveActivityCovers(ctx, [saved]);
+  return resolved;
 }
 
 export async function saveActivityContent(ctx: Context) {
   const p = ctx.request.payload;
-  requireThat(Object.keys(p).every(field => ['activityId', 'title', 'description', 'reason', 'coverKey', 'distanceKm', 'itinerary'].includes(field)), 'INVALID_INPUT', '只可修改活动公开介绍与路线展示');
+  requireThat(Object.keys(p).every(field => ['activityId', 'title', 'description', 'reason', 'coverKey', 'coverAssetId', 'distanceKm', 'itinerary'].includes(field)), 'INVALID_INPUT', '只可修改活动公开介绍与路线展示');
   const title = text(p.title, '标题', 80), description = text(p.description, '活动介绍', 4000), reason = text(p.reason, '修改原因', 500);
-  return ctx.store.transaction(async tx => {
+  const saved = await ctx.store.transaction(async tx => {
     const actor = await ctx.staff(tx, ['owner', 'operator'], text(p.activityId, 'activityId', 100));
     const activity = await ctx.activity(tx, p.activityId);
     ctx.revision(activity);
     requireThat(publicStates.includes(activity.state), 'STATE_CONFLICT', '草稿请使用完整活动编辑');
     const display = activityDisplayFields(p, activity);
+    if (p.coverAssetId !== undefined && display.coverAssetId) {
+      await bindPublicActivityCover(tx, ctx.clubId, actor.member.id, display.coverAssetId, activityCoverBindingId(ctx.clubId, activity.id), activity.coverAssetId);
+    }
     const patch = Object.fromEntries(Object.entries(display).filter(([name]) => p[name] !== undefined));
     const next: Activity = { ...activity, title, description, ...patch, revision: activity.revision + 1 };
     await tx.set('activities', next.id, next);
@@ -112,10 +157,12 @@ export async function saveActivityContent(ctx: Context) {
       state: next.state, ruleVersion: next.ruleVersion, revision: next.revision, contentOnly: true,
       before: { title: activity.title.slice(0, 80), description: activity.description.slice(0, 4000) },
       after: { title, description },
-      ...(Object.keys(patch).length ? { displayBefore: { coverKey: activity.coverKey ?? null, distanceKm: activity.distanceKm ?? null, itinerary: activity.itinerary ?? [] }, displayAfter: display } : {}),
+      ...(Object.keys(patch).length ? { displayBefore: { coverKey: activity.coverKey ?? null, ...(activity.coverAssetId !== undefined ? { coverAssetId: activity.coverAssetId } : {}), distanceKm: activity.distanceKm ?? null, itinerary: activity.itinerary ?? [] }, displayAfter: display } : {}),
     }, reason);
     return publicActivity(next);
   });
+  const [resolved] = await resolveActivityCovers(ctx, [saved]);
+  return resolved;
 }
 
 export async function changeActivity(ctx: Context, operation: string) {
@@ -161,5 +208,8 @@ export async function changeActivity(ctx: Context, operation: string) {
     await ctx.audit(tx, actor, 'activity', next.id, { from: activity.state, to: next.state, revision: next.revision,
       ...(operation === 'start' ? { actualStartedAt: ctx.now, earlyStart: ctx.now < activity.startAt } : {}) }, String(ctx.request.payload.reason ?? ''));
     return publicActivity(next);
+  }).then(async projected => {
+    const [resolved] = await resolveActivityCovers(ctx, [projected]);
+    return resolved;
   });
 }

@@ -15,7 +15,7 @@ function archiveCard(detail: HistoryFeedCard) {
   const dateText = Number.isFinite(start.getTime()) ? `${start.getUTCFullYear()}.${String(start.getUTCMonth() + 1).padStart(2, '0')}.${String(start.getUTCDate()).padStart(2, '0')}` : '日期待定';
   const honors = detail.story?.honors || [];
   return { ...detail, id: activity.id, title: activity.title, location: activity.location, startAt: activity.startAt, dateText, archiveMonth,
-    cover: coverForKey(activity.coverKey, activity.id), distanceText: activity.distanceKm === null || activity.distanceKm === undefined ? '里程未记录' : `${activity.distanceKm}km`,
+    cover: activity.coverUrl || coverForKey(activity.coverKey, activity.id), distanceText: activity.distanceKm === null || activity.distanceKm === undefined ? '里程未记录' : `${activity.distanceKm}km`,
     intro: shortIntro(detail.story?.intro || activity.description || ''),
     honorSlots: [0, 1].map(index => ({ label: honors[index]?.label || (index ? '最佳新人' : '优秀车手'), nickname: honors[index]?.nickname || '待公布', initial: Array.from(honors[index]?.nickname || '—')[0] })),
     photos: detail.story?.photos || [], photoPreviews: (detail.story?.photos || []).slice(0, 3).map((photo, index) => ({ ...photo, albumLabel: index === 2 && detail.story!.photos.length > 3 ? `+${detail.story!.photos.length - 3}` : '相册' })), documentary: detail.story?.documentary || null,

@@ -13,11 +13,36 @@ export interface HandlerDependencies {
   invoke: (request: RpcRequest, identity: TrustedIdentity, traceId: string) => Promise<RpcResponse>;
   now?: () => number;
   trace?: () => string;
+  memoryRateLimitForReads?: boolean;
   runtimeDiagnostics?: () => { credentials: 'present' | 'partial' | 'missing'; sessionToken: boolean };
   log?: (entry: { traceId: string; action: string; code: string; serverBuild?: string; rejectedFields?: string[]; rejectedFieldCount?: number; stage?: string; backendCode?: string; backendHints?: string[]; runtimeAuth?: { credentials: string; sessionToken: boolean } }) => void;
 }
 
-const SERVER_BUILD = 'native-envelope-20261121.1';
+const SERVER_BUILD = 'native-envelope-20261121.3';
+
+const READ_ONLY_ACTIONS = new Set([
+  'identity.me',
+  'activity.list', 'activity.get', 'activity.briefing.get',
+  'club.public', 'club.hero.get', 'club.content.get', 'club.inquiry.mine',
+  'profile.overview', 'profile.avatar.get',
+  'ranking.list', 'ranking.mine', 'recommendation.list',
+  'history.feed', 'history.detail', 'history.review.mine',
+  'learning.catalog', 'learning.mine',
+  'skills.mine', 'skills.history',
+  'dossier.mine',
+  'points.mine', 'points.wallet',
+  'redemption.catalog', 'redemption.mine',
+  'registration.mine', 'registration.timeline',
+  'media.get',
+  'staff.activity.list', 'staff.registration.list', 'staff.settlement.preview',
+  'staff.member.list', 'staff.member.roles', 'staff.qualification.list',
+  'staff.dossier.list', 'staff.dossier.get',
+  'staff.learning.catalog.get', 'staff.skills.queue',
+  'staff.club.content.get', 'staff.club.hero.get', 'staff.club.inquiry.list',
+  'staff.history.get', 'staff.history.reviews',
+  'staff.points.policy.get', 'staff.redemption.catalog.get', 'staff.redemption.list',
+  'staff.rewards.snapshot',
+]);
 class EnvelopeFieldError extends DomainError {
   readonly fields: string[];
   readonly fieldCount: number;
@@ -107,6 +132,24 @@ async function rateLimit(store: Store, identity: TrustedIdentity, now: number, s
 }
 
 export function createCloudHandler(dependencies: HandlerDependencies) {
+  const readBuckets = new Map<string, { window: number; count: number }>();
+  let readBucketWindow = -1;
+  const checkReadRateLimit = (identity: TrustedIdentity, now: number, maximum = 120): void => {
+    const window = Math.floor(now / 60_000);
+    if (window !== readBucketWindow) {
+      readBuckets.clear();
+      readBucketWindow = window;
+    } else if (readBuckets.size > 2048) {
+      const firstKey = readBuckets.keys().next().value;
+      if (firstKey !== undefined) readBuckets.delete(firstKey);
+    }
+    const key = `${identity.appId}:${identity.openId}`;
+    const entry = readBuckets.get(key);
+    const count = entry && entry.window === window ? entry.count : 0;
+    if (count >= maximum) reject('RATE_LIMITED', '操作过于频繁，请稍后重试');
+    readBuckets.set(key, { window, count: count + 1 });
+  };
+
   return async (event: unknown): Promise<RpcResponse> => {
     const traceId = (dependencies.trace ?? randomUUID)();
     let action = 'invalid';
@@ -123,6 +166,8 @@ export function createCloudHandler(dependencies: HandlerDependencies) {
       const nowMs = (dependencies.now ?? Date.now)();
       if (request.action === 'media.video.chunk') {
         await rateLimit(store, identity, nowMs, ':member-media-video-chunk', 240);
+      } else if (dependencies.memoryRateLimitForReads && READ_ONLY_ACTIONS.has(request.action)) {
+        checkReadRateLimit(identity, nowMs, 120);
       } else {
         await rateLimit(store, identity, nowMs);
       }

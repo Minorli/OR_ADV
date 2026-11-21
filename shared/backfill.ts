@@ -7,6 +7,8 @@ import { applyStats } from './points';
 import { awardActivityWallet } from './points-wallet';
 import { BETA_MAX_CAPACITY } from './limits';
 import { activityDisplayFields } from './activity-display';
+import { activityCoverBindingId } from './activities';
+import { bindPublicActivityCover } from './member-media';
 import { readMemberNumber } from './member-number';
 
 const BACKFILL_ATTEMPTS = 10;
@@ -25,7 +27,7 @@ function boundedPoints(value: unknown, name: string) {
 /** Owner records an activity that already happened. It is archived immediately and does not open registration. */
 export async function recordPastActivity(ctx: Context) {
   const p = ctx.request.payload;
-  requireThat(Object.keys(p).every((field) => ['title', 'description', 'location', 'startAt', 'endAt', 'actualCompletedAt', 'growth', 'annual', 'coverKey', 'distanceKm'].includes(field)), 'INVALID_INPUT', '补录活动包含不支持的字段');
+  requireThat(Object.keys(p).every((field) => ['title', 'description', 'location', 'startAt', 'endAt', 'actualCompletedAt', 'growth', 'annual', 'coverKey', 'coverAssetId', 'distanceKm'].includes(field)), 'INVALID_INPUT', '补录活动包含不支持的字段');
   const growth = boundedPoints(p.growth ?? 0, '成长积分');
   const annual = boundedPoints(p.annual ?? 0, '年度积分');
   const startAt = timestamp(p.startAt, '开始时间');
@@ -35,6 +37,10 @@ export async function recordPastActivity(ctx: Context) {
   return ctx.store.transaction(async (tx) => {
     const actor = await ctx.staff(tx, ['owner']);
     const id = ctx.id();
+    const display = activityDisplayFields({ coverKey: p.coverKey, ...(p.coverAssetId !== undefined ? { coverAssetId: p.coverAssetId } : {}), distanceKm: p.distanceKm ?? null, itinerary: [] });
+    if (display.coverAssetId) {
+      await bindPublicActivityCover(tx, ctx.clubId, actor.member.id, display.coverAssetId, activityCoverBindingId(ctx.clubId, id));
+    }
     const activity: Activity = {
       id, clubId: ctx.clubId, title: text(p.title, '标题', 80), description: text(p.description, '回顾简介', 4000),
       location: text(p.location, '公开区域', 100), difficulty: '已完成', state: 'settled',
@@ -43,11 +49,11 @@ export async function recordPastActivity(ctx: Context) {
       ruleVersion: 1, revision: 1, pointsRule: { growth, annual, redeemable: 0 },
       nextQueueSeq: 0, actualCompletedAt: completed, actualStartedAt: startAt,
       safetyNotice: '本场为已完成活动补录，不开放报名。', equipment: '以当时活动要求为准。', backfill: true,
-      ...activityDisplayFields({ coverKey: p.coverKey, distanceKm: p.distanceKm ?? null, itinerary: [] }),
+      ...display,
     };
     await tx.set('activities', id, activity);
     await ctx.audit(tx, actor, 'activity', id, { state: 'settled', backfill: true, growth, annual, revision: 1 }, '补录已完成活动');
-    return { id, title: activity.title, revision: activity.revision, growth, annual, actualCompletedAt: completed };
+    return { id, title: activity.title, revision: activity.revision, growth, annual, actualCompletedAt: completed, ...(activity.coverAssetId !== undefined ? { coverAssetId: activity.coverAssetId } : {}) };
   });
 }
 

@@ -3,7 +3,7 @@ import { paginated, parseCursor } from './context';
 import { integer, requireThat, text } from './errors';
 import { key, memberIdFor, shanghaiYear } from './models';
 import type { Membership } from './models';
-import type { Transaction } from './store';
+import { readFrom, type ReadOnlyTransaction, type Transaction } from './store';
 import type { Activity, LedgerEntry } from './types';
 import type { PublicWalletPolicy, WalletAccount, WalletBalance, WalletLedgerEntry, WalletLedgerView, WalletOverview, WalletPolicy } from './points-wallet-types';
 
@@ -21,7 +21,7 @@ function policyValid(ctx: Context, row: WalletPolicy, kind: 'head' | 'version', 
     && ['growth', 'zero'].includes(row.defaultRewardMode) && typeof row.ruleText === 'string' && row.ruleText.length <= 1000,
   'STATE_CONFLICT', '积分政策记录异常，请联系管理人员核对');
 }
-export async function getWalletPolicy(ctx: Context, tx: Transaction): Promise<WalletPolicy> {
+export async function getWalletPolicy(ctx: Context, tx: ReadOnlyTransaction): Promise<WalletPolicy> {
   const row = await tx.get<WalletPolicy>('points_policy_versions', policyId(ctx.clubId));
   if (row) { policyValid(ctx, row, 'head'); return row; }
   return { id: policyId(ctx.clubId), clubId: ctx.clubId, kind: 'head', version: 0, revision: 0, enabled: false,
@@ -52,7 +52,7 @@ export async function validateActivityWalletReward(ctx: Context, tx: Transaction
   requireThat(amount === 0 || version > 0, 'POLICY_NOT_CONFIGURED', '请先核定兑换积分规则后再发布奖励');
   if (version) await frozenPolicy(ctx, tx, version);
 }
-export async function readWalletAccount(ctx: Context, tx: Transaction, memberId: string): Promise<WalletAccount> {
+export async function readWalletAccount(ctx: Context, tx: ReadOnlyTransaction, memberId: string): Promise<WalletAccount> {
   const id = walletAccountId(ctx.clubId, memberId), account = await tx.get<WalletAccount>('points_accounts', id);
   if (account) requireThat(account.id === id && account.clubId === ctx.clubId && account.memberId === memberId
     && Number.isSafeInteger(account.balance) && Number.isSafeInteger(account.held) && account.held >= 0
@@ -133,25 +133,29 @@ export async function reverseActivityWallet(ctx: Context, tx: Transaction, origi
 }
 async function wallet(ctx: Context): Promise<WalletOverview> {
   fields(ctx, ['cursor']);
-  const memberId = await ctx.store.transaction(async tx => (await ctx.actor(tx)).member.id), cursor = parseCursor(ctx.request.payload.cursor);
+  const memberId = await readFrom(ctx.store, async tx => (await ctx.actor(tx)).member.id), cursor = parseCursor(ctx.request.payload.cursor);
   requireThat(!cursor || typeof cursor.value === 'string' && Number.isFinite(Date.parse(cursor.value)), 'INVALID_INPUT', '积分分页位置不正确');
   const rows = await ctx.store.query<WalletLedgerEntry>('points_wallet_ledger', { clubId: ctx.clubId, memberId }, { orderBy: 'recordedAt', direction: 'desc', limit: 21, after: cursor });
   const page = paginated(rows, 'recordedAt');
-  return ctx.store.transaction(async tx => {
+  return readFrom(ctx.store, async tx => {
+    await ctx.prefetchViewer(tx);
     const actor = await ctx.actor(tx); requireThat(actor.member.id === memberId, 'FORBIDDEN', '成员身份已变化');
-    const member = await ctx.summary(tx, actor), policy = await getWalletPolicy(ctx, tx), account = await readWalletAccount(ctx, tx, memberId);
-    const items: WalletLedgerView[] = [];
-    for (const candidate of page.items) {
-      const row = await tx.get<WalletLedgerEntry>('points_wallet_ledger', candidate.id);
-      if (row?.clubId === ctx.clubId && row.memberId === memberId) items.push({ id: row.id, kind: row.kind, balanceDelta: row.balanceDelta, heldDelta: row.heldDelta,
-        label: row.label, reason: row.reason, activityId: row.activityId, redemptionId: row.redemptionId, occurredAt: row.occurredAt, recordedAt: row.recordedAt });
-    }
+    const [member, policy, account, rawRows] = await Promise.all([
+      ctx.summary(tx, actor),
+      getWalletPolicy(ctx, tx),
+      readWalletAccount(ctx, tx, memberId),
+      Promise.all(page.items.map(candidate => tx.get<WalletLedgerEntry>('points_wallet_ledger', candidate.id))),
+    ]);
+    const items: WalletLedgerView[] = rawRows
+      .filter((row): row is WalletLedgerEntry => Boolean(row?.clubId === ctx.clubId && row.memberId === memberId))
+      .map(row => ({ id: row.id, kind: row.kind, balanceDelta: row.balanceDelta, heldDelta: row.heldDelta,
+        label: row.label, reason: row.reason, activityId: row.activityId, redemptionId: row.redemptionId, occurredAt: row.occurredAt, recordedAt: row.recordedAt }));
     return { member, policy: publicWalletPolicy(policy), ...walletBalance(account), items, nextCursor: page.nextCursor };
   });
 }
 async function policyRead(ctx: Context, staff: boolean) {
   fields(ctx, []);
-  return ctx.store.transaction(async tx => { if (staff) await ctx.staff(tx, ['owner']); const row = await getWalletPolicy(ctx, tx); return staff ? row : publicWalletPolicy(row); });
+  return readFrom(ctx.store, async tx => { if (staff) await ctx.staff(tx, ['owner']); const row = await getWalletPolicy(ctx, tx); return staff ? row : publicWalletPolicy(row); });
 }
 async function policySave(ctx: Context): Promise<WalletPolicy> {
   fields(ctx, ['enabled', 'defaultRewardMode', 'ruleText', 'reason']);

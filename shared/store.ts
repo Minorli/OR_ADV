@@ -11,9 +11,17 @@ export interface QueryOptions {
   after?: unknown;
 }
 
+export type ReadOnlyTransaction = Pick<Transaction, 'get'>;
+
 export interface Store {
   transaction<T>(work: (transaction: Transaction) => Promise<T>): Promise<T>;
+  read?<T>(work: (transaction: ReadOnlyTransaction) => Promise<T>): Promise<T>;
   query<T>(collection: string, filters: Record<string, unknown>, options?: QueryOptions): Promise<T[]>;
+}
+
+/** Parallel point reads without transaction begin/commit overhead when supported by the backing store. */
+export function readFrom<T>(store: Store, work: (transaction: ReadOnlyTransaction) => Promise<T>): Promise<T> {
+  return store.read ? store.read(work) : store.transaction(work);
 }
 
 export type StoreSnapshot = Record<string, Record<string, unknown>>;

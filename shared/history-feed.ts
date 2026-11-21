@@ -41,22 +41,19 @@ export async function historyFeed(ctx: Context): Promise<HistoryFeed> {
     }
     if (!batch.length || !more) break;
   }
-  const cards: (HistoryFeedCard | null)[] = new Array(candidates.length).fill(null); let next = 0;
-  const worker = async () => {
-    while (next < candidates.length) {
-      const index = next++, activity = candidates[index];
-      const child = new Context(ctx.store, { ...ctx.options, now: () => ctx.now }, { ...ctx.request, action: 'history.detail', payload: { activityId: activity.id } }, ctx.identity, ctx.traceId);
-      try {
-        const detail = await historyDetail(child, 2);
-        // The final live activity snapshot must still match the selected filter.
-        if (!matches({ ...detail.activity, actualCompletedAt: detail.activity.actualCompletedAt ?? null }, month, query)) continue;
-        cards[index] = { ...detail, reviews: { ...detail.reviews, total: detail.reviews.nextCursor ? null : detail.reviews.items.length } };
-      } catch (error) {
-        if (!(error instanceof DomainError && error.code === 'ACTIVITY_NOT_FOUND')) throw error;
-      }
+  const settled = await Promise.allSettled(candidates.map(async (activity): Promise<HistoryFeedCard | null> => {
+    const child = new Context(ctx.store, { ...ctx.options, now: () => ctx.now }, { ...ctx.request, action: 'history.detail', payload: { activityId: activity.id } }, ctx.identity, ctx.traceId);
+    try {
+      const detail = await historyDetail(child, 2);
+      // The final live activity snapshot must still match the selected filter.
+      if (!matches({ ...detail.activity, actualCompletedAt: detail.activity.actualCompletedAt ?? null }, month, query)) return null;
+      return { ...detail, reviews: { ...detail.reviews, total: detail.reviews.nextCursor ? null : detail.reviews.items.length } };
+    } catch (error) {
+      if (!(error instanceof DomainError && error.code === 'ACTIVITY_NOT_FOUND')) throw error;
+      return null;
     }
-  };
-  const workers = await Promise.allSettled([worker(), worker()]);
-  for (const result of workers) if (result.status === 'rejected') throw result.reason;
+  }));
+  for (const result of settled) if (result.status === 'rejected') throw result.reason;
+  const cards = settled.map(result => result.status === 'fulfilled' ? result.value : null);
   return { items: cards.filter((value): value is HistoryFeedCard => value !== null), nextCursor: more && after ? encodeCursor(after) : null, months: [...months].sort().reverse() };
 }

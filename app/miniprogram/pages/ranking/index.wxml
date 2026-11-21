@@ -21,7 +21,7 @@
       <view class="reference-ranking-note">按累计积分从高到低排列；积分相同时，依次按参与次数、姓名首字母排序。</view>
     </block>
     <view wx:elif="{{!loading && !error}}" class="empty">登录并完成注册后才能查看积分榜。<button class="btn primary mt" bindtap="profile">去登录</button></view>
-    <view wx:if="{{loading}}" class="loading">正在加载成员记录…</view>
+    <view wx:if="{{loading && !items.length}}" class="loading">正在加载成员记录…</view>
   </view>
   <reference-overlay kind="{{refPanel}}" params="{{refParams}}" bindclose="closeReference"/>
 </view>

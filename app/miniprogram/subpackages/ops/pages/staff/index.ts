@@ -1,4 +1,5 @@
 import { call, currentMember, errorMessage, isMock, mockRole, runtime, confirm, toast } from '../../../../services/api';
+import { chooseAndUploadMemberImage, MemberMediaError } from '../../../../services/member-media';
 import { activityCard, registrationCard } from '../../../../services/presentation';
 import { coverForKey } from '../../../../services/visual';
 import { DomainError } from '../../../../../../shared/errors';
@@ -12,7 +13,7 @@ interface ActivityForm {
   startDate: string; startTime: string; endDate: string; endTime: string;
   deadlineDate: string; deadlineTime: string; capacity: string; minGrowthPoints: string;
   growth: string; annual: string; redeemable: string; requiredQualifications: string; requiresReview: boolean;
-  safetyNotice: string; equipment: string; coverKey: string; distanceKm: string; itinerary: ActivityItineraryStage[];
+  safetyNotice: string; equipment: string; coverKey: string; coverAssetId: string; coverPreviewUrl: string; distanceKm: string; itinerary: ActivityItineraryStage[];
 }
 interface SettlementPreview { activityId: string; ruleVersion: number; eligibleCount: number; unresolvedCount: number; items: Registration[] }
 interface SettlementResult { activityId: string; status: string; successCount: number; failureCount: number; failures: { registrationId?: string; code?: string; message?: string }[] }
@@ -31,7 +32,7 @@ function structuredStages(stages: ActivityItineraryStage[] = []) { return stages
 function emptyForm(): ActivityForm {
   const start = new Date(Date.now() + 7 * 86400000).toISOString();
   const deadline = new Date(Date.now() + 6 * 86400000).toISOString();
-  return { id: '', revision: 0, reason: '', title: '', description: '', location: '', difficulty: '入门', startDate: chinaDate(start), startTime: '09:00', endDate: chinaDate(start), endTime: '16:00', deadlineDate: chinaDate(deadline), deadlineTime: '18:00', capacity: '12', minGrowthPoints: '0', growth: '100', annual: '100', redeemable: '', requiredQualifications: '', requiresReview: false, safetyNotice: '', equipment: '', coverKey: '', distanceKm: '', itinerary: [] };
+  return { id: '', revision: 0, reason: '', title: '', description: '', location: '', difficulty: '入门', startDate: chinaDate(start), startTime: '09:00', endDate: chinaDate(start), endTime: '16:00', deadlineDate: chinaDate(deadline), deadlineTime: '18:00', capacity: '12', minGrowthPoints: '0', growth: '100', annual: '100', redeemable: '', requiredQualifications: '', requiresReview: false, safetyNotice: '', equipment: '', coverKey: '', coverAssetId: '', coverPreviewUrl: '', distanceKm: '', itinerary: [] };
 }
 Page({
   data: {
@@ -40,7 +41,7 @@ Page({
     registrations: [] as ReturnType<typeof registrationCard>[], preview: null as SettlementPreview | null, previewRows: [] as ReturnType<typeof registrationCard>[],
     settlement: null as SettlementResult | null, form: emptyForm(), editor: false, editorKind: 'draft', formDirty: false, formMemberId: '', formEnvironment: '',
     operationReason: '', ledgerId: '', reversalReason: '', reversalTarget: '', pane: 'overview',
-    pastTitle: '', pastLocation: '', pastDate: '', pastEndDate: '', pastDescription: '', pastGrowth: '100', pastAnnual: '100', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '', settledChoices: [] as PastChoice[],
+    pastTitle: '', pastLocation: '', pastDate: '', pastEndDate: '', pastDescription: '', pastCoverAssetId: '', pastCoverPreviewUrl: '', pastGrowth: '100', pastAnnual: '100', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '', settledChoices: [] as PastChoice[],
     today: chinaDate(new Date().toISOString()), rosterQuery: '', rosterFilter: 'all',
     displayedRegistrations: [] as ReturnType<typeof rosterPresentation>['visible'],
     rosterFilters: [{ value: 'all', label: '全部' }, { value: 'unreturned', label: '待回场' }, { value: 'pending', label: '待确认' }, { value: 'confirmed', label: '已确认' }, { value: 'today', label: '今日核验' }, { value: 'waitlisted', label: '候补' }],
@@ -60,7 +61,7 @@ Page({
   resetPrivate() {
     this.setData({ member: null, authorized: false, canManage: false, isOwner: false, adminTitle: '', items: [], selected: null, registrations: [], displayedRegistrations: [], preview: null, previewRows: [], settlement: null,
       form: emptyForm(), editor: false, editorKind: 'draft', formDirty: false, formMemberId: '', formEnvironment: '', operationReason: '', ledgerId: '', reversalReason: '', reversalTarget: '', pane: 'overview', rosterQuery: '', rosterFilter: 'all',
-      pastTitle: '', pastLocation: '', pastDate: '', pastEndDate: '', pastDescription: '', pastGrowth: '100', pastAnnual: '100', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '', settledChoices: [],
+      pastTitle: '', pastLocation: '', pastDate: '', pastEndDate: '', pastDescription: '', pastCoverAssetId: '', pastCoverPreviewUrl: '', pastGrowth: '100', pastAnnual: '100', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '', settledChoices: [],
       briefing: emptyBriefing(), briefingChecklist: '', briefingDate: '', briefingTime: '', briefingContactIndex: 0, briefingLoading: false, briefingDirty: false, rosterLoading: false, busy: '', notice: '',
       pendingCount: 0, confirmedCount: 0, departedCount: 0, returnedCount: 0, unreturnedCount: 0, todayDepartureCount: 0, todayReturnCount: 0 });
   },
@@ -74,7 +75,7 @@ Page({
         if (fence.version === this.data.requestVersion) { this.clearPrivate(); await this.load(); this.setData({ error: '当前身份或权限已变化，请重新核对活动后操作' }); }
         return false;
       }
-      this.setData({ member, canManage: canManageActivity(member), isOwner: member.roles.includes('owner'), adminTitle: businessAdminTitle(member), ...(!member.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '', pastTitle: '', pastLocation: '', pastDescription: '', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '' } : {}) });
+      this.setData({ member, canManage: canManageActivity(member), isOwner: member.roles.includes('owner'), adminTitle: businessAdminTitle(member), ...(!member.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '', pastTitle: '', pastLocation: '', pastDescription: '', pastCoverAssetId: '', pastCoverPreviewUrl: '', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '' } : {}) });
       return true;
     } catch (error) { if (fence.version === this.data.requestVersion) { this.clearPrivate(); this.setData({ error: errorMessage(error) }); } return false; }
   },
@@ -90,7 +91,7 @@ Page({
       const authorized = canOperateActivities(member);
       const canManage = canManageActivity(member);
       if (this.data.member?.id !== member?.id || !canManage && this.data.editor) this.resetPrivate();
-      this.setData({ member, authorized, canManage, isOwner: !!member?.roles?.includes('owner'), adminTitle: businessAdminTitle(member), ...(!member?.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '', pastTitle: '', pastLocation: '', pastDescription: '', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '' } : {}) });
+      this.setData({ member, authorized, canManage, isOwner: !!member?.roles?.includes('owner'), adminTitle: businessAdminTitle(member), ...(!member?.roles.includes('owner') ? { ledgerId: '', reversalReason: '', reversalTarget: '', pastTitle: '', pastLocation: '', pastDescription: '', pastCoverAssetId: '', pastCoverPreviewUrl: '', pastMemberNumber: '', pastReason: '', pastActivityId: '', pastActivityIndex: -1, grantGrowth: '', grantAnnual: '' } : {}) });
       if (!authorized) { this.resetPrivate(); this.setData({ member }); return; }
       const fence = this.fence(), activities: Activity[] = [];
       let cursor: string | null = null;
@@ -171,14 +172,14 @@ Page({
   },
   openEditor(activity: ReturnType<typeof activityCard>) {
     this.setData({ coverIndex: Math.max(0, coverChoices.findIndex(item => item.key === activity.coverKey)), editor: true, editorKind: activity.state === 'draft' ? 'draft' : 'content', formDirty: false, formMemberId: this.data.member!.id, formEnvironment: environmentScope(), pane: 'activities', error: '',
-      form: { id: activity.id, revision: activity.revision, reason: '', title: activity.title, description: activity.description, location: activity.location, difficulty: activity.difficulty, startDate: chinaDate(activity.startAt), startTime: chinaTime(activity.startAt), endDate: chinaDate(activity.endAt), endTime: chinaTime(activity.endAt), deadlineDate: chinaDate(activity.applicationClosesAt), deadlineTime: chinaTime(activity.applicationClosesAt), capacity: String(activity.capacity), minGrowthPoints: String(activity.minGrowthPoints), growth: String(activity.pointsRule.growth), annual: String(activity.pointsRule.annual), redeemable: String(activity.pointsRule.redeemable ?? 0), requiredQualifications: activity.requiredQualifications.join('，'), requiresReview: activity.requiresReview, safetyNotice: activity.safetyNotice, equipment: activity.equipment, coverKey: activity.coverKey || '', distanceKm: activity.distanceKm == null ? '' : String(activity.distanceKm), itinerary: structuredStages(activity.itinerary) },
+      form: { id: activity.id, revision: activity.revision, reason: '', title: activity.title, description: activity.description, location: activity.location, difficulty: activity.difficulty, startDate: chinaDate(activity.startAt), startTime: chinaTime(activity.startAt), endDate: chinaDate(activity.endAt), endTime: chinaTime(activity.endAt), deadlineDate: chinaDate(activity.applicationClosesAt), deadlineTime: chinaTime(activity.applicationClosesAt), capacity: String(activity.capacity), minGrowthPoints: String(activity.minGrowthPoints), growth: String(activity.pointsRule.growth), annual: String(activity.pointsRule.annual), redeemable: String(activity.pointsRule.redeemable ?? 0), requiredQualifications: activity.requiredQualifications.join('，'), requiresReview: activity.requiresReview, safetyNotice: activity.safetyNotice, equipment: activity.equipment, coverKey: activity.coverKey || '', coverAssetId: activity.coverAssetId || '', coverPreviewUrl: activity.coverUrl || '', distanceKm: activity.distanceKm == null ? '' : String(activity.distanceKm), itinerary: structuredStages(activity.itinerary) },
     }, () => wx.pageScrollTo({ selector: '#activity-editor', duration: 180 }));
   },
   async closeEditor() { const fence = this.fence(); if (this.data.formDirty && !await confirm('收起编辑', '本页修改尚未保存，是否放弃？') || !this.matches(fence)) return; this.setData({ editor: false, formDirty: false }); },
   formMatches() { return this.data.editor && this.data.canManage && this.matches(this.fence()) && this.data.formMemberId === this.data.member?.id && this.data.formEnvironment === environmentScope() && (!this.data.form.id || this.data.form.id === this.data.selected?.id); },
   field(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const field = String(event.currentTarget.dataset.field);
-    const editable = this.data.editorKind === 'content' ? ['title', 'description', 'reason', 'distanceKm'] : Object.keys(emptyForm()).filter(key => !['id', 'revision', 'itinerary', 'coverKey', 'requiresReview'].includes(key));
+    const editable = this.data.editorKind === 'content' ? ['title', 'description', 'reason', 'distanceKm'] : Object.keys(emptyForm()).filter(key => !['id', 'revision', 'itinerary', 'coverKey', 'coverAssetId', 'coverPreviewUrl', 'requiresReview'].includes(key));
     if (this.formMatches() && !this.data.busy && editable.includes(field)) {
       const updates: Record<string, unknown> = { [`form.${field}`]: event.detail.value, formDirty: true };
       if (field === 'growth') updates['form.annual'] = event.detail.value;
@@ -188,6 +189,26 @@ Page({
   cover(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const index = Number(event.detail.value);
     if (this.formMatches() && !this.data.busy && Number.isSafeInteger(index) && coverChoices[index]) this.setData({ coverIndex: index, 'form.coverKey': coverChoices[index].key, formDirty: true });
+  },
+  async uploadCover() {
+    if (this.data.busy || !await this.verifyIdentity(true) || !this.formMatches()) return;
+    const fence = this.fence();
+    this.setData({ busy: 'cover-upload', error: '' });
+    try {
+      const uploaded = await chooseAndUploadMemberImage('club_public', '活动封面', true, ['album', 'camera']);
+      if (!this.matches(fence) || !this.formMatches()) return;
+      this.setData({ 'form.coverAssetId': uploaded.assetId, 'form.coverPreviewUrl': uploaded.previewUrl, formDirty: true });
+      toast('活动封面已上传，保存后生效');
+    } catch (error) {
+      if (this.matches(fence) && (error as { code?: string })?.code !== 'CANCELLED' && !/cancel/i.test(String((error as { errMsg?: string })?.errMsg || (error as Error)?.message || ''))) {
+        const msg = error instanceof MemberMediaError ? error.message : errorMessage(error);
+        this.setData({ error: msg });
+        toast(msg);
+      }
+    } finally { if (this.matches(fence)) this.setData({ busy: '' }); }
+  },
+  clearCustomCover() {
+    if (this.formMatches() && !this.data.busy) this.setData({ 'form.coverAssetId': '', 'form.coverPreviewUrl': '', formDirty: true });
   },
   itineraryField(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
     const { index, field } = event.currentTarget.dataset;
@@ -247,8 +268,16 @@ Page({
     if (!contentOnly && (![start, end, deadline].every(value => Number.isFinite(value.getTime())) || end <= start || deadline > start)) { toast('请检查开始、结束与报名截止时间'); return; }
     const distanceKm = form.distanceKm.trim() ? Number(form.distanceKm) : null;
     if (distanceKm !== null && (!Number.isSafeInteger(distanceKm) || distanceKm < 1 || distanceKm > 100000)) { toast('路线里程请填写1–100000的整数，或留空'); return; }
+    const includeCoverAsset = Boolean(form.coverAssetId || (form.id && this.data.selected?.coverAssetId));
     let display;
-    try { display = activityDisplayFields({ coverKey: form.coverKey || null, distanceKm, itinerary: form.itinerary }); } catch (error) { toast(error instanceof DomainError ? error.message : errorMessage(error)); return; }
+    try {
+      display = activityDisplayFields({
+        coverKey: form.coverKey || null,
+        ...(includeCoverAsset ? { coverAssetId: form.coverAssetId || null } : {}),
+        distanceKm,
+        itinerary: form.itinerary,
+      });
+    } catch (error) { toast(error instanceof DomainError ? error.message : errorMessage(error)); return; }
     this.setData({ busy: 'save', error: '' });
     try {
       const activity = contentOnly
@@ -355,10 +384,30 @@ Page({
     const index = Number(event.detail.value), choice = this.data.settledChoices[index];
     if (choice) this.setData({ pastActivityId: choice.id, pastActivityIndex: index, grantGrowth: '', grantAnnual: '' });
   },
+  async uploadPastCover() {
+    if (this.data.busy || !await this.verifyIdentity() || !this.data.isOwner) return;
+    const fence = this.fence();
+    this.setData({ busy: 'past-cover', error: '' });
+    try {
+      const uploaded = await chooseAndUploadMemberImage('club_public', '往期活动封面', true, ['album', 'camera']);
+      if (!this.matches(fence) || !this.data.isOwner) return;
+      this.setData({ pastCoverAssetId: uploaded.assetId, pastCoverPreviewUrl: uploaded.previewUrl });
+      toast('活动封面已上传');
+    } catch (error) {
+      if (this.matches(fence) && (error as { code?: string })?.code !== 'CANCELLED' && !/cancel/i.test(String((error as { errMsg?: string })?.errMsg || (error as Error)?.message || ''))) {
+        const msg = error instanceof MemberMediaError ? error.message : errorMessage(error);
+        this.setData({ error: msg });
+        toast(msg);
+      }
+    } finally { if (this.matches(fence)) this.setData({ busy: '' }); }
+  },
+  clearPastCover() {
+    if (this.data.isOwner && !this.data.busy) this.setData({ pastCoverAssetId: '', pastCoverPreviewUrl: '' });
+  },
   async savePastActivity() {
     if (this.data.busy || !await this.verifyIdentity() || !this.data.isOwner) return;
     const fence = this.fence();
-    const { pastTitle, pastLocation, pastDate, pastEndDate, pastDescription, pastGrowth, pastAnnual } = this.data;
+    const { pastTitle, pastLocation, pastDate, pastEndDate, pastDescription, pastCoverAssetId, pastGrowth, pastAnnual } = this.data;
     if (!pastTitle.trim() || !pastLocation.trim() || !pastDate || !pastEndDate || !pastDescription.trim()) { toast('请填写活动名称、地点、日期和回顾简介'); return; }
     const today = chinaDate(new Date().toISOString());
     if (pastEndDate < pastDate) { toast('结束日期不能早于开始日期'); return; }
@@ -375,9 +424,10 @@ Page({
       const saved = await call<{ id: string }>('staff.activity.backfill', {
         title: pastTitle.trim(), location: pastLocation.trim(), description: pastDescription.trim(),
         startAt: startAt < endAt ? startAt : new Date(Date.parse(endAt) - 3600000).toISOString(), endAt, actualCompletedAt: endAt, growth, annual,
+        ...(pastCoverAssetId ? { coverAssetId: pastCoverAssetId } : {}),
       });
       if (!this.matches(fence)) return;
-      this.setData({ notice: `已补录「${pastTitle.trim()}」，可以在下方按成员编号补记积分。`, pastActivityId: saved.id, pastTitle: '', pastLocation: '', pastDescription: '', pastDate: '', pastEndDate: '' });
+      this.setData({ notice: `已补录「${pastTitle.trim()}」，可以在下方按成员编号补记积分。`, pastActivityId: saved.id, pastTitle: '', pastLocation: '', pastDescription: '', pastCoverAssetId: '', pastCoverPreviewUrl: '', pastDate: '', pastEndDate: '' });
       toast('已完成活动已补录');
       await this.load();
     } catch (error) { if (this.matches(fence)) { const msg = errorMessage(error); this.setData({ error: msg }); toast(msg); } }

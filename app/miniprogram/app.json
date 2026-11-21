@@ -58,6 +58,13 @@
         "pkg-rider"
       ]
     },
+    "pages/ranking/index": {
+      "network": "all",
+      "packages": [
+        "pkg-rider",
+        "pkg-trip"
+      ]
+    },
     "pages/history/index": {
       "network": "all",
       "packages": [

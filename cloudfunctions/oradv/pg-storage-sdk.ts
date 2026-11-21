@@ -77,6 +77,7 @@ export function createPgCompatibleStorageSdk(options: PgCompatibleStorageOptions
   let cachedToken = '';
   let cachedTokenKey = '';
   let cachedUntil = 0;
+  const signedUrlCache = new Map<string, { url: string; validUntil: number }>();
 
   const readEnvId = (): string => {
     const envId = options.envId();
@@ -181,7 +182,9 @@ export function createPgCompatibleStorageSdk(options: PgCompatibleStorageOptions
           if (typeof data?.Key === 'string' && data.Key !== expectedKey && data.Key !== objectKey) {
             throw new Error('Unexpected PG storage object key');
           }
-          return { fileID: `cloud://${envId}/${bucketId}/${objectKey}`, statusCode: response.status };
+          const uploadedId = `cloud://${envId}/${bucketId}/${objectKey}`;
+          signedUrlCache.delete(uploadedId);
+          return { fileID: uploadedId, statusCode: response.status };
         },
       );
     },
@@ -217,9 +220,14 @@ export function createPgCompatibleStorageSdk(options: PgCompatibleStorageOptions
           return out;
         } : undefined,
         async () => {
+          const now = Date.now();
           const fileList = await Promise.all(input.fileList.map(async entry => {
+            const cached = signedUrlCache.get(entry.fileID);
+            if (cached && now < cached.validUntil) {
+              return { fileID: entry.fileID, status: 0, tempFileURL: cached.url };
+            }
             const { bucketId, objectKey } = parseCloudFileId(entry.fileID);
-            const expiresIn = Math.max(60, Math.floor(entry.maxAge || 300));
+            const expiresIn = Math.max(600, Math.floor(entry.maxAge || 300));
             const { baseUrl, response } = await authedFetch(`/object/sign/${encodeURIComponent(bucketId)}/${encodeObjectKey(objectKey)}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -232,6 +240,13 @@ export function createPgCompatibleStorageSdk(options: PgCompatibleStorageOptions
               : typeof data?.signedURL === 'string' && data.signedURL
                 ? `${baseUrl}${data.signedURL.startsWith('/') ? '' : '/'}${data.signedURL}`
                 : '';
+            if (rawSigned) {
+              if (signedUrlCache.size > 512) {
+                const oldest = signedUrlCache.keys().next().value;
+                if (oldest !== undefined) signedUrlCache.delete(oldest);
+              }
+              signedUrlCache.set(entry.fileID, { url: rawSigned, validUntil: now + Math.min((expiresIn - 120) * 1000, 8 * 60_000) });
+            }
             return { fileID: entry.fileID, status: rawSigned ? 0 : -1, tempFileURL: rawSigned };
           }));
           return { fileList };
@@ -266,7 +281,10 @@ export function createPgCompatibleStorageSdk(options: PgCompatibleStorageOptions
               body: JSON.stringify({ prefixes: entries.map(item => item.objectKey) }),
             });
             const status = response.ok ? 0 : response.status;
-            for (const item of entries) statuses.set(item.fileID, status);
+            for (const item of entries) {
+              signedUrlCache.delete(item.fileID);
+              statuses.set(item.fileID, status);
+            }
           }
           return { fileList: input.fileList.map(fileID => ({ fileID, status: statuses.get(fileID) ?? -1 })) };
         },

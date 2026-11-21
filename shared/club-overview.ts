@@ -2,6 +2,7 @@ import { Context } from './context';
 import { integer, requireThat } from './errors';
 import { rankingBoard } from './points';
 import { shanghaiYear } from './models';
+import { readFrom } from './store';
 
 export const OVERVIEW_ACTIONS = ['ranking.mine'] as const;
 export interface OwnRanking {
@@ -19,7 +20,7 @@ export async function ownRanking(ctx: Context, options: { deadlineMs?: number } 
   requireThat(metric === 'growth' || metric === 'annual' || metric === 'completed_count', 'INVALID_INPUT', '榜单维度不正确');
   const year = payload.year === undefined ? shanghaiYear(ctx.now) : integer(payload.year, '年份', 2000);
   requireThat(year <= 2200, 'INVALID_INPUT', '年份不正确');
-  const before = await ctx.store.transaction(async tx => {
+  const before = await readFrom(ctx.store, async tx => {
     const actor = await ctx.actor(tx);
     return { memberId: actor.member.id, userId: actor.user.id, publicId: actor.member.publicId, revision: actor.member.revision,
       optIn: actor.member.rankingOptIn };
@@ -28,7 +29,7 @@ export async function ownRanking(ctx: Context, options: { deadlineMs?: number } 
   const board = await rankingBoard(ctx, metric, metric === 'annual' ? year : null);
   withinBudget();
   // The identity or profile can change during the scan; never return a rank computed for an older state.
-  await ctx.store.transaction(async tx => {
+  await readFrom(ctx.store, async tx => {
     const actor = await ctx.actor(tx);
     requireThat(actor.member.id === before.memberId && actor.user.id === before.userId && actor.member.publicId === before.publicId
       && actor.member.revision === before.revision, 'CONFLICT_REFRESH', '个人资料已更新，请刷新后重新核对');

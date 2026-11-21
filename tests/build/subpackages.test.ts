@@ -74,6 +74,7 @@ test('manifest defines five isolated high-data subpackages with non-overlapping 
     'pages/activities/index',
     'pages/history/index',
     'pages/profile/index',
+    'pages/ranking/index',
   ]);
   for (const [trigger, rule] of Object.entries(preload)) {
     assert.ok(manifest.pages.includes(trigger), `preload trigger ${trigger} must be a main-package tab`);

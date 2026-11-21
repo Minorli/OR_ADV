@@ -23,7 +23,7 @@
       <view class="meta"><text class="span">📍 {{item.location}}</text><text class="span">🗓 {{item.shortDateText}}</text><text class="span">🏍 <text class="b">{{item.distanceText || '里程待定'}}</text></text></view>
       <view class="ft"><text class="slot" wx:if="{{item.minGrowthPoints}}">⭐ 需积分≥<text class="b">{{item.minGrowthPoints}}</text> · {{item.seatText}}</text><text class="slot" wx:else>{{item.seatText}}</text><text class="tag {{item.statusTone === 'active' ? 'o' : ''}}">{{item.stateText}}</text></view>
     </view>
-    <view wx:if="{{loading}}" class="loading">正在加载活动…</view>
+    <view wx:if="{{loading && !displayItems.length}}" class="loading">正在加载活动…</view>
     <view wx:if="{{!loading && !error && !items.length}}" class="empty">活动安排即将更新，下一场一起出发。</view>
     <button wx:if="{{nextCursor && !loading}}" class="btn ghost reference-more" bindtap="more">查看更多活动</button>
   </view>

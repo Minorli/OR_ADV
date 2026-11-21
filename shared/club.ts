@@ -3,7 +3,7 @@ import { requireThat, text } from './errors';
 import { key, registrationIdFor } from './models';
 import type { Registration } from './types';
 import type { ActivityBriefing, ClubPublic, ContactMethod } from './types';
-import type { Transaction } from './store';
+import { readFrom, type ReadOnlyTransaction, type Transaction } from './store';
 
 export function contactFields(payload: Record<string, unknown>) {
   requireThat(['phone','wechat','other'].includes(String(payload.contactMethod)), 'INVALID_INPUT', '请选择联系方式');
@@ -12,8 +12,8 @@ export function contactFields(payload: Record<string, unknown>) {
   return { contactName: text(payload.contactName, '联系人', 50), contactMethod: payload.contactMethod as ContactMethod,
     contactValue };
 }
-export async function publicClub(ctx: Context, tx?: Transaction): Promise<ClubPublic> {
-  if (!tx) return ctx.store.transaction((transaction) => publicClub(ctx, transaction));
+export async function publicClub(ctx: Context, tx?: ReadOnlyTransaction): Promise<ClubPublic> {
+  if (!tx) return readFrom(ctx.store, (transaction) => publicClub(ctx, transaction));
   const row = await tx.get<Record<string, unknown>>('clubs', ctx.clubId);
   const valid = row?.clubId === ctx.clubId;
   const validMethod = valid && ['phone','wechat','other'].includes(String(row.contactMethod));
@@ -38,20 +38,24 @@ export async function saveClub(ctx: Context) {
     return publicClub(ctx, tx);
   });
 }
-async function briefingAccess(ctx: Context, tx: Transaction, activityId: string) {
+async function briefingAccess(ctx: Context, tx: ReadOnlyTransaction, activityId: string) {
   const actor = await ctx.actor(tx);
   const roles = await ctx.roles(tx, actor);
   if (roles.some((role) => role.activityIds === null || role.activityIds.includes(activityId))) return;
-  const registration = await tx.get<Registration>('registrations', registrationIdFor(ctx.clubId, activityId, actor.member.id));
+  const [registration, activity] = await Promise.all([
+    tx.get<Registration>('registrations', registrationIdFor(ctx.clubId, activityId, actor.member.id)),
+    ctx.activity(tx, activityId),
+  ]);
   requireThat(registration?.clubId === ctx.clubId && registration.activityId === activityId && !registration.completionVoided && ['confirmed','checked_in','pending_settlement','completed'].includes(registration.state), 'FORBIDDEN', '仅确认参加者与本场工作人员可查看行前资料');
-  const activity = await ctx.activity(tx, activityId);
   requireThat(activity.state !== 'cancelled' && activity.state !== 'draft', 'FORBIDDEN', '本场资料当前不可访问');
 }
 export async function getBriefing(ctx: Context): Promise<ActivityBriefing | null> {
   const activityId = text(ctx.request.payload.activityId, 'activityId', 100);
-  return ctx.store.transaction(async (tx) => {
-    await briefingAccess(ctx, tx, activityId);
-    const row = await tx.get<ActivityBriefing>('activity_briefings', key('briefing', ctx.clubId, activityId));
+  return readFrom(ctx.store, async (tx) => {
+    const [, row] = await Promise.all([
+      briefingAccess(ctx, tx, activityId),
+      tx.get<ActivityBriefing>('activity_briefings', key('briefing', ctx.clubId, activityId)),
+    ]);
     if (!row) return null;
     requireThat(row.clubId === ctx.clubId && row.activityId === activityId, 'FORBIDDEN', '资料不可访问');
     return row;

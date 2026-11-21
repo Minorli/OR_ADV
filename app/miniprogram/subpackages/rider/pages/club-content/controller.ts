@@ -80,6 +80,10 @@ export const controller = defineReferencePage({
     if (this.data.loadedRole && this.data.loadedRole !== role || this.data.loadedEnvironment && this.data.loadedEnvironment !== environmentScope()) this.clearPrivate();
     this.setData({ version, loadedRole: role, loadedEnvironment: environmentScope(), identityReady: false, loading: true, inquiryLoading: false, error: '' });
     try {
+      const prefetchedPublic = this.data.mode !== 'manage'
+        ? Promise.all([call<ClubContentView>('club.content.get', { section: this.data.section }), call<ClubContact>('club.public')])
+        : null;
+      prefetchedPublic?.catch(() => {});
       const member = await currentMember();
       if (version !== this.data.version) return;
       if (isMock && mockRole() !== role || this.data.loadedEnvironment !== environmentScope()) { this.setData({ version: version + 1 }); this.clearPrivate(); await this.load(); return; }
@@ -90,10 +94,12 @@ export const controller = defineReferencePage({
       // Initial reads share only this generation's freshly verified identity.
       // The public queue retry still performs its own fresh verification.
       const inquiries = member && (this.data.mode === 'manage' ? this.data.isOwner : inquiryKind(this.data.section)) ? this.readInquiries(snapshot) : Promise.resolve();
-      const [content, primary] = await Promise.all([
-        call<ClubContentView>(this.data.mode === 'manage' ? 'staff.club.content.get' : 'club.content.get', { section: this.data.section }),
-        call<ClubContact>('club.public'),
-      ]);
+      const [content, primary] = prefetchedPublic
+        ? await prefetchedPublic
+        : await Promise.all([
+          call<ClubContentView>('staff.club.content.get', { section: this.data.section }),
+          call<ClubContact>('club.public'),
+        ]);
       if (!this.readMatches(snapshot)) return;
       const enrichedContent = {
         ...content,

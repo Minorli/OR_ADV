@@ -3,7 +3,7 @@ import { integer, requireThat, text } from './errors';
 import { key, shanghaiYear } from './models';
 import type { Membership } from './models';
 import { isBasicSkill } from './ranking-board';
-import type { Transaction } from './store';
+import { readFrom, type ReadOnlyTransaction, type Transaction } from './store';
 import { bindOwnedMemberMedia, bindPublicReferenceVideo, requireOwnedMemberMedia } from './member-media';
 import { canSelfReviewAsPrimaryOwner } from './members';
 import type { MemberMediaAsset } from './member-media-types';
@@ -55,7 +55,7 @@ function validQuestion(value: unknown): SafetyQuestion {
 }
 async function catalog(ctx: Context, staff = false) {
   fields(ctx, []);
-  return ctx.store.transaction(async tx => {
+  return readFrom(ctx.store, async tx => {
     if (staff) await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const bank = await tx.get<LearningBank>('learning_catalog', bankId(ctx));
     requireThat(!bank || bank.clubId === ctx.clubId, 'FORBIDDEN', '题库不可访问');
@@ -100,7 +100,7 @@ async function saveCatalog(ctx: Context) {
     return bank;
   });
 }
-async function currentAttempt(ctx: Context, tx: Transaction, memberId: string) {
+async function currentAttempt(ctx: Context, tx: ReadOnlyTransaction, memberId: string) {
   const pointer = await tx.get<{ attemptId: string; clubId: string; memberId: string }>('learning_attempts', pointerId(ctx, memberId));
   if (!pointer) return null;
   requireThat(pointer.clubId === ctx.clubId && pointer.memberId === memberId, 'FORBIDDEN', '练习记录不可访问');
@@ -110,7 +110,7 @@ async function currentAttempt(ctx: Context, tx: Transaction, memberId: string) {
 }
 async function mine(ctx: Context) {
   fields(ctx, []);
-  return ctx.store.transaction(async tx => {
+  return readFrom(ctx.store, async tx => {
     const actor = await ctx.actor(tx);
     const attempt = await currentAttempt(ctx, tx, actor.member.id);
     return { attempt: attempt ? viewAttempt(attempt) : null, policyStatus: 'pending' };
@@ -228,12 +228,13 @@ async function skillHistory(ctx: Context, staff = false) {
 }
 async function ownSkills(ctx: Context) {
   fields(ctx, []);
-  const initial = await ctx.store.transaction(async tx => {
+  const initial = await readFrom(ctx.store, async tx => {
     const actor = await ctx.actor(tx);
-    const entries: { skill: typeof SKILL_CATALOG[number]; submission: ReturnType<typeof submissionView> | null; reference: SkillReference | null; asset: MemberMediaAsset | null }[] = [];
-    for (const skill of SKILL_CATALOG) {
-      const submission = await tx.get<SkillSubmission>('skill_submissions', submissionId(ctx, actor.member.id, skill.id));
-      const reference = await tx.get<SkillReference>('learning_catalog', key('skill-reference', ctx.clubId, skill.id));
+    return Promise.all(SKILL_CATALOG.map(async skill => {
+      const [submission, reference] = await Promise.all([
+        tx.get<SkillSubmission>('skill_submissions', submissionId(ctx, actor.member.id, skill.id)),
+        tx.get<SkillReference>('learning_catalog', key('skill-reference', ctx.clubId, skill.id)),
+      ]);
       requireThat(!submission || submission.clubId === ctx.clubId && submission.memberId === actor.member.id && submission.skillId === skill.id, 'FORBIDDEN', '练习记录不可访问');
       requireThat(!reference || reference.clubId === ctx.clubId && reference.skillId === skill.id, 'FORBIDDEN', '示范资料不可访问');
       let asset: MemberMediaAsset | null = null;
@@ -244,9 +245,8 @@ async function ownSkills(ctx: Context) {
           asset = candidate;
         }
       }
-      entries.push({ skill, submission: submission ? submissionView(submission) : null, reference, asset });
-    }
-    return entries;
+      return { skill, submission: submission ? submissionView(submission) : null, reference, asset };
+    }));
   });
   const provider = ctx.options.memberMediaStorage;
   const signedUrls = new Map<string, string>();

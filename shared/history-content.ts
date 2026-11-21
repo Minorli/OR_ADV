@@ -4,7 +4,7 @@ import { DomainError, integer, requireThat, text } from './errors';
 import { key, registrationIdFor } from './models';
 import type { Membership, User } from './models';
 import type { Activity, Registration } from './types';
-import type { Transaction } from './store';
+import { readFrom, type ReadOnlyTransaction, type Transaction } from './store';
 import { bindPublicStoryMedia } from './member-media';
 import { PUBLIC_CONTENT_ROLES } from './permissions';
 import type { MemberMediaAsset } from './member-media-types';
@@ -17,12 +17,12 @@ const PUBLIC_REVIEW_PAGE_SIZE = 12;
 const storyId = (ctx: Context, activityId: string) => key('activity_story', ctx.clubId, activityId);
 const reviewId = (ctx: Context, activityId: string, memberId: string) => key('activity_review', ctx.clubId, activityId, memberId);
 function fields(ctx: Context, allowed: string[]) { requireThat(Object.keys(ctx.request.payload).every(field => allowed.includes(field)), 'INVALID_INPUT', '包含不支持的往期资料字段'); }
-async function activity(ctx: Context, tx: Transaction): Promise<Activity> {
+async function activity(ctx: Context, tx: ReadOnlyTransaction): Promise<Activity> {
   const row = await ctx.activity(tx, ctx.request.payload.activityId);
   requireThat(row.state === 'settled', 'ACTIVITY_NOT_FOUND', '这场活动尚未开放往期记录');
   return row;
 }
-async function participant(ctx: Context, tx: Transaction, activityId: string, memberId: string) {
+async function participant(ctx: Context, tx: ReadOnlyTransaction, activityId: string, memberId: string) {
   const row = await tx.get<Registration>('registrations', registrationIdFor(ctx.clubId, activityId, memberId));
   return !!row && row.clubId === ctx.clubId && row.activityId === activityId && row.memberId === memberId && row.state === 'completed' && !row.completionVoided;
 }
@@ -32,9 +32,9 @@ function blankStory(ctx: Context, id: string): ActivityStory {
 }
 export { validatePublicVideoUrl as validateHistoryDocumentaryUrl } from './public-video-url';
 
-async function visibleReview(ctx: Context, tx: Transaction, row: ActivityReview | null): Promise<{ row: ActivityReview; member: Membership } | null> {
+async function visibleReview(ctx: Context, tx: ReadOnlyTransaction, row: ActivityReview | null): Promise<{ row: ActivityReview; member: Membership } | null> {
   if (!row || row.clubId !== ctx.clubId || row.status !== 'approved' || !row.publishConsent || !row.nicknameConsent || row.consentVersion !== HISTORY_REVIEW_CONSENT_VERSION) return null;
-  const member = await tx.get<Membership>('memberships', row.memberId), user = await tx.get<User>('users', row.userId);
+  const [member, user] = await Promise.all([tx.get<Membership>('memberships', row.memberId), tx.get<User>('users', row.userId)]);
   if (!member || member.clubId !== ctx.clubId || member.userId !== row.userId || !user || user.status !== 'active' || user.clubId !== ctx.clubId
     || !await participant(ctx, tx, row.activityId, member.id)) return null;
   return { row, member };
@@ -54,49 +54,83 @@ function cursor(ctx: Context): { value: string; id: string } | undefined {
 export async function historyDetail(ctx: Context, reviewPageSize = PUBLIC_REVIEW_PAGE_SIZE): Promise<PublicHistoryDetail> {
   requireThat(reviewPageSize === 2 || reviewPageSize === PUBLIC_REVIEW_PAGE_SIZE, 'INVALID_INPUT', '评价分页不正确');
   fields(ctx, ['activityId', 'cursor']);
-  const initial = await ctx.store.transaction(async tx => { const a = await activity(ctx, tx); return { activity: a, story: await tx.get<ActivityStory>('activity_stories', storyId(ctx, a.id)) }; });
-  const candidates = await ctx.store.query<ActivityReview>('activity_reviews', { clubId: ctx.clubId, activityId: initial.activity.id, status: 'approved', publishConsent: true, nicknameConsent: true }, { orderBy: 'publicSort', direction: 'desc', after: cursor(ctx), limit: reviewPageSize + 1 });
-  const page = candidates.slice(0, reviewPageSize), honorRows = initial.story?.published ? await Promise.all(initial.story.honors.map(honor => findPublicReview(ctx, initial.activity.id, honor.reviewPublicId))) : [];
-  const photoRows = initial.story?.published ? await ctx.store.transaction(async tx => {
-    const rows: MemberMediaAsset[] = [];
-    for (const id of initial.story!.photoAssetIds) {
-      const row = await tx.get<MemberMediaAsset>('member_media', id);
-      if (row?.clubId === ctx.clubId && row.status === 'ready' && row.kind === 'image' && row.purpose === 'club_public' && row.rightsAcknowledged
-        && row.bindings.includes(initial.story!.id) && row.fileId && (await tx.get<User>('users', row.userId))?.status === 'active') rows.push(row);
+  const initial = await readFrom(ctx.store, async tx => {
+    const [a, story] = await Promise.all([
+      activity(ctx, tx),
+      tx.get<ActivityStory>('activity_stories', storyId(ctx, text(ctx.request.payload.activityId, 'activityId', 100))),
+    ]);
+    let coverAsset: MemberMediaAsset | null = null;
+    if (a.coverAssetId) {
+      const candidate = await tx.get<MemberMediaAsset>('member_media', a.coverAssetId);
+      if (candidate?.clubId === ctx.clubId && candidate.status === 'ready' && candidate.kind === 'image' && candidate.purpose === 'club_public'
+        && candidate.rightsAcknowledged && candidate.bindings.includes(key('activity_cover', ctx.clubId, a.id)) && candidate.fileId
+        && (await tx.get<User>('users', candidate.userId))?.status === 'active') {
+        coverAsset = candidate;
+      }
     }
-    return rows;
-  }) : [];
+    return { activity: a, story, coverAsset };
+  });
+  const [candidates, honorRows, photoRows] = await Promise.all([
+    ctx.store.query<ActivityReview>('activity_reviews', { clubId: ctx.clubId, activityId: initial.activity.id, status: 'approved', publishConsent: true, nicknameConsent: true }, { orderBy: 'publicSort', direction: 'desc', after: cursor(ctx), limit: reviewPageSize + 1 }),
+    initial.story?.published ? Promise.all(initial.story.honors.map(honor => findPublicReview(ctx, initial.activity.id, honor.reviewPublicId))) : Promise.resolve([]),
+    initial.story?.published ? readFrom(ctx.store, async tx => {
+      const loaded = await Promise.all(initial.story!.photoAssetIds.map(id => tx.get<MemberMediaAsset>('member_media', id)));
+      const valid = loaded.filter((row): row is MemberMediaAsset => Boolean(row?.clubId === ctx.clubId && row.status === 'ready'
+        && row.kind === 'image' && row.purpose === 'club_public' && row.rightsAcknowledged && row.bindings.includes(initial.story!.id) && row.fileId));
+      const users = await Promise.all(valid.map(row => tx.get<User>('users', row.userId)));
+      return valid.filter((_, idx) => users[idx]?.status === 'active');
+    }) : Promise.resolve([] as MemberMediaAsset[]),
+  ]);
+  const page = candidates.slice(0, reviewPageSize);
   const provider = ctx.options.memberMediaStorage;
-  const urls = await Promise.all(photoRows.map(async row => {
-    if (!provider || provider.mode !== row.storageMode) return null;
-    try { return { id: row.id, fileId: row.fileId, url: await provider.url(row.fileId!), label: row.label }; }
-    catch { return null; }
-  }));
-  return ctx.store.transaction(async tx => {
-    const a = await activity(ctx, tx), current = await tx.get<ActivityStory>('activity_stories', storyId(ctx, a.id));
-    const reviews: PublicActivityReview[] = [];
-    for (const candidate of page) {
-      const value = await visibleReview(ctx, tx, await tx.get<ActivityReview>('activity_reviews', candidate.id));
-      if (value && value.row.activityId === a.id) reviews.push({ publicId: value.row.publicId, nickname: value.member.nickname, stars: value.row.stars, comment: value.row.comment, createdAt: value.row.createdAt });
-    }
+  const [urls, signedCoverUrl] = await Promise.all([
+    Promise.all(photoRows.map(async row => {
+      if (!provider || provider.mode !== row.storageMode) return null;
+      try { return { id: row.id, fileId: row.fileId, url: await provider.url(row.fileId!), label: row.label }; }
+      catch { return null; }
+    })),
+    (async () => {
+      if (!initial.coverAsset || !provider || provider.mode !== initial.coverAsset.storageMode || !initial.coverAsset.fileId) return '';
+      try { return await provider.url(initial.coverAsset.fileId); }
+      catch { return ''; }
+    })(),
+  ]);
+  return readFrom(ctx.store, async tx => {
+    const [a, current, checkedReviews] = await Promise.all([
+      activity(ctx, tx),
+      tx.get<ActivityStory>('activity_stories', storyId(ctx, initial.activity.id)),
+      Promise.all(page.map(async candidate => visibleReview(ctx, tx, await tx.get<ActivityReview>('activity_reviews', candidate.id)))),
+    ]);
+    const reviews: PublicActivityReview[] = checkedReviews
+      .filter((value): value is { row: ActivityReview; member: Membership } => Boolean(value && value.row.activityId === a.id))
+      .map(value => ({ publicId: value.row.publicId, nickname: value.member.nickname, stars: value.row.stars, comment: value.row.comment, createdAt: value.row.createdAt }));
     let story: PublicHistoryDetail['story'] = null;
     if (current?.published && current.revision === initial.story?.revision) {
-      const photos: { url: string; label: string }[] = [];
-      for (const value of urls) {
-        if (!value) continue;
-        const row = await tx.get<MemberMediaAsset>('member_media', value.id);
-        if (row?.status === 'ready' && row.fileId === value.fileId && current.photoAssetIds.includes(row.id) && row.purpose === 'club_public'
-          && row.rightsAcknowledged && row.bindings.includes(current.id) && (await tx.get<User>('users', row.userId))?.status === 'active') photos.push({ url: value.url, label: value.label });
-      }
-      const honors: { nickname: string; label: string }[] = [];
-      for (let index = 0; index < honorRows.length; index++) {
-        const value = honorRows[index] && await visibleReview(ctx, tx, await tx.get<ActivityReview>('activity_reviews', honorRows[index]!.id));
-        if (value?.row.honorConsent && value.row.activityId === a.id && current.honors[index]?.reviewPublicId === value.row.publicId) honors.push({ nickname: value.member.nickname, label: current.honors[index].label });
-      }
+      const [checkedPhotos, checkedHonors] = await Promise.all([
+        Promise.all(urls.map(async value => {
+          if (!value) return null;
+          const row = await tx.get<MemberMediaAsset>('member_media', value.id);
+          if (!(row?.status === 'ready' && row.fileId === value.fileId && current.photoAssetIds.includes(row.id) && row.purpose === 'club_public'
+            && row.rightsAcknowledged && row.bindings.includes(current.id))) return null;
+          const user = await tx.get<User>('users', row.userId);
+          return user?.status === 'active' ? { url: value.url, label: value.label } : null;
+        })),
+        Promise.all(honorRows.map(async (honorRow, index) => {
+          if (!honorRow) return null;
+          const value = await visibleReview(ctx, tx, await tx.get<ActivityReview>('activity_reviews', honorRow.id));
+          return value?.row.honorConsent && value.row.activityId === a.id && current.honors[index]?.reviewPublicId === value.row.publicId
+            ? { nickname: value.member.nickname, label: current.honors[index].label }
+            : null;
+        })),
+      ]);
+      const photos = checkedPhotos.filter((item): item is { url: string; label: string } => item !== null);
+      const honors = checkedHonors.filter((item): item is { nickname: string; label: string } => item !== null);
       story = { intro: current.intro, photos, photoCount: photos.length, documentary: current.documentaryUrl && current.videoRightsAcknowledged ? { url: validateHistoryDocumentaryUrl(current.documentaryUrl), title: current.documentaryTitle } : null, honors };
     }
     return { activity: { id: a.id, title: a.title, description: a.description, location: a.location, difficulty: a.difficulty, startAt: a.startAt, endAt: a.endAt, actualCompletedAt: a.actualCompletedAt,
-      ...(a.coverKey !== undefined ? { coverKey: a.coverKey } : {}), ...(a.distanceKm !== undefined ? { distanceKm: a.distanceKm } : {}), ...(a.itinerary !== undefined ? { itinerary: a.itinerary } : {}), fixtureOnly: a.fixtureOnly ?? false }, story,
+      ...(a.coverKey !== undefined ? { coverKey: a.coverKey } : {}), ...(a.coverAssetId !== undefined ? { coverAssetId: a.coverAssetId } : {}),
+      ...(signedCoverUrl && initial.coverAsset && a.coverAssetId === initial.coverAsset.id ? { coverUrl: signedCoverUrl } : {}),
+      ...(a.distanceKm !== undefined ? { distanceKm: a.distanceKm } : {}), ...(a.itinerary !== undefined ? { itinerary: a.itinerary } : {}), fixtureOnly: a.fixtureOnly ?? false }, story,
       reviews: { items: reviews, nextCursor: candidates.length > reviewPageSize && page.length ? page[page.length - 1].publicSort : null } };
   });
 }

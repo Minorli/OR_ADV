@@ -31,6 +31,7 @@ export const main = createCloudHandler({
     sessionToken: Boolean(process.env.TENCENTCLOUD_SESSIONTOKEN),
   }),
   store: getStore,
+  memoryRateLimitForReads: true,
   invoke: async (request, identity, traceId) => {
     storageSdk ??= createPgCompatibleStorageSdk({ envId: () => process.env.ORADV_ENV_ID, classicSdk: cloud });
     service ??= createService(getStore(), { clubId: 'oradv', avatarStorage: createAvatarStorage(storageSdk), memberMediaStorage: createMemberMediaStorage(storageSdk, process.env.ORADV_ENV_ID),

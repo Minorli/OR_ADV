@@ -1,7 +1,7 @@
 import { DomainError, integer, requireThat, text } from './errors';
 import { CLUB_ID } from './types';
 import type { MemberSummary, Role, RpcRequest, TrustedIdentity } from './types';
-import type { Store, Transaction } from './store';
+import type { ReadOnlyTransaction, Store, Transaction } from './store';
 import { key, memberIdFor, shanghaiYear, statsIdFor, userIdFor } from './models';
 import { basicAssessmentStatus } from './ranking-board';
 import type { SkillStateOverride } from './ranking-board';
@@ -21,21 +21,36 @@ export class Context {
     this.traceId = traceId ?? this.id();
   }
   id() { return (this.options.id ?? (() => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`))(); }
-  async actor(tx: Transaction): Promise<Actor> {
+  async prefetchViewer(tx: ReadOnlyTransaction, year = shanghaiYear(this.now)): Promise<void> {
+    if (!this.identity?.appId || !this.identity.openId) return;
+    const userId = userIdFor(this.identity);
+    const memberId = memberIdFor(this.clubId, userId);
+    await Promise.all([
+      tx.get<User>('users', userId),
+      tx.get<Membership>('memberships', memberId),
+      tx.get<MemberStats>('member_stats', statsIdFor(this.clubId, memberId, null)),
+      tx.get<MemberStats>('member_stats', statsIdFor(this.clubId, memberId, year)),
+      ...STAFF_ROLES.map(role => tx.get<StaffRole>('staff_roles', key('role', this.clubId, userId, role))),
+    ]);
+  }
+  async actor(tx: ReadOnlyTransaction): Promise<Actor> {
     requireThat(this.identity?.appId && this.identity.openId, 'UNAUTHENTICATED', '请先建立微信身份');
-    const user = await tx.get<User>('users', userIdFor(this.identity));
+    const userId = userIdFor(this.identity);
+    const [user, member] = await Promise.all([
+      tx.get<User>('users', userId),
+      tx.get<Membership>('memberships', memberIdFor(this.clubId, userId)),
+    ]);
     requireThat(user, 'UNAUTHENTICATED', '请先阅读说明并建立身份');
     requireThat(user.status === 'active', 'FORBIDDEN', '账号当前不可使用');
-    const member = await tx.get<Membership>('memberships', memberIdFor(this.clubId, user.id));
     requireThat(member?.clubId === this.clubId, 'FORBIDDEN', '没有本俱乐部访问权限');
     return { user, member };
   }
-  async roles(tx: Transaction, actor: Actor): Promise<StaffRole[]> {
+  async roles(tx: ReadOnlyTransaction, actor: Actor): Promise<StaffRole[]> {
     const roles = await Promise.all(STAFF_ROLES.map((role) => tx.get<StaffRole>('staff_roles', key('role', this.clubId, actor.user.id, role))));
     return roles.filter((role): role is StaffRole => !!role && role.clubId === this.clubId && role.userId === actor.user.id && role.enabled && (!role.expiresAt || role.expiresAt > this.now)
       && (['owner','operator','content_admin'].includes(role.role) ? role.activityIds === null : Array.isArray(role.activityIds) && role.activityIds.length > 0));
   }
-  async staff(tx: Transaction, allowed: Role[], activityId?: string): Promise<Actor> {
+  async staff(tx: ReadOnlyTransaction, allowed: Role[], activityId?: string): Promise<Actor> {
     const actor = await this.actor(tx);
     const roles = await this.roles(tx, actor);
     requireThat(roles.some((role) => allowed.includes(role.role) && (!activityId || role.activityIds === null || role.activityIds.includes(activityId))), 'FORBIDDEN', '没有此项操作或本场活动权限');
@@ -45,15 +60,18 @@ export class Context {
     requireThat(typeof supplied === 'number' && Number.isInteger(supplied), 'INVALID_INPUT', '请提供当前版本');
     requireThat(current.revision === supplied, 'CONFLICT_REFRESH', '资料已更新，请刷新后重试');
   }
-  async activity(tx: Transaction, id: unknown): Promise<Activity> {
+  async activity(tx: ReadOnlyTransaction, id: unknown): Promise<Activity> {
     const activity = await tx.get<Activity>('activities', text(id, 'activityId', 100));
     requireThat(activity?.clubId === this.clubId, 'ACTIVITY_NOT_FOUND', '活动不存在或不可访问');
     return activity;
   }
-  async summary(tx: Transaction, actor: Actor, year = shanghaiYear(this.now)): Promise<MemberSummary> {
-    const growth = await tx.get<MemberStats>('member_stats', statsIdFor(this.clubId, actor.member.id, null));
-    const annual = await tx.get<MemberStats>('member_stats', statsIdFor(this.clubId, actor.member.id, year));
-    const roles = await this.roles(tx, actor), owner = roles.find(role => role.role === 'owner');
+  async summary(tx: ReadOnlyTransaction, actor: Actor, year = shanghaiYear(this.now)): Promise<MemberSummary> {
+    const [growth, annual, roles] = await Promise.all([
+      tx.get<MemberStats>('member_stats', statsIdFor(this.clubId, actor.member.id, null)),
+      tx.get<MemberStats>('member_stats', statsIdFor(this.clubId, actor.member.id, year)),
+      this.roles(tx, actor),
+    ]);
+    const owner = roles.find(role => role.role === 'owner');
     return { id: actor.member.id, clubId: this.clubId, nickname: actor.member.nickname, memberNumber: readMemberNumber(actor.member.memberNumber), hasAvatar: !!actor.member.avatarFileId, rankingOptIn: actor.member.rankingOptIn,
       rankingConsentVersion: actor.member.rankingConsentVersion, growthPoints: growth?.points ?? 0,
       annualPoints: annual?.points ?? 0, completedCount: growth?.completedCount ?? 0, revision: actor.member.revision,
@@ -78,6 +96,8 @@ export function publicActivity(activity: Activity) {
     fixtureOnly: activity.fixtureOnly ?? false,
     ...(activity.backfill ? { backfill: true } : {}),
     ...(activity.coverKey !== undefined ? { coverKey: activity.coverKey } : {}),
+    ...(activity.coverAssetId !== undefined ? { coverAssetId: activity.coverAssetId } : {}),
+    ...(activity.coverUrl !== undefined ? { coverUrl: activity.coverUrl } : {}),
     ...(activity.distanceKm !== undefined ? { distanceKm: activity.distanceKm } : {}),
     ...(activity.itinerary !== undefined ? { itinerary: activity.itinerary } : {}) };
 }

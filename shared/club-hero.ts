@@ -5,6 +5,7 @@ import type { User } from './models';
 import { PUBLIC_CONTENT_ROLES } from './permissions';
 import { bindPublicHeroMedia } from './member-media';
 import type { MemberMediaAsset } from './member-media-types';
+import { readFrom } from './store';
 
 export interface ClubHeroSlideInput {
   id: string; assetId: string; kicker: string; title: string; caption: string;
@@ -45,20 +46,17 @@ function validateSlides(value: unknown): ClubHeroSlideInput[] {
 export async function getClubHero(ctx: Context, staff = false): Promise<ClubHeroView> {
   requireThat(Object.keys(ctx.request.payload).length === 0, 'INVALID_INPUT', '轮播读取包含不支持的字段');
   const docId = heroDocId(ctx.clubId);
-  const initial = await ctx.store.transaction(async tx => {
+  const initial = await readFrom(ctx.store, async tx => {
     if (staff) await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const doc = await tx.get<ClubHeroDocument>('club_content', docId);
     requireThat(!doc || doc.clubId === ctx.clubId, 'FORBIDDEN', '轮播设置不可访问');
     if (!doc?.slides?.length) return { doc, assets: [] as MemberMediaAsset[] };
-    const seen = new Set<string>(), assets: MemberMediaAsset[] = [];
-    for (const slide of doc.slides) {
-      if (seen.has(slide.assetId)) continue;
-      seen.add(slide.assetId);
-      const asset = await tx.get<MemberMediaAsset>('member_media', slide.assetId);
-      if (asset?.clubId === ctx.clubId && asset.status === 'ready' && asset.kind === 'image' && asset.purpose === 'club_public'
-        && asset.rightsAcknowledged && asset.bindings.includes(docId) && asset.fileId
-        && (await tx.get<User>('users', asset.userId))?.status === 'active') assets.push(asset);
-    }
+    const uniqueIds = [...new Set(doc.slides.map(slide => slide.assetId))];
+    const rawAssets = await Promise.all(uniqueIds.map(assetId => tx.get<MemberMediaAsset>('member_media', assetId)));
+    const validCandidates = rawAssets.filter((asset): asset is MemberMediaAsset => Boolean(asset?.clubId === ctx.clubId && asset.status === 'ready'
+      && asset.kind === 'image' && asset.purpose === 'club_public' && asset.rightsAcknowledged && asset.bindings.includes(docId) && asset.fileId));
+    const users = await Promise.all(validCandidates.map(asset => tx.get<User>('users', asset.userId)));
+    const assets = validCandidates.filter((_, idx) => users[idx]?.status === 'active');
     return { doc, assets };
   });
   if (!initial.doc) return { configured: false, revision: 0, slides: [] };
@@ -70,23 +68,22 @@ export async function getClubHero(ctx: Context, staff = false): Promise<ClubHero
     try { resolved.set(asset.id, { fileId: asset.fileId, url: await provider.url(asset.fileId) }); }
     catch { /* Skip unavailable image rather than failing homepage load. */ }
   }));
-  return ctx.store.transaction(async tx => {
+  return readFrom(ctx.store, async tx => {
     if (staff) await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
     const current = await tx.get<ClubHeroDocument>('club_content', docId);
     if (!current || current.revision !== initial.doc!.revision || !current.slides.length) {
       return { configured: false, revision: current?.revision ?? 0, slides: [] };
     }
-    const slides: ClubHeroSlideView[] = [];
-    for (const slide of current.slides) {
+    const checked = await Promise.all(current.slides.map(async slide => {
       const urlInfo = resolved.get(slide.assetId);
-      if (!urlInfo) continue;
+      if (!urlInfo) return null;
       const asset = await tx.get<MemberMediaAsset>('member_media', slide.assetId);
-      if (asset?.status === 'ready' && asset.fileId === urlInfo.fileId && asset.purpose === 'club_public'
-        && asset.rightsAcknowledged && asset.bindings.includes(docId)
-        && (await tx.get<User>('users', asset.userId))?.status === 'active') {
-        slides.push({ ...slide, cover: urlInfo.url });
-      }
-    }
+      if (!(asset?.status === 'ready' && asset.fileId === urlInfo.fileId && asset.purpose === 'club_public'
+        && asset.rightsAcknowledged && asset.bindings.includes(docId))) return null;
+      const user = await tx.get<User>('users', asset.userId);
+      return user?.status === 'active' ? { ...slide, cover: urlInfo.url } : null;
+    }));
+    const slides = checked.filter((item): item is ClubHeroSlideView => item !== null);
     return { configured: slides.length > 0, revision: current.revision, slides };
   });
 }

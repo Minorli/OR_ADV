@@ -14,29 +14,32 @@ function presentRank(item: RankingEntry): PublicRank {
   return { ...item, initial: initial(item.nickname), vTone: badge.primaryTone, vBadges: badge.items };
 }
 Page({
-  data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, member: null as MemberSummary | null, ownRanking: null as OwnRanking | null, ownRankingError: '', contact: emptyContact, year: currentYear(), metric: 'growth', signedIn: false, canCertify: false, items: [] as PublicRank[], nextCursor: null as string | null, requestVersion: 0, loading: false, saving: false, error: '' },
+  data: { isMock, v2Chrome: readReferenceChrome(), refPanel: '', refParams: {}, member: null as MemberSummary | null, ownRanking: null as OwnRanking | null, ownRankingError: '', contact: emptyContact, year: currentYear(), metric: 'growth', signedIn: false, canCertify: false, items: [] as PublicRank[], nextCursor: null as string | null, loadedRole: '', requestVersion: 0, loading: false, saving: false, error: '' },
   onShow() { syncReferenceTab(this, 1); void this.load(); },
   onUnload() { this.setData({ requestVersion: this.data.requestVersion + 1 }); },
   async onPullDownRefresh() { await this.load(); wx.stopPullDownRefresh(); },
   async load(append = false) {
     if (append && (this.data.loading || !this.data.nextCursor)) return;
     const requestVersion = this.data.requestVersion + 1, role = mockRole(), year = currentYear();
-    this.setData({ loading: true, error: '', ownRankingError: '', requestVersion, year, ...(append ? {} : { member: null, ownRanking: null, signedIn: false, canCertify: false, items: [], nextCursor: null }) });
+    const sameRole = !append && this.data.signedIn && (!isMock || this.data.loadedRole === role) && this.data.items.length > 0;
+    this.setData({ loading: true, error: '', ownRankingError: '', requestVersion, year, ...(append || sameRole ? {} : { member: null, ownRanking: null, signedIn: false, canCertify: false, items: [], nextCursor: null }) });
     try {
       const member = await currentMember();
       if (this.data.requestVersion !== requestVersion || isMock && mockRole() !== role) return;
       if (!member) {
-        this.setData({ member: null, ownRanking: null, items: [], nextCursor: null, signedIn: false, canCertify: false, contact: emptyContact });
+        this.setData({ member: null, ownRanking: null, items: [], nextCursor: null, signedIn: false, canCertify: false, loadedRole: role, contact: emptyContact });
         return;
       }
+      const identityChanged = this.data.member?.id && this.data.member.id !== member.id;
+      this.setData({ member, loadedRole: role, ...(identityChanged ? { ownRanking: null, items: [], nextCursor: null } : {}) });
       const [ranking, contact] = await Promise.all([
         call<PageResult<RankingEntry>>('ranking.list', { metric: 'growth', year, cursor: append ? this.data.nextCursor : undefined }),
         call<ClubContact>('club.public'),
+        this.loadOwnRanking(member.id, requestVersion, role, 'growth', year),
       ]);
       if (this.data.requestVersion !== requestVersion || isMock && mockRole() !== role) return;
       const fresh = ranking.items.map(presentRank);
       this.setData({ member, contact, signedIn: true, canCertify: member.roles.includes('owner'), items: [...(append ? this.data.items : []), ...fresh], nextCursor: ranking.nextCursor });
-      await this.loadOwnRanking(member.id, requestVersion, role, 'growth', year);
     } catch (error) { if (this.data.requestVersion === requestVersion && (!isMock || mockRole() === role)) this.setData({ error: errorMessage(error) }); }
     finally { if (this.data.requestVersion === requestVersion && (!isMock || mockRole() === role)) this.setData({ loading: false }); }
   },

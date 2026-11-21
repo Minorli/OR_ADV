@@ -56,7 +56,7 @@ async function save(ctx: Context, kind: MemberMediaKind): Promise<MemberMediaSum
   const initial = await ctx.store.transaction(async tx => {
     const actor = await ctx.actor(tx);
     if (use === 'club_public') {
-      await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
+      await ctx.staff(tx, kind === 'image' ? ['owner', 'operator', 'content_admin'] : PUBLIC_CONTENT_ROLES);
       requireThat(p.rightsAcknowledged === true, 'INVALID_INPUT', '请确认拥有图片的公开使用权');
     }
     if (kind === 'video' && (provider.mode !== 'local' || !provider.saveVideo)) {
@@ -91,7 +91,7 @@ async function save(ctx: Context, kind: MemberMediaKind): Promise<MemberMediaSum
   let result: { row: MemberMediaAsset; discarded: boolean };
   try {
     result = await ctx.store.transaction(async tx => {
-      if (use === 'club_public') await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
+      if (use === 'club_public') await ctx.staff(tx, kind === 'image' ? ['owner', 'operator', 'content_admin'] : PUBLIC_CONTENT_ROLES);
       const row = await own(ctx, tx, initial.id);
       if (row.status === 'ready') return { row, discarded: row.fileId !== file.fileId };
       requireThat(row.status === 'uploading' && row.requestDigest === digest, 'STATE_CONFLICT', '资料已取消或更新，请重新选择');
@@ -151,6 +151,9 @@ export async function bindPublicStoryMedia(tx: Transaction, clubId: string, memb
 }
 export function bindPublicHeroMedia(tx: Transaction, clubId: string, memberId: string, assetIds: unknown, bindingId: string, previousIds: readonly string[]) {
   return bindPublicStoryMedia(tx, clubId, memberId, assetIds, bindingId, previousIds, 6);
+}
+export function bindPublicActivityCover(tx: Transaction, clubId: string, memberId: string, assetId: string, bindingId: string, previousAssetId?: string | null) {
+  return bindPublicStoryMedia(tx, clubId, memberId, [assetId], bindingId, previousAssetId ? [previousAssetId] : [], 1);
 }
 export async function bindPublicReferenceVideo(tx: Transaction, clubId: string, memberId: string, assetId: string, bindingId: string, previousAssetId?: string): Promise<MemberMediaSummary> {
   requireThat(/^media_[a-f0-9]{64}$/.test(assetId), 'INVALID_INPUT', '示范视频编号不正确');
@@ -279,8 +282,13 @@ async function readOtherMedia(ctx: Context, tx: Transaction, asset: MemberMediaA
     requireThat(['dossier', 'skill'].includes(asset.purpose) && asset.bindings.length > 0, 'FORBIDDEN', '仅可核对已提交资料');
     return;
   }
-  await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
   const bindingId = ctx.request.payload.bindingId;
+  if (typeof bindingId === 'string' && /^activity_cover_[a-f0-9]{64}$/.test(bindingId)) {
+    await ctx.staff(tx, ['owner', 'operator', 'content_admin']);
+    requireThat(asset.bindings.includes(bindingId) && asset.kind === 'image' && asset.rightsAcknowledged, 'FORBIDDEN', '活动封面图片不可访问');
+    return;
+  }
+  await ctx.staff(tx, PUBLIC_CONTENT_ROLES);
   if (typeof bindingId === 'string' && /^club_hero_[a-f0-9]{64}$/.test(bindingId) && asset.bindings.includes(bindingId) && asset.kind === 'image' && asset.rightsAcknowledged) {
     const hero = await tx.get<{ clubId: string; slides?: { assetId: string }[] }>('club_content', bindingId);
     requireThat(hero?.clubId === ctx.clubId && hero.slides?.some(slide => slide.assetId === asset.id), 'FORBIDDEN', '轮播图片已移除或更新');

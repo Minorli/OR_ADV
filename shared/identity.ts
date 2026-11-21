@@ -3,6 +3,7 @@ import type { Context } from './context';
 import { refreshRankings, syncProfileProjections } from './context';
 import { key, memberIdFor, shanghaiYear, userIdFor } from './models';
 import type { Membership, StaffRole, User } from './models';
+import { readFrom } from './store';
 import { syncRecommendation } from './members';
 import { allocateMemberNumber, memberSequenceId, validateMemberSequence } from './member-number';
 import type { MemberNumberSequence } from './member-number';
@@ -37,7 +38,8 @@ export async function ensureIdentity(ctx: Context) {
 
 export async function currentIdentity(ctx: Context) {
   if (!ctx.identity) return null;
-  return ctx.store.transaction(async (tx) => {
+  return readFrom(ctx.store, async (tx) => {
+    await ctx.prefetchViewer(tx);
     if (!await tx.get<User>('users', userIdFor(ctx.identity!))) return null;
     return ctx.summary(tx, await ctx.actor(tx));
   });

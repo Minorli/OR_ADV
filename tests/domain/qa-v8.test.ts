@@ -318,3 +318,196 @@ test('team manager (#1) views approved/returned rider dossiers, searches #0/#1, 
   const attempt = await rpc('learning.start', {}, DEMO_IDENTITIES.member);
   assert.equal(attempt.total, 20);
 });
+
+test('custom uploaded activity cover works across draft creation, published content revision, backfill, and history feed/detail', async () => {
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j9RkAAAAASUVORK5CYII=';
+  const now = '2026-11-21T08:00:00.000Z';
+  const store = createDemoStore(now);
+  const objects = new Map<string, Buffer>();
+  const sdk: MemberMediaCloudSdk = {
+    async uploadFile(input) {
+      objects.set(input.cloudPath, Buffer.from(input.fileContent));
+      return { fileID: `cloud://test-env/${input.cloudPath}`, statusCode: 200 };
+    },
+    async downloadFile(input) {
+      const rel = input.fileID.replace(/^cloud:\/\/[^/]+\//, '');
+      return { fileContent: Buffer.from(objects.get(rel)!), statusCode: 200 };
+    },
+    async createSignedUploadUrl(input) { return { fileID: `cloud://test-env/${input.cloudPath}`, uploadUrl: `https://upload.example.test/${input.cloudPath}` }; },
+    async getTempFileURL(input) {
+      const fileID = input.fileList[0].fileID;
+      return { fileList: [{ fileID, status: 0, tempFileURL: `https://cdn.example.test/${fileID.replace(/^cloud:\/\/[^/]+\//, '')}?sign=ok` }] };
+    },
+    async deleteFile(input) {
+      return { fileList: input.fileList.map(fileID => ({ fileID, status: 0 })) };
+    },
+  };
+  const service = createService(store, { now: () => now, memberMediaStorage: createMemberMediaStorage(sdk, 'test-env') });
+  let seq = 0;
+  const rpc = async <T = any>(action: string, payload: Record<string, unknown>, identity: TrustedIdentity | null, expectedRevision?: number): Promise<T> => {
+    const res = await service.handle({ action, clubId: 'oradv', requestId: `cover-qa-${++seq}`, payload, expectedRevision }, identity);
+    if (!res.ok) throw Object.assign(new Error(res.error.message), { code: res.error.code });
+    return res.data as T;
+  };
+
+  // Ordinary member cannot upload club_public image
+  await assert.rejects(rpc('media.image.save', { purpose: 'club_public', label: '活动封面', imageBase64: PNG, rightsAcknowledged: true }, DEMO_IDENTITIES.member), { code: 'FORBIDDEN' });
+
+  // Operator (without content_admin) CAN upload club_public image for activity cover
+  const opCover = await rpc('media.image.save', { purpose: 'club_public', label: '翁牛特沙地封面', imageBase64: PNG, rightsAcknowledged: true }, DEMO_IDENTITIES.operator);
+  assert.match(opCover.id, /^media_[a-f0-9]{64}$/);
+
+  const draft = await rpc('staff.activity.save', {
+    title: '2026·年末封箱翁牛特 RUA 嘞',
+    description: '沙地穿越与冬日篝火封箱',
+    location: '赤峰翁牛特旗',
+    difficulty: '进阶',
+    startAt: '2026-12-05T01:00:00.000Z',
+    endAt: '2026-12-06T09:00:00.000Z',
+    applicationClosesAt: '2026-12-04T10:00:00.000Z',
+    capacity: 16,
+    minGrowthPoints: 0,
+    pointsRule: { growth: 100, annual: 100 },
+    requiredQualifications: [],
+    requiresReview: true,
+    safetyNotice: '低温风沙注意保暖与车距',
+    equipment: '全套越野护具与冬季内胆',
+    coverAssetId: opCover.id,
+  }, DEMO_IDENTITIES.operator);
+  assert.equal(draft.coverAssetId, opCover.id);
+  assert.match(draft.coverUrl, /^https:\/\/cdn\.example\.test\/club-public-assets\//);
+
+  const published = await rpc('staff.activity.publish', { activityId: draft.id }, DEMO_IDENTITIES.operator, draft.revision);
+  const publicList = await rpc('activity.list', {}, null);
+  const publicItem = publicList.items.find((x: { id: string }) => x.id === draft.id);
+  assert.equal(publicItem.coverAssetId, opCover.id);
+  assert.equal(publicItem.coverUrl, draft.coverUrl);
+  const publicDetail = await rpc('activity.get', { activityId: draft.id }, null);
+  assert.equal(publicDetail.coverUrl, draft.coverUrl);
+
+  // Primary owner (#0) revises published activity wording while retaining operator's custom cover, then replaces with a new uploaded cover, then clears back to preset
+  const retained = await rpc('staff.activity.content.save', {
+    activityId: draft.id,
+    title: '2026·年末封箱翁牛特 RUA 嘞（含行前补给）',
+    description: '沙地穿越与冬日篝火封箱，补充救援车说明',
+    reason: '主理人补充救援车说明，保留原自定义封面',
+    coverAssetId: opCover.id,
+  }, DEMO_IDENTITIES.owner, published.revision);
+  assert.equal(retained.coverUrl, draft.coverUrl);
+
+  const ownerCover = await rpc('media.image.save', { purpose: 'club_public', label: '新版航拍封面', imageBase64: PNG, rightsAcknowledged: true }, DEMO_IDENTITIES.owner);
+  const replaced = await rpc('staff.activity.content.save', {
+    activityId: draft.id,
+    title: retained.title,
+    description: retained.description,
+    reason: '更换为实拍航拍封面',
+    coverAssetId: ownerCover.id,
+  }, DEMO_IDENTITIES.owner, retained.revision);
+  assert.equal(replaced.coverAssetId, ownerCover.id);
+  assert.notEqual(replaced.coverUrl, draft.coverUrl);
+  assert.match(replaced.coverUrl, /^https:\/\/cdn\.example\.test\/club-public-assets\//);
+
+  const cleared = await rpc('staff.activity.content.save', {
+    activityId: draft.id,
+    title: retained.title,
+    description: retained.description,
+    reason: '切换回内置预设封面',
+    coverKey: 'dunes',
+    coverAssetId: null,
+  }, DEMO_IDENTITIES.owner, replaced.revision);
+  assert.equal(cleared.coverAssetId, null);
+  assert.equal(cleared.coverUrl, undefined);
+
+  // Backfilled past activity with custom cover appears in history.feed and history.detail with signed coverUrl
+  const pastCover = await rpc('media.image.save', { purpose: 'club_public', label: '往期秋山封面', imageBase64: PNG, rightsAcknowledged: true }, DEMO_IDENTITIES.owner);
+  const backfilled = await rpc('staff.activity.backfill', {
+    title: '2026·坝上金秋穿越回顾',
+    location: '丰宁坝上',
+    description: '金秋白桦林与草原沙地穿越档案',
+    startAt: '2026-10-02T01:00:00.000Z',
+    endAt: '2026-10-03T10:00:00.000Z',
+    actualCompletedAt: '2026-10-03T10:00:00.000Z',
+    growth: 120,
+    annual: 120,
+    coverAssetId: pastCover.id,
+  }, DEMO_IDENTITIES.owner);
+  assert.equal(backfilled.coverAssetId, pastCover.id);
+  const feed = await rpc('history.feed', {}, null);
+  const feedRow = feed.items.find((x: { activity: { id: string } }) => x.activity.id === backfilled.id);
+  assert.equal(feedRow.activity.coverAssetId, pastCover.id);
+  assert.match(feedRow.activity.coverUrl, /^https:\/\/cdn\.example\.test\/club-public-assets\//);
+  const histDetail = await rpc('history.detail', { activityId: backfilled.id }, null);
+  assert.equal(histDetail.activity.coverUrl, feedRow.activity.coverUrl);
+});
+
+test('CloudStore.read runs parallel point reads with zero transactions, memoryRateLimitForReads avoids rpc_limits contention on reads, and PG signed URLs cache & evict cleanly', async () => {
+  const { CloudStore } = await import('../../cloudfunctions/oradv/store');
+  const { createPgCompatibleStorageSdk } = await import('../../cloudfunctions/oradv/pg-storage-sdk');
+
+  let txCount = 0, activeGets = 0, peakGets = 0;
+  const db = {
+    collection: (col: string) => ({
+      doc: (id: string) => ({
+        get: async () => {
+          activeGets++;
+          peakGets = Math.max(peakGets, activeGets);
+          await new Promise(r => setTimeout(r, 5));
+          activeGets--;
+          return { data: { id, col } };
+        },
+        set: async () => ({}),
+      }),
+      where: () => db.collection(col),
+      orderBy: () => db.collection(col),
+      limit: () => db.collection(col),
+      get: async () => ({ data: [] }),
+    }),
+    runTransaction: async () => { txCount++; throw new Error('must not open transaction on read'); },
+    command: { and: (x: unknown[]) => x, or: (x: unknown[]) => x, eq: (x: unknown) => x, gt: (x: unknown) => x, lt: (x: unknown) => x },
+  };
+  const cloudStore = new CloudStore(db as any);
+  const docs = await cloudStore.read(tx => Promise.all(['a', 'b', 'c', 'd'].map(id => tx.get<{ id: string }>('users', id))));
+  assert.equal(txCount, 0, 'CloudStore.read opens zero transactions');
+  assert(peakGets >= 4, 'CloudStore.read dispatches concurrent point gets in parallel');
+  assert.deepEqual(docs.map(d => d?.id), ['a', 'b', 'c', 'd']);
+
+  const memStore = createDemoStore('2026-11-21T09:00:00.000Z');
+  const handler = createCloudHandler({
+    config: () => ({ envId: 'test-env', appId: 'wx0123456789abcdef', runtimeEnvId: 'test-env' }),
+    context: () => ({ OPENID: 'fast-reader', APPID: 'wx0123456789abcdef', ENV: 'test-env' }),
+    store: () => memStore,
+    memoryRateLimitForReads: true,
+    now: () => 1000,
+    invoke: async (_req, _id, traceId) => ({ ok: true, data: 'ok', traceId }),
+  });
+  const readRes = await handler({ action: 'activity.list', requestId: 'r-1', clubId: 'oradv', payload: {} });
+  assert.equal(readRes.ok, true);
+  assert.equal(Object.keys(memStore.snapshot().rpc_limits ?? {}).length, 0, 'read-only action uses in-memory limiter without rpc_limits transaction');
+  const writeRes = await handler({ action: 'profile.update', requestId: 'w-1', clubId: 'oradv', payload: { nickname: 'A' }, expectedRevision: 1 });
+  assert.equal(writeRes.ok, true);
+  assert.equal(Object.keys(memStore.snapshot().rpc_limits ?? {}).length, 1, 'mutating action still persists rpc_limits transactionally');
+
+  let signHttpCount = 0;
+  const pgSdk = createPgCompatibleStorageSdk({
+    envId: () => 'test-env',
+    forcePg: true,
+    credentials: () => ({ apiKey: 'test-bearer' }),
+    fetchImpl: (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const u = new URL(String(input));
+      if (init?.method === 'POST' && u.pathname.startsWith('/v1/storages/object/sign/')) {
+        signHttpCount++;
+        return new Response(JSON.stringify({ fullSignedURL: `https://cdn.example.test/signed-${signHttpCount}` }), { status: 200 });
+      }
+      if (init?.method === 'DELETE') return new Response('[]', { status: 200 });
+      throw new Error(`unexpected ${u.pathname}`);
+    }) as typeof fetch,
+  });
+  const fileID = `cloud://test-env/club-public-assets/${'1'.repeat(8)}-1111-1111-1111-${'1'.repeat(12)}.png`;
+  const s1 = await pgSdk.getTempFileURL({ fileList: [{ fileID, maxAge: 300 }] });
+  const s2 = await pgSdk.getTempFileURL({ fileList: [{ fileID, maxAge: 300 }] });
+  assert.equal(signHttpCount, 1, 'repeated getTempFileURL hits in-memory signed URL cache');
+  assert.equal(s1?.fileList[0].tempFileURL, s2?.fileList[0].tempFileURL, 'stable URL enables WeChat native image disk cache');
+  await pgSdk.deleteFile({ fileList: [fileID] });
+  await pgSdk.getTempFileURL({ fileList: [{ fileID, maxAge: 300 }] });
+  assert.equal(signHttpCount, 2, 'deleteFile evicts cached signed URL immediately');
+});

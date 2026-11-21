@@ -2,7 +2,7 @@ import { Context, collect, encodeCursor, paginated, parseCursor, refreshRankings
 import { DomainError, integer, requireThat, text } from './errors';
 import { completionIdFor, key, shanghaiYear, statsIdFor, yearRevisionIdFor } from './models';
 import type { LedgerEntry, MemberStats, Membership, PublicRanking, Registration, SettlementJob, User, YearRevision } from './models';
-import type { Transaction } from './store';
+import { readFrom, type Transaction } from './store';
 import { BETA_MAX_CAPACITY } from './limits';
 import { awardActivityWallet, reverseActivityWallet } from './points-wallet';
 
@@ -127,17 +127,21 @@ export async function reversePoints(ctx: Context) {
 export async function ownPoints(ctx: Context) {
   const year = ctx.request.payload.year === undefined ? shanghaiYear(ctx.now) : integer(ctx.request.payload.year, '年份', 2000);
   requireThat(year <= 2200, 'INVALID_INPUT', '年份不正确');
-  const summary = await ctx.store.transaction(async (tx) => ctx.summary(tx, await ctx.actor(tx), year));
+  const summary = await readFrom(ctx.store, async (tx) => {
+    await ctx.prefetchViewer(tx, year);
+    return ctx.summary(tx, await ctx.actor(tx), year);
+  });
   const rows = await ctx.store.query<LedgerEntry>('points_ledger', { clubId: ctx.clubId, memberId: summary.id, year }, { orderBy: 'effectiveAt', direction: 'desc', limit: 21, after: parseCursor(ctx.request.payload.cursor) });
   const page = paginated(rows, 'effectiveAt');
-  const items = await ctx.store.transaction(async (tx) => {
-    await ctx.actor(tx);
-    const result: LedgerEntry[] = [];
-    for (const row of page.items) {
-      const activity = await tx.get<{ title: string; clubId: string }>('activities', row.activityId);
-      result.push({ ...row, activityTitle: activity?.clubId === ctx.clubId ? activity.title : '俱乐部活动' });
-    }
-    return result;
+  const items = await readFrom(ctx.store, async (tx) => {
+    const [, activities] = await Promise.all([
+      ctx.actor(tx),
+      Promise.all(page.items.map(row => tx.get<{ title: string; clubId: string }>('activities', row.activityId))),
+    ]);
+    return page.items.map((row, idx) => {
+      const activity = activities[idx];
+      return { ...row, activityTitle: activity?.clubId === ctx.clubId ? activity.title : '俱乐部活动' };
+    });
   });
   return { memberId: summary.id, growthPoints: summary.growthPoints, annualPoints: summary.annualPoints, completedCount: summary.completedCount, year, ...page, items };
 }
@@ -190,21 +194,23 @@ export function rankingQuery(ctx: Context) {
 
 export async function listRankings(ctx: Context) {
   const { metric, year } = rankingQuery(ctx);
-  // Guests cannot read the board.
-  await ctx.store.transaction(async (tx) => { await ctx.actor(tx); });
-  const ranked = await rankingBoard(ctx, metric, year);
   const cursor = parseCursor(ctx.request.payload.cursor);
   const offset = cursor?.offset ?? 0;
   if (cursor) requireThat(Number.isInteger(offset) && offset >= 0 && offset <= 1000, 'INVALID_INPUT', '分页游标不正确');
+  // Guests cannot read the board.
+  await readFrom(ctx.store, async (tx) => { await ctx.actor(tx); });
+  const ranked = await rankingBoard(ctx, metric, year);
   const slice = ranked.slice(offset, offset + 20);
   // The projection may lag a deletion or an account change made elsewhere; re-check each displayed person live.
-  const liveEntries = await ctx.store.transaction(async (tx) => {
+  const liveEntries = await readFrom(ctx.store, async (tx) => {
+    const members = await Promise.all(slice.map(row => tx.get<Membership>('memberships', row.memberId)));
+    const valid = slice.map((row, idx) => ({ row, member: members[idx] }))
+      .filter((pair): pair is { row: BoardRow; member: Membership } => Boolean(pair.member?.clubId === ctx.clubId && pair.member.publicId === pair.row.memberPublicId));
+    const users = await Promise.all(valid.map(pair => tx.get<User>('users', pair.member.userId)));
     const entries: [string, { certifiedRider: boolean; badges: string[] }][] = [];
-    for (const row of slice) {
-      const member = await tx.get<Membership>('memberships', row.memberId);
-      if (member?.clubId !== ctx.clubId || member.publicId !== row.memberPublicId) continue;
-      const user = await tx.get<User>('users', member.userId);
-      if (user?.status === 'active') {
+    for (let idx = 0; idx < valid.length; idx++) {
+      const { row, member } = valid[idx];
+      if (users[idx]?.status === 'active') {
         const badges = normalizeMemberBadges(member.badges ?? row.badges, member.certifiedRider ?? row.certifiedRider);
         entries.push([row.id, { certifiedRider: badges.includes('certified_rider') || member.certifiedRider === true, badges }]);
       }
